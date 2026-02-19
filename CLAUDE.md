@@ -1,9 +1,9 @@
 # Project Rules for AI Assistant
 
 ## 프로젝트 개요
-- Spring Boot 3.5.9 기반 백엔드 API 템플릿
-- Java 17, MySQL, JPA, Flyway
-- 패키지: com.signaldecode.templatebackendapi
+- Spring Boot 3.5.9 기반 대성 키오스크 백엔드
+- Java 17, MySQL, Redis, JPA, Flyway
+- 패키지: com.moduletest.deasungkioskbackend
 
 ---
 
@@ -53,8 +53,16 @@ List<String> names = users.stream()
 
 **기타:**
 - 들여쓰기: 공백 4칸 (탭 금지)
-- 최대 줄 길이: 120자
+- 최대 줄 길이: 140자 (import, package, URL 제외)
 - import 순서: static → java/javax → 서드파티 → 프로젝트 내부
+
+### Checkstyle 규칙 (빌드 시 자동 검사)
+- `*` import 금지 (와일드카드 import 사용 X, 개별 import만 사용)
+- 미사용 import 금지
+- 중괄호 필수 (if, for, while 등 한 줄이어도 반드시 `{}` 사용)
+- 연산자/키워드 뒤 공백 필수 (WhitespaceAfter, WhitespaceAround)
+- modifier 순서: public → protected → private → abstract → static → final → transient → volatile → synchronized → native → strictfp
+- final이 될 수 있는 클래스는 final로 선언
 
 ---
 
@@ -85,25 +93,26 @@ List<String> names = users.stream()
 - sort: 정렬 기준 (예: sort=createdAt,desc)
 
 ### Response 구조
-**모든 API는 ApiResponse<T> 사용:**
+**모든 API는 CommonResponse<T> 사용:**
 ```java
 @Getter
-@Builder
-public class ApiResponse<T> {
-    private boolean success;
-    private T data;
-    private ErrorCode errorCode;
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class CommonResponse<T> {
+    private final boolean success;
+    private final T data;
+    private final ErrorDetail error;
 }
 ```
 
 **성공 응답:**
 ```java
-return ApiResponse.success(data);
+return CommonResponse.success(data);
 ```
 
 **실패 응답:**
 ```java
-return ApiResponse.error(ErrorCode.USER_NOT_FOUND);
+return CommonResponse.error(ErrorCode.USER_NOT_FOUND);
 ```
 
 ### Controller 작성
@@ -115,15 +124,15 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/{id}")
-    public ApiResponse<UserResponse> getUser(@PathVariable Long id) {
+    public CommonResponse<UserResponse> getUser(@PathVariable Long id) {
         UserResponse user = userService.getUser(id);
-        return ApiResponse.success(user);
+        return CommonResponse.success(user);
     }
 
     @PostMapping
-    public ApiResponse<UserResponse> createUser(@Valid @RequestBody UserRequest request) {
+    public CommonResponse<UserResponse> createUser(@Valid @RequestBody UserRequest request) {
         UserResponse user = userService.createUser(request);
-        return ApiResponse.success(user);
+        return CommonResponse.success(user);
     }
 }
 ```
@@ -189,21 +198,24 @@ public class UserController {
 
 ### 패키지 구조
 ```
-com.signaldecode.templatebackendapi/
-├── common/
-│   ├── config/          # 설정 (Swagger, P6Spy 등)
+com.moduletest.deasungkioskbackend/
+├── global/
+│   ├── config/          # 설정 (Security, Swagger, P6Spy, CORS 등)
+│   ├── entity/          # BaseTimeEntity
 │   ├── exception/       # 예외 처리
-│   └── response/        # 응답 포맷
-└── {domain}/
-    ├── controller/
-    ├── dto/
-    ├── entity/
-    ├── repository/
-    └── service/
+│   ├── dto/             # CommonResponse
+│   └── security/        # JWT 관련
+└── domain/
+    └── {도메인}/
+        ├── controller/
+        ├── dto/
+        ├── entity/
+        ├── repository/
+        └── service/
 ```
 
 ### 계층 구조
-- Controller: HTTP 요청/응답 처리, ApiResponse 반환
+- Controller: HTTP 요청/응답 처리, CommonResponse 반환
 - Service: 비즈니스 로직
 - Repository: 데이터 접근
 - Entity: JPA 엔티티
@@ -237,7 +249,7 @@ com.signaldecode.templatebackendapi/
 ## 코드 작성 시 주의사항
 
 ### 필수 사항
-1. 모든 API는 ApiResponse<T> 사용
+1. 모든 API는 CommonResponse<T> 사용
 2. ErrorCode enum으로 에러 처리
 3. 메서드 체이닝은 한 줄에 하나씩
 4. 메서드명은 명확하게 (get 대신 findUserById)

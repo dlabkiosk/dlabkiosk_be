@@ -1,4 +1,4 @@
-version: "3.9"
+name: deasung-kiosk
 
 services:
   mysql:
@@ -14,5 +14,13 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
 
+  redis:
+    image: redis:7
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+
 volumes:
   mysql-data:
+  redis-data:

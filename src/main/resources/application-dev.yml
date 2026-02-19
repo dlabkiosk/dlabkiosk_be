@@ -1,8 +1,11 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
+
   datasource:
-    url: jdbc:mysql://localhost:3310/app?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
-    username: app
-    password: app
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -15,6 +18,16 @@ spring:
 
   flyway:
     enabled: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+
+decorator:
+  datasource:
+    p6spy:
+      enable-logging: true
 
 server:
   port: 8080
