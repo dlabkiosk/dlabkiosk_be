@@ -8,4 +8,4 @@ public record StoreUpdateRequest(
     String address,
     String phone,
     @NotNull(message = "활성화 여부는 필수 입력 항목입니다") Boolean active
-) {}
+) { }

@@ -54,7 +54,7 @@ public class AuthService {
             String.valueOf(adminUser.getId())
         );
 
-        return new String[] {accessToken,refreshToken};
+        return new String[] {accessToken, refreshToken};
     }
 
 
