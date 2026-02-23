@@ -52,6 +52,7 @@ public class StoreService {
             .address(request.address())
             .phone(request.phone())
             .active(true)
+            .kioskPin(request.kioskPin())
             .build();
         Store savedStore = storeRepository.save(store);
         return StoreResponse.fromEntity(savedStore);
@@ -63,6 +64,10 @@ public class StoreService {
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
         store.updateInfo(request.storeName(), request.address(), request.phone(), request.active());
+
+        if (request.kioskPin() != null) {
+            store.updateKioskPin(request.kioskPin());
+        }
 
         return StoreResponse.fromEntity(store);
     }

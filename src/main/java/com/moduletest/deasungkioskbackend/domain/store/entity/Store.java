@@ -38,14 +38,18 @@ public class Store extends BaseTimeEntity {
     @Column(name = "is_active", nullable = false)
     private boolean active;
 
+    @Column(name = "kiosk_pin", nullable = false, length = 10)
+    private String kioskPin;
 
     @Builder
-    public Store(String storeName, String storeCode, String address, String phone, boolean active) {
+    public Store(String storeName, String storeCode, String address, String phone,
+                 boolean active, String kioskPin) {
         this.storeName = storeName;
         this.storeCode = storeCode;
         this.address = address;
         this.phone = phone;
         this.active = active;
+        this.kioskPin = kioskPin != null ? kioskPin : "0000";
     }
 
     public void updateInfo(String storeName, String address, String phone, boolean active) {
@@ -53,6 +57,10 @@ public class Store extends BaseTimeEntity {
         this.address = address;
         this.phone = phone;
         this.active = active;
+    }
+
+    public void updateKioskPin(String kioskPin) {
+        this.kioskPin = kioskPin;
     }
 
 

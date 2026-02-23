@@ -9,6 +9,8 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     Optional<Student> findByQrUuid(String qrUuid);
 
+    Optional<Student> findByRfidUid(String rfidUid);
+
     boolean existsByPhone(String phone);
 
     List<Student> findAllByStoreId(Long storeId);

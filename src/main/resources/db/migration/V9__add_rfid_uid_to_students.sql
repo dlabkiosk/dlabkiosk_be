@@ -1,0 +1,1 @@
+ALTER TABLE students ADD COLUMN rfid_uid VARCHAR(50) UNIQUE;

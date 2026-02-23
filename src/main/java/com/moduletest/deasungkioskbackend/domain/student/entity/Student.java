@@ -42,13 +42,18 @@ public class Student extends BaseTimeEntity {
     @Column(nullable = false, length = 20)
     private String grade;
 
+    @Column(name = "rfid_uid", unique = true, length = 50)
+    private String rfidUid;
+
     @Builder
-    public Student(Store store, String name, String phone, String qrUuid, String grade) {
+    public Student(Store store, String name, String phone, String qrUuid,
+                   String grade, String rfidUid) {
         this.store = store;
         this.name = name;
         this.phone = phone;
         this.qrUuid = qrUuid;
         this.grade = grade;
+        this.rfidUid = rfidUid;
     }
 
     public void updateInfo(String name, String phone, String grade, Store store) {
@@ -56,5 +61,9 @@ public class Student extends BaseTimeEntity {
         this.phone = phone;
         this.grade = grade;
         this.store = store;
+    }
+
+    public void updateRfidUid(String rfidUid) {
+        this.rfidUid = rfidUid;
     }
 }

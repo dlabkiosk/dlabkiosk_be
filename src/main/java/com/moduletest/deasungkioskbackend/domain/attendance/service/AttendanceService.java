@@ -8,6 +8,7 @@ import com.moduletest.deasungkioskbackend.domain.attendance.entity.Attendance;
 import com.moduletest.deasungkioskbackend.domain.attendance.entity.AttendanceStatus;
 import com.moduletest.deasungkioskbackend.domain.attendance.exception.AttendanceException;
 import com.moduletest.deasungkioskbackend.domain.attendance.repository.AttendanceRepository;
+import com.moduletest.deasungkioskbackend.domain.kiosk.exception.KioskException;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.exception.StudentException;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
@@ -27,9 +28,10 @@ public class AttendanceService {
     private final StudentRepository studentRepository;
 
     @Transactional
-    public AttendanceResponse checkIn(CheckInRequest request) {
-        Student student = studentRepository.findByQrUuid(request.qrUuid())
-            .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND_BY_QR));
+    public AttendanceResponse checkIn(CheckInRequest request, Long storeId) {
+        Student student = resolveStudent(request.qrUuid(), request.rfidUid());
+
+        validateStudentStore(student, storeId);
 
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
@@ -55,9 +57,10 @@ public class AttendanceService {
     }
 
     @Transactional
-    public AttendanceResponse checkOut(CheckOutRequest request) {
-        Student student = studentRepository.findByQrUuid(request.qrUuid())
-            .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND_BY_QR));
+    public AttendanceResponse checkOut(CheckOutRequest request, Long storeId) {
+        Student student = resolveStudent(request.qrUuid(), request.rfidUid());
+
+        validateStudentStore(student, storeId);
 
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
@@ -70,5 +73,23 @@ public class AttendanceService {
 
         attendance.checkOut(LocalDateTime.now());
         return AttendanceResponse.fromEntity(attendance);
+    }
+
+    private Student resolveStudent(String qrUuid, String rfidUid) {
+        if (qrUuid != null && !qrUuid.isBlank()) {
+            return studentRepository.findByQrUuid(qrUuid)
+                .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND_BY_QR));
+        }
+        if (rfidUid != null && !rfidUid.isBlank()) {
+            return studentRepository.findByRfidUid(rfidUid)
+                .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND_BY_RFID));
+        }
+        throw new AttendanceException(ErrorCode.INVALID_CHECK_IN_REQUEST);
+    }
+
+    private void validateStudentStore(Student student, Long storeId) {
+        if (!student.getStore().getId().equals(storeId)) {
+            throw new KioskException(ErrorCode.STUDENT_NOT_IN_THIS_STORE);
+        }
     }
 }
