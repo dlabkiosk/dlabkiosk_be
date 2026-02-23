@@ -199,17 +199,19 @@ public class UserController {
 ### 패키지 구조
 ```
 com.moduletest.deasungkioskbackend/
-├── global/
+├── common/
 │   ├── config/          # 설정 (Security, Swagger, P6Spy, CORS 등)
 │   ├── entity/          # BaseTimeEntity
 │   ├── exception/       # 예외 처리
 │   ├── dto/             # CommonResponse
-│   └── security/        # JWT 관련
+│   ├── security/        # JWT 관련
+│   └── util/            # 유틸리티 (CookieUtil 등)
 └── domain/
     └── {도메인}/
         ├── controller/
         ├── dto/
         ├── entity/
+        ├── exception/
         ├── repository/
         └── service/
 ```

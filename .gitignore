@@ -46,5 +46,9 @@ out/
 .DS_Store
 Thumbs.db
 
+### Claude Code ###
+.claude/
+CLAUDE.local.md
+
 ### Logs ###
 *.log

@@ -9,7 +9,7 @@
 | 캐시 | Redis 7 (Docker)                     |
 | 인증 | Spring Security + JWT (jjwt)         |
 | 파일 저장 | AWS S3 + CloudFront                  |
-| 실시간 통신 | SSE (Server-Sent Events)             |
+| 좌석 상태 캐싱 | Redis Hash + 폴링                   |
 | DB 마이그레이션 | Flyway                               |
 | SQL 로깅 | P6Spy (local 프로필만)                   |
 | 엑셀 | Apache POI (SXSSFWorkbook)           |
@@ -34,7 +34,7 @@ com.moduletest.deasungkioskbackend
 │   ├── kiosksetting/    # 배리어프리 설정
 │   ├── student/         # 학생 관리
 │   ├── attendance/      # QR 출석 (등/하원)
-│   ├── seat/            # 좌석 관리 + SSE 실시간 push
+│   ├── seat/            # 좌석 관리 + Redis 캐싱 (폴링)
 │   ├── meal/            # 식단표 (S3 이미지 + Redis 캐시)
 │   └── report/          # 엑셀 리포트
 ```
@@ -117,16 +117,31 @@ com.moduletest.deasungkioskbackend
 - [ ] `POST /api/v1/attendance/check-in` — QR 스캔 → 등원
 - [ ] `POST /api/v1/attendance/check-out` — 하원
 
-### Phase 5: 좌석 관리 + Redis + SSE
+### Phase 5: 좌석 관리 + Redis 캐싱 (폴링)
 
-- [ ] `V6__create_seats.sql` — seat_label, seat_type, x_pos, y_pos, is_active
-- [ ] `V7__create_seat_usages.sql` — seat_id, student_id, status, started_at, ended_at
-- [ ] `RedisConfig` — RedisTemplate, RedisCacheManager
-- [ ] Redis Hash `seat:status:{storeId}` — 현재 좌석 상태
-- [ ] `SeatSseService` — 지점별 SSE Emitter 관리 (ConcurrentHashMap)
-- [ ] `GET /api/v1/stores/{storeId}/seats` — 전체 좌석 현황
-- [ ] `GET /api/v1/stores/{storeId}/seats/stream` — SSE 연결
-- [ ] 좌석 입실/퇴실 → DB 저장 → Redis 갱신 → SSE push
+SSE 대신 폴링 방식 채택. 키오스크가 5~10초마다 조회 API 호출.
+- 소규모(지점당 3~4대)에서는 폴링이 단순하고 충분
+- 대규모에서도 폴링이 유리 (stateless, 스케일아웃 자유, 배포 시 영향 없음)
+- Redis는 좌석 현재 상태 캐싱용. DB는 기록(히스토리)용
+
+좌석 배치도:
+- x_pos, y_pos는 캔버스 상의 픽셀 좌표
+- 관리자 웹에서 드래그로 좌석 배치 → 좌표 저장 (프론트: react-draggable 등)
+- 키오스크에서 저장된 좌표 그대로 렌더링하면 배치도 완성
+- 백엔드는 좌표를 저장/반환만 담당
+
+동시성 제어 (보상 트랜잭션):
+- Redis HSETNX로 좌석 원자적 선점 → DB 저장 → DB 실패 시 Redis 롤백
+
+- [ ] `V6__create_seats.sql` — seat_label, seat_type, x_pos(픽셀), y_pos(픽셀), is_active
+- [ ] `V7__create_seat_usages.sql` — seat_id, student_id, store_id, status, started_at, ended_at
+- [ ] `RedisConfig` — RedisTemplate<String, String>
+- [ ] Redis Hash `seat:status:{storeId}` — 현재 좌석 상태 (AVAILABLE / IN_USE:{studentId}:{studentName})
+- [ ] `SeatRedisWarmUpRunner` — 서버 기동 시 DB → Redis 초기화 (연결 실패해도 서버 정상 기동)
+- [ ] `GET /api/v1/stores/{storeId}/seats` — 좌석 현황 (Redis 조회, 폴링용)
+- [ ] `POST /api/v1/seats/{seatId}/check-in` — 좌석 입실 (QR + Redis 선점 + DB 저장)
+- [ ] `POST /api/v1/seats/{seatId}/check-out` — 좌석 퇴실 (DB 종료 + Redis 갱신)
+- [ ] 어드민 CRUD: `POST/GET/PUT/DELETE /api/v1/admin/seats`
 
 ### Phase 6: 식단표 (S3 + Redis 캐시)
 
@@ -153,7 +168,7 @@ Phase 0 (기반)
   → Phase 2 (지점)
     → Phase 3 (키오스크 설정)  ← 독립
     → Phase 4 (학생 + QR)     ← 독립
-    → Phase 5 (좌석 + SSE)    ← 독립
+    → Phase 5 (좌석 + Redis)   ← 독립
     → Phase 6 (식단표)        ← 독립
       → Phase 7 (엑셀) ← Phase 4, 5 데이터 필요
 ```
@@ -169,7 +184,9 @@ Phase 3~6은 서로 독립적 — 순서 변경 가능
 | `POST /api/v1/auth/login` | X | 로그인 |
 | `GET /api/v1/stores/{id}` | X | 키오스크 지점 정보 |
 | `GET /api/v1/stores/{id}/kiosk-settings` | X | 키오스크 접근성 설정 |
-| `GET /api/v1/stores/{id}/seats/**` | X | 키오스크 좌석 조회/SSE |
+| `GET /api/v1/stores/{id}/seats` | X | 키오스크 좌석 현황 (폴링) |
+| `POST /api/v1/seats/{id}/check-in` | X | 키오스크 좌석 입실 |
+| `POST /api/v1/seats/{id}/check-out` | X | 키오스크 좌석 퇴실 |
 | `GET /api/v1/stores/{id}/meal-plans` | X | 키오스크 식단 조회 |
 | `POST /api/v1/attendance/**` | X | 키오스크 QR 체크인/아웃 |
 | `/api/v1/admin/**` | JWT 필수 | 모든 어드민 기능 |
