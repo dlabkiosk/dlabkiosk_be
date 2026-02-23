@@ -40,8 +40,5 @@ public class AdminUser extends BaseTimeEntity {
         this.name = name;
         this.role = role;
     }
-
-
-    
     
 }

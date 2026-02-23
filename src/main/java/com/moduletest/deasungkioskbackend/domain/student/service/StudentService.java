@@ -59,6 +59,7 @@ public class StudentService {
             .phone(request.phone())
             .qrUuid(UUID.randomUUID().toString())
             .grade(request.grade())
+            .rfidUid(request.rfidUid())
             .build();
 
         Student savedStudent = studentRepository.save(student);
@@ -74,6 +75,11 @@ public class StudentService {
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
         student.updateInfo(request.name(), request.phone(), request.grade(), store);
+
+        if (request.rfidUid() != null) {
+            student.updateRfidUid(request.rfidUid());
+        }
+
         return StudentResponse.fromEntity(student);
     }
 

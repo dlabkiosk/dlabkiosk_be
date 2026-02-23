@@ -45,6 +45,19 @@ public class JwtTokenProvider {
             .compact();
     }
 
+    public String createKioskToken(Long storeId, String storeCode) {
+        Date now = new Date();
+
+        return Jwts.builder()
+            .subject(String.valueOf(storeId))
+            .claim("storeCode", storeCode)
+            .claim("role", "KIOSK")
+            .issuedAt(now)
+            .expiration(new Date(now.getTime() + accessExpiration))
+            .signWith(secretKey)
+            .compact();
+    }
+
 
     public String createRefreshToken(String userId) {
         Date now = new Date();

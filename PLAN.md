@@ -7,13 +7,14 @@
 | 백엔드 | Spring Boot 3.5.9 / Java 17 / Gradle |
 | DB | MySQL 8.0                            |
 | 캐시 | Redis 7 (Docker)                     |
-| 인증 | Spring Security + JWT (jjwt)         |
+| 인증 | Spring Security + JWT (jjwt) — 관리자(ADMIN) + 키오스크(KIOSK) 이중 인증 |
 | 파일 저장 | AWS S3 + CloudFront                  |
 | 좌석 상태 캐싱 | Redis Hash + 폴링                   |
 | DB 마이그레이션 | Flyway                               |
 | SQL 로깅 | P6Spy (local 프로필만)                   |
 | 엑셀 | Apache POI (SXSSFWorkbook)           |
 | QR 생성 | ZXing                                |
+| 학생 인식 | QR (UUID) + RFID (HID 방식 카드 리더기)   |
 | 기타 | Lombok, Jakarta Validation           |
 
 ---
@@ -22,24 +23,26 @@
 
 ```
 com.moduletest.deasungkioskbackend
-├── global/
-│   ├── config/          # SecurityConfig, RedisConfig, S3Config, WebConfig
+├── common/
+│   ├── config/          # SecurityConfig, RedisConfig, SwaggerConfig, WebConfig
 │   ├── entity/          # BaseTimeEntity (createdAt, updatedAt)
 │   ├── exception/       # ErrorCode, BusinessException, GlobalExceptionHandler
-│   ├── dto/             # ApiResponse (통일 응답 포맷)
-│   └── security/        # JwtTokenProvider, JwtAuthenticationFilter
+│   ├── dto/             # CommonResponse (통일 응답 포맷)
+│   ├── security/        # JwtTokenProvider, JwtAuthenticationFilter
+│   └── util/            # CookieUtil
 ├── domain/
 │   ├── admin/           # 관리자 인증 (로그인, JWT)
-│   ├── store/           # 지점 CRUD
-│   ├── kiosksetting/    # 배리어프리 설정
-│   ├── student/         # 학생 관리
-│   ├── attendance/      # QR 출석 (등/하원)
+│   ├── kiosk/           # 키오스크 인증 (지점 로그인, JWT)
+│   ├── store/           # 지점 CRUD + kioskPin
+│   ├── student/         # 학생 관리 (QR UUID + RFID UID)
+│   ├── attendance/      # QR/RFID 출석 (등/하원)
+│   ├── outing/          # 학생 외출/복귀
 │   ├── seat/            # 좌석 관리 + Redis 캐싱 (폴링)
 │   ├── meal/            # 식단표 (S3 이미지 + Redis 캐시)
 │   └── report/          # 엑셀 리포트
 ```
 
-각 domain 모듈: `controller / service / repository / entity / dto`
+각 domain 모듈: `controller / service / repository / entity / dto / exception`
 
 ---
 
@@ -49,16 +52,19 @@ com.moduletest.deasungkioskbackend
 - 네이밍: `V{버전}__{설명}.sql`
 - `ddl-auto: validate` — Flyway가 스키마 관리, Hibernate는 검증만
 
-| 파일 | 테이블 |
+| 파일 | 내용 |
 |---|---|
-| `V1__create_stores.sql` | stores |
-| `V2__create_admin_users.sql` | admin_users |
-| `V3__create_kiosk_settings.sql` | kiosk_settings |
-| `V4__create_students.sql` | students |
-| `V5__create_attendances.sql` | attendances |
-| `V6__create_seats.sql` | seats |
-| `V7__create_seat_usages.sql` | seat_usages |
-| `V8__create_meal_plans.sql` | meal_plans |
+| `V1__create_stores.sql` | stores 테이블 + 테스트 데이터 5개 |
+| `V2__create_admin_users.sql` | admin_users 테이블 |
+| `V3` | (보류 — Phase 3 배리어프리용) |
+| `V4__create_students.sql` | students 테이블 + 테스트 데이터 10명 |
+| `V5__create_attendances.sql` | attendances 테이블 |
+| `V6__create_seats.sql` | seats 테이블 + 테스트 데이터 8개 |
+| `V7__create_seat_usages.sql` | seat_usages 테이블 |
+| `V8__add_kiosk_pin_to_stores.sql` | stores에 kiosk_pin 컬럼 추가 |
+| `V9__add_rfid_uid_to_students.sql` | students에 rfid_uid 컬럼 추가 |
+| `V10__create_meal_plans.sql` | meal_plans 테이블 (Phase 6) |
+| `V11__create_outings.sql` | outings 테이블 (Phase 4.6) |
 
 ---
 
@@ -74,48 +80,73 @@ com.moduletest.deasungkioskbackend
 
 ### Phase 0: 프로젝트 기반 인프라
 
-- [ ] `build.gradle` — 전체 의존성 추가
-- [ ] `application.yml` + 프로필별 설정 (`local`, `prod`, `test`)
-- [ ] `docker-compose.yml` (MySQL 8.0 + Redis 7)
-- [ ] `BaseTimeEntity` — JPA Auditing (createdAt, updatedAt)
-- [ ] `ApiResponse<T>` — 통일 응답 포맷 `{success, data, error, timestamp}`
-- [ ] `ErrorCode` / `BusinessException` / `GlobalExceptionHandler`
-- [ ] CORS 설정
-- [ ] Flyway 설정
-- [ ] P6Spy 설정 (`spy.properties`)
+- [x] `build.gradle` — 전체 의존성 추가
+- [x] `application.yml` + 프로필별 설정 (`local`, `prod`, `test`)
+- [x] `docker-compose.yml` (MySQL 8.0 + Redis 7)
+- [x] `BaseTimeEntity` — JPA Auditing (createdAt, updatedAt)
+- [x] `CommonResponse<T>` — 통일 응답 포맷
+- [x] `ErrorCode` / `BusinessException` / `GlobalExceptionHandler`
+- [x] CORS 설정
+- [x] Flyway 설정
+- [x] P6Spy 설정
 
 ### Phase 1: 관리자 인증 (JWT)
 
-- [ ] `V2__create_admin_users.sql` — email, password(BCrypt), name, role
-- [ ] `AdminUser` 엔티티 + Repository
-- [ ] `JwtTokenProvider` — 토큰 생성/검증/클레임 추출
-- [ ] `JwtAuthenticationFilter` — OncePerRequestFilter
-- [ ] `SecurityConfig` — stateless 세션, 공개/보호 엔드포인트 분리
-- [ ] `POST /api/v1/auth/login` → JWT 발급
+- [x] `V2__create_admin_users.sql` — login_id, password(BCrypt), name, role
+- [x] `AdminUser` 엔티티 + Repository
+- [x] `JwtTokenProvider` — 토큰 생성/검증/클레임 추출 + `createKioskToken()`
+- [x] `JwtAuthenticationFilter` — OncePerRequestFilter
+- [x] `SecurityConfig` — stateless, ADMIN/KIOSK 역할 분리
+- [x] `POST /api/admin/auth/login` → JWT 발급
+- [x] `POST /api/admin/auth/signup` → 관리자 등록
 
 ### Phase 2: 지점 관리
 
-- [ ] `V1__create_stores.sql` — store_name, address, phone, is_active
-- [ ] `Store` 엔티티 + Repository
-- [ ] 어드민 CRUD: `POST/GET/PUT/DELETE /api/v1/admin/stores`
-- [ ] 키오스크 공개 조회: `GET /api/v1/stores/{storeId}`
+- [x] `V1__create_stores.sql` — store_name, store_code, address, phone, is_active
+- [x] `V8__add_kiosk_pin_to_stores.sql` — kiosk_pin 컬럼 추가
+- [x] `Store` 엔티티 (kioskPin 포함) + Repository
+- [x] 어드민 CRUD: `POST/GET/PUT/DELETE /api/v1/admin/stores` (kioskPin 설정 가능)
+- [x] 키오스크 공개 조회: `GET /api/v1/stores/{storeCode}`
 
-### Phase 3: 키오스크 설정 (배리어프리)
+### Phase 3: 키오스크 설정 (배리어프리) ⏭️ 보류
 
-- [ ] `V3__create_kiosk_settings.sql` — barrier_free, tts_enabled, high_contrast, default_font_size
-- [ ] `KioskSetting` 엔티티 (Store 1:1)
-- [ ] 키오스크 공개 조회: `GET /api/v1/stores/{storeId}/kiosk-settings`
-- [ ] 어드민 수정: `PUT /api/v1/admin/stores/{storeId}/kiosk-settings`
+- 배리어프리/TTS/고대비/글자크기는 클라이언트 UI 설정이므로 나중으로 미룸
 
-### Phase 4: 학생 관리 + QR 출석
+### Phase 4: 학생 관리 + QR/RFID 출석
 
-- [ ] `V4__create_students.sql` — name, phone, qr_uuid(UNIQUE), grade, store_id
-- [ ] `V5__create_attendances.sql` — student_id, store_id, check_in_at, check_out_at, status
-- [ ] `Student` 엔티티 + CRUD (어드민)
-- [ ] `QrCodeService` — ZXing으로 UUID → QR PNG 생성
-- [ ] `GET /api/v1/admin/students/{studentId}/qr` → QR 이미지 다운로드
-- [ ] `POST /api/v1/attendance/check-in` — QR 스캔 → 등원
-- [ ] `POST /api/v1/attendance/check-out` — 하원
+- [x] `V4__create_students.sql` — name, phone, qr_uuid(UNIQUE), grade, store_id
+- [x] `V5__create_attendances.sql` — student_id, store_id, check_in_at, check_out_at, status
+- [x] `V9__add_rfid_uid_to_students.sql` — rfid_uid(UNIQUE, nullable) 컬럼 추가
+- [x] `Student` 엔티티 (qrUuid + rfidUid) + CRUD (어드민)
+- [x] `QrCodeService` — ZXing으로 UUID → QR PNG 생성
+- [x] `GET /api/v1/admin/students/{studentId}/qr` → QR 이미지 다운로드
+- [x] `POST /api/v1/kiosk/attendance/check-in` — QR 또는 RFID → 등원 (KIOSK 인증 필요)
+- [x] `POST /api/v1/kiosk/attendance/check-out` — 하원 (KIOSK 인증 필요)
+- [x] 출석 시 학생 지점 소속 검증 (다른 지점 학생 거부)
+
+### Phase 4.5: 키오스크 인증 (지점별 로그인)
+
+- [x] `KioskLoginRequest` (storeCode + kioskPin)
+- [x] `KioskLoginResponse` (storeId, storeName, storeCode)
+- [x] `KioskAuthService` — 지점 코드 + PIN 검증 → JWT 발급 (role=KIOSK, subject=storeId)
+- [x] `KioskAuthController`: `POST /api/v1/kiosk/auth/login` (공개)
+- [x] `SecurityConfig` — `/api/v1/kiosk/auth/**` 공개, `/api/v1/kiosk/**` KIOSK 역할 필요
+- [x] 키오스크 API에서 storeId를 토큰에서 자동 추출
+
+### Phase 4.6: 학생 외출/복귀
+
+- [x] `V11__create_outings.sql` — student_id, store_id, reason, started_at, ended_at
+- [x] `Outing` 엔티티 + `OutingRepository` (당일 진행 중 외출 조회 JPQL)
+- [x] `OutingException` (도메인별 예외 분리)
+- [x] `OutingStartRequest` (qrUuid + rfidUid + reason 선택)
+- [x] `OutingEndRequest` (qrUuid + rfidUid)
+- [x] `OutingResponse` (fromEntity)
+- [x] `OutingService` — 외출 시작/종료 + 좌석 Redis 상태 연동 (OUTING ↔ IN_USE)
+- [x] `OutingController`: `POST /api/v1/kiosk/outings/start`, `POST /api/v1/kiosk/outings/end` (KIOSK 인증 필요)
+- [x] `SeatRedisService` — `markSeatOuting()`, `markSeatInUse()` 추가
+- [x] `SeatStatusResponse` — `outing` 필드 추가 (좌석 배치도에서 외출 중 표시)
+- [x] `SeatService` — OUTING: 접두사 파싱 추가
+- [x] ErrorCode 추가: OT001(미등원), OT002(이미 외출 중), OT003(외출 기록 없음)
 
 ### Phase 5: 좌석 관리 + Redis 캐싱 (폴링)
 
@@ -133,24 +164,28 @@ SSE 대신 폴링 방식 채택. 키오스크가 5~10초마다 조회 API 호출
 동시성 제어 (보상 트랜잭션):
 - Redis HSETNX로 좌석 원자적 선점 → DB 저장 → DB 실패 시 Redis 롤백
 
-- [ ] `V6__create_seats.sql` — seat_label, seat_type, x_pos(픽셀), y_pos(픽셀), is_active
-- [ ] `V7__create_seat_usages.sql` — seat_id, student_id, store_id, status, started_at, ended_at
-- [ ] `RedisConfig` — RedisTemplate<String, String>
-- [ ] Redis Hash `seat:status:{storeId}` — 현재 좌석 상태 (AVAILABLE / IN_USE:{studentId}:{studentName})
-- [ ] `SeatRedisWarmUpRunner` — 서버 기동 시 DB → Redis 초기화 (연결 실패해도 서버 정상 기동)
-- [ ] `GET /api/v1/stores/{storeId}/seats` — 좌석 현황 (Redis 조회, 폴링용)
-- [ ] `POST /api/v1/seats/{seatId}/check-in` — 좌석 입실 (QR + Redis 선점 + DB 저장)
-- [ ] `POST /api/v1/seats/{seatId}/check-out` — 좌석 퇴실 (DB 종료 + Redis 갱신)
-- [ ] 어드민 CRUD: `POST/GET/PUT/DELETE /api/v1/admin/seats`
+Redis 좌석 상태 값 형식:
+- `IN_USE:{studentId}:{studentName}` — 사용 중
+- `OUTING:{studentId}:{studentName}` — 외출 중 (좌석 유지)
+
+- [x] `V6__create_seats.sql` — seat_label, seat_type, x_pos(픽셀), y_pos(픽셀), is_active
+- [x] `V7__create_seat_usages.sql` — seat_id, student_id, store_id, status, started_at, ended_at
+- [x] `RedisConfig` — RedisTemplate<String, String>
+- [x] Redis Hash `seat:status:{storeId}` — 현재 좌석 상태
+- [x] `SeatRedisWarmUpRunner` — 서버 기동 시 DB → Redis 초기화 (연결 실패해도 서버 정상 기동)
+- [x] `GET /api/v1/kiosk/seats` — 좌석 현황 (Redis 조회, 폴링용, storeId 토큰에서)
+- [x] `POST /api/v1/kiosk/seats/{seatId}/check-in` — 좌석 입실 (QR/RFID + Redis 선점 + DB 저장)
+- [x] `POST /api/v1/kiosk/seats/{seatId}/check-out` — 좌석 퇴실 (DB 종료 + Redis 갱신)
+- [x] 어드민 CRUD: `POST/GET/PUT/DELETE /api/v1/admin/seats`
 
 ### Phase 6: 식단표 (S3 + Redis 캐시)
 
-- [ ] `V8__create_meal_plans.sql` — store_id, meal_date, meal_type, image_url, description
+- [ ] `V10__create_meal_plans.sql` — store_id, meal_date, meal_type, image_url, description
 - [ ] `S3Config` — S3Client bean
 - [ ] `FileStorageService` — S3 업로드 + CloudFront URL 반환
 - [ ] `@Cacheable`/`@CacheEvict` — Redis 캐시 (TTL 1시간)
 - [ ] 어드민 CRUD + 이미지 업로드
-- [ ] 키오스크 조회: `GET /api/v1/stores/{storeId}/meal-plans?date=`
+- [ ] 키오스크 조회: `GET /api/v1/kiosk/meal-plans` (storeId 토큰에서)
 
 ### Phase 7: 엑셀 리포트
 
@@ -164,16 +199,16 @@ SSE 대신 폴링 방식 채택. 키오스크가 5~10초마다 조회 API 호출
 
 ```
 Phase 0 (기반)
-  → Phase 1 (인증)
+  → Phase 1 (관리자 인증)
   → Phase 2 (지점)
-    → Phase 3 (키오스크 설정)  ← 독립
-    → Phase 4 (학생 + QR)     ← 독립
-    → Phase 5 (좌석 + Redis)   ← 독립
-    → Phase 6 (식단표)        ← 독립
+    → Phase 4 (학생 + QR/RFID)
+    → Phase 4.5 (키오스크 인증)
+    → Phase 4.6 (외출/복귀)
+    → Phase 5 (좌석 + Redis)
+    → Phase 6 (식단표)
       → Phase 7 (엑셀) ← Phase 4, 5 데이터 필요
+  Phase 3 (배리어프리) — 보류, 필요 시 복귀
 ```
-
-Phase 3~6은 서로 독립적 — 순서 변경 가능
 
 ---
 
@@ -181,22 +216,34 @@ Phase 3~6은 서로 독립적 — 순서 변경 가능
 
 | 경로 | 인증 | 용도 |
 |---|---|---|
-| `POST /api/v1/auth/login` | X | 로그인 |
-| `GET /api/v1/stores/{id}` | X | 키오스크 지점 정보 |
-| `GET /api/v1/stores/{id}/kiosk-settings` | X | 키오스크 접근성 설정 |
-| `GET /api/v1/stores/{id}/seats` | X | 키오스크 좌석 현황 (폴링) |
-| `POST /api/v1/seats/{id}/check-in` | X | 키오스크 좌석 입실 |
-| `POST /api/v1/seats/{id}/check-out` | X | 키오스크 좌석 퇴실 |
-| `GET /api/v1/stores/{id}/meal-plans` | X | 키오스크 식단 조회 |
-| `POST /api/v1/attendance/**` | X | 키오스크 QR 체크인/아웃 |
-| `/api/v1/admin/**` | JWT 필수 | 모든 어드민 기능 |
+| `POST /api/admin/auth/login` | X | 관리자 로그인 |
+| `POST /api/admin/auth/signup` | X | 관리자 회원가입 |
+| `GET /api/v1/stores/{storeCode}` | X | 키오스크 지점 조회 (로그인 전) |
+| `POST /api/v1/kiosk/auth/login` | X | 키오스크 지점 로그인 |
+| `POST /api/v1/kiosk/attendance/**` | KIOSK JWT | 출석 (등/하원) |
+| `POST /api/v1/kiosk/outings/start` | KIOSK JWT | 외출 시작 |
+| `POST /api/v1/kiosk/outings/end` | KIOSK JWT | 외출 복귀 |
+| `GET /api/v1/kiosk/seats` | KIOSK JWT | 좌석 현황 (폴링) |
+| `POST /api/v1/kiosk/seats/{id}/check-in` | KIOSK JWT | 좌석 입실 |
+| `POST /api/v1/kiosk/seats/{id}/check-out` | KIOSK JWT | 좌석 퇴실 |
+| `GET /api/v1/kiosk/meal-plans` | KIOSK JWT | 식단 조회 (Phase 6) |
+| `/api/v1/admin/**` | ADMIN JWT | 모든 어드민 기능 |
+
+---
+
+## Swagger 그룹
+
+| 그룹 | 경로 |
+|------|------|
+| 1. 관리자 API | `/api/v1/admin/**`, `/api/admin/**` |
+| 2. 키오스크 API | `/api/v1/kiosk/**`, `/api/v1/stores/**` |
 
 ---
 
 ## 검증 방법
 
 각 Phase 완료 후:
-1. `./gradlew test` — 테스트 통과 확인
+1. `./gradlew classes checkstyleMain` — 빌드 + 스타일 검사
 2. `docker-compose up -d` → `./gradlew bootRun` — Flyway 자동 마이그레이션 + 앱 실행
 3. P6Spy 로그로 SQL 확인 (local)
-4. Postman/curl로 API 테스트
+4. Swagger UI 또는 Postman/curl로 API 테스트
