@@ -1,5 +1,7 @@
 package com.moduletest.deasungkioskbackend.common.util;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
 import org.springframework.http.HttpHeaders;
@@ -25,7 +27,7 @@ public final class CookieUtil {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", token)
             .httpOnly(true)
             .secure(true)
-            .path("/api/v1/auth")
+            .path("/api/admin/auth")
             .maxAge(Duration.ofMillis(maxAgeMillis))
             .sameSite("Strict")
             .build();
@@ -47,10 +49,23 @@ public final class CookieUtil {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
             .httpOnly(true)
             .secure(true)
-            .path("/api/v1/auth")
+            .path("/api/admin/auth")
             .maxAge(0)
             .sameSite("Strict")
             .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    public static String extractCookie(HttpServletRequest request, String cookieName) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        for (Cookie cookie : cookies) {
+            if (cookieName.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 }
