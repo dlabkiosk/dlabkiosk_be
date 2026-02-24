@@ -24,6 +24,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String ACCESS_TOKEN_COOKIE = "accessToken";
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final TokenRedisService tokenRedisService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -34,25 +35,42 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null) {
             try {
                 Claims claims = jwtTokenProvider.parseClaims(token);
-                String userId = claims.getSubject();
+                String subject = claims.getSubject();
                 String role = claims.get("role", String.class);
 
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    userId, null, List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                );
+                if (!isTokenStoredInRedis(subject, role, token)) {
+                    request.setAttribute("exception", "INVALID_TOKEN");
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
+                UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                        subject, null,
+                        List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                    );
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (ExpiredJwtException e) {
                 request.setAttribute("exception", "EXPIRED_TOKEN");
-            } catch (JwtException e ) {
+            } catch (JwtException e) {
                 request.setAttribute("exception", "INVALID_TOKEN");
             }
-
         }
 
         filterChain.doFilter(request, response);
     }
 
-
+    private boolean isTokenStoredInRedis(String subject, String role, String token) {
+        try {
+            Long id = Long.valueOf(subject);
+            if ("KIOSK".equals(role)) {
+                return tokenRedisService.isKioskTokenValid(id, token);
+            }
+            return tokenRedisService.isAdminTokenValid(id, token);
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     private String resolveToken(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
@@ -67,6 +85,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         return null;
     }
-
-
 }

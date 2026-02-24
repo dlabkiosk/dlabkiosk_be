@@ -30,6 +30,7 @@ spring:
     secret: ${JWT_SECRET}
     access-expiration: ${JWT_ACCESS_EXPIRATION}
     refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+    kiosk-expiration: ${KIOSK_TOKEN_EXPIRATION}
 
 decorator:
   datasource:

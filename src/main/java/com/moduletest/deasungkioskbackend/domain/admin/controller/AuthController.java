@@ -12,6 +12,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,6 +43,20 @@ public class AuthController {
         String[] tokens = authService.login(loginRequest);
         CookieUtil.addAccessToken(response, tokens[0], jwtTokenProvider.getAccessExpiration());
         CookieUtil.addRefreshToken(response, tokens[1], jwtTokenProvider.getRefreshExpiration());
+        return CommonResponse.success(null);
+    }
+
+    @Operation(summary = "관리자 로그아웃",
+        description = "Redis에서 토큰을 삭제하고 쿠키를 초기화한다.")
+    @PostMapping("/logout")
+    public CommonResponse<Void> logout(HttpServletResponse response) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()) {
+            Long userId = Long.valueOf(authentication.getName());
+            authService.logout(userId);
+        }
+        CookieUtil.clearAccessToken(response);
+        CookieUtil.clearRefreshToken(response);
         return CommonResponse.success(null);
     }
 }

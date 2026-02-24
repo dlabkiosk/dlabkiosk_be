@@ -7,7 +7,7 @@
 | 백엔드 | Spring Boot 3.5.9 / Java 17 / Gradle |
 | DB | MySQL 8.0                            |
 | 캐시 | Redis 7 (Docker)                     |
-| 인증 | Spring Security + JWT (jjwt) — 관리자(ADMIN) + 키오스크(KIOSK) 이중 인증 |
+| 인증 | Spring Security + JWT (jjwt) — 관리자(ADMIN) + 키오스크(KIOSK) 이중 인증, Redis 토큰 저장 |
 | 파일 저장 | AWS S3 + CloudFront                  |
 | 좌석 상태 캐싱 | Redis Hash + 폴링                   |
 | DB 마이그레이션 | Flyway                               |
@@ -28,7 +28,7 @@ com.moduletest.deasungkioskbackend
 │   ├── entity/          # BaseTimeEntity (createdAt, updatedAt)
 │   ├── exception/       # ErrorCode, BusinessException, GlobalExceptionHandler
 │   ├── dto/             # CommonResponse (통일 응답 포맷)
-│   ├── security/        # JwtTokenProvider, JwtAuthenticationFilter
+│   ├── security/        # JwtTokenProvider, JwtAuthenticationFilter, TokenRedisService
 │   └── util/            # CookieUtil
 ├── domain/
 │   ├── admin/           # 관리자 인증 (로그인, JWT)
@@ -90,15 +90,28 @@ com.moduletest.deasungkioskbackend
 - [x] Flyway 설정
 - [x] P6Spy 설정
 
-### Phase 1: 관리자 인증 (JWT)
+### Phase 1: 관리자 인증 (JWT + Redis 토큰 저장)
 
 - [x] `V2__create_admin_users.sql` — login_id, password(BCrypt), name, role
 - [x] `AdminUser` 엔티티 + Repository
-- [x] `JwtTokenProvider` — 토큰 생성/검증/클레임 추출 + `createKioskToken()`
-- [x] `JwtAuthenticationFilter` — OncePerRequestFilter
-- [x] `SecurityConfig` — stateless, ADMIN/KIOSK 역할 분리
-- [x] `POST /api/admin/auth/login` → JWT 발급
+- [x] `JwtTokenProvider` — 토큰 생성/검증/클레임 추출 + `createKioskToken()` + 역할별 TTL 분리
+- [x] `JwtAuthenticationFilter` — OncePerRequestFilter + Redis 토큰 유효성 검증
+- [x] `TokenRedisService` — 어드민/키오스크 토큰 Redis CRUD (저장/검증/삭제)
+- [x] `SecurityConfig` — stateless, ADMIN/KIOSK 역할 분리, 커스텀 401/403 응답
+- [x] `POST /api/admin/auth/login` → JWT 발급 + Redis 저장
 - [x] `POST /api/admin/auth/signup` → 관리자 등록
+- [x] `POST /api/admin/auth/logout` → Redis 토큰 삭제 + 쿠키 초기화
+- [x] `CookieUtil` — 쿠키 생성 + 쿠키 삭제(clearAccessToken, clearRefreshToken)
+
+**토큰 TTL 구분 (.env):**
+- `JWT_ACCESS_EXPIRATION` — 어드민 access token (기본 1시간)
+- `JWT_REFRESH_EXPIRATION` — 어드민 refresh token (기본 7일)
+- `KIOSK_TOKEN_EXPIRATION` — 키오스크 단일 토큰 (기본 24시간, refresh 없음)
+
+**Redis 키 구조:**
+- `auth:admin:{userId}` — 어드민 access token
+- `auth:refresh:{userId}` — 어드민 refresh token
+- `auth:kiosk:{storeId}` — 키오스크 token
 
 ### Phase 2: 지점 관리
 
@@ -128,8 +141,8 @@ com.moduletest.deasungkioskbackend
 
 - [x] `KioskLoginRequest` (storeCode + kioskPin)
 - [x] `KioskLoginResponse` (storeId, storeName, storeCode)
-- [x] `KioskAuthService` — 지점 코드 + PIN 검증 → JWT 발급 (role=KIOSK, subject=storeId)
-- [x] `KioskAuthController`: `POST /api/v1/kiosk/auth/login` (공개)
+- [x] `KioskAuthService` — 지점 코드 + PIN 검증 → JWT 발급 (role=KIOSK, subject=storeId) + Redis 저장 + logout
+- [x] `KioskAuthController`: `POST /api/v1/kiosk/auth/login` (공개), `POST /api/v1/kiosk/auth/logout` (공개)
 - [x] `SecurityConfig` — `/api/v1/kiosk/auth/**` 공개, `/api/v1/kiosk/**` KIOSK 역할 필요
 - [x] 키오스크 API에서 storeId를 토큰에서 자동 추출
 
@@ -218,8 +231,10 @@ Phase 0 (기반)
 |---|---|---|
 | `POST /api/admin/auth/login` | X | 관리자 로그인 |
 | `POST /api/admin/auth/signup` | X | 관리자 회원가입 |
+| `POST /api/admin/auth/logout` | X | 관리자 로그아웃 (Redis 토큰 삭제 + 쿠키 초기화) |
 | `GET /api/v1/stores/{storeCode}` | X | 키오스크 지점 조회 (로그인 전) |
 | `POST /api/v1/kiosk/auth/login` | X | 키오스크 지점 로그인 |
+| `POST /api/v1/kiosk/auth/logout` | X | 키오스크 로그아웃 (Redis 토큰 삭제 + 쿠키 초기화) |
 | `POST /api/v1/kiosk/attendance/**` | KIOSK JWT | 출석 (등/하원) |
 | `POST /api/v1/kiosk/outings/start` | KIOSK JWT | 외출 시작 |
 | `POST /api/v1/kiosk/outings/end` | KIOSK JWT | 외출 복귀 |

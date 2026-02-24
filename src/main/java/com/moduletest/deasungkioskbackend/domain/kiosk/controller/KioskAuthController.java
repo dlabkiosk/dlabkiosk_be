@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,7 +34,20 @@ public class KioskAuthController {
         @Valid @RequestBody KioskLoginRequest request,
         HttpServletResponse response) {
         KioskAuthService.KioskLoginResult result = kioskAuthService.login(request);
-        CookieUtil.addAccessToken(response, result.token(), jwtTokenProvider.getAccessExpiration());
+        CookieUtil.addAccessToken(response, result.token(), jwtTokenProvider.getKioskExpiration());
         return CommonResponse.success(result.storeInfo());
+    }
+
+    @Operation(summary = "키오스크 로그아웃",
+        description = "Redis에서 키오스크 토큰을 삭제하고 쿠키를 초기화한다.")
+    @PostMapping("/logout")
+    public CommonResponse<Void> logout(HttpServletResponse response) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()) {
+            Long storeId = Long.valueOf(authentication.getName());
+            kioskAuthService.logout(storeId);
+        }
+        CookieUtil.clearAccessToken(response);
+        return CommonResponse.success(null);
     }
 }
