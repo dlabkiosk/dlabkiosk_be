@@ -1,9 +1,13 @@
 package com.moduletest.deasungkioskbackend.domain.student.repository;
 
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface StudentRepository extends JpaRepository<Student, Long> {
 
@@ -13,5 +17,16 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     boolean existsByPhone(String phone);
 
-    List<Student> findAllByStoreId(Long storeId);
+    @Query("SELECT s FROM Student s JOIN FETCH s.store WHERE s.store.id = :storeId")
+    List<Student> findAllByStoreIdWithStore(@Param("storeId") Long storeId);
+
+    @Query("SELECT s FROM Student s JOIN FETCH s.store")
+    List<Student> findAllWithStore();
+
+    @Query("SELECT s FROM Student s JOIN FETCH s.store WHERE s.id = :id")
+    Optional<Student> findByIdWithStore(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM Student s WHERE s.id = :id")
+    Optional<Student> findByIdForUpdate(@Param("id") Long id);
 }

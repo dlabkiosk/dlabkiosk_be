@@ -26,9 +26,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -42,7 +44,7 @@ public class SeatService {
 
 
     public List<SeatStatusResponse> findSeatStatusByStoreId(Long storeId) {
-        List<Seat> seats = seatRepository.findAllByStoreId(storeId);
+        List<Seat> seats = seatRepository.findAllByStoreIdWithStore(storeId);
         Map<Object, Object> redisStatus = seatRedisService.getSeatStatusMap(storeId);
 
         List<SeatStatusResponse> result = new ArrayList<>();
@@ -137,7 +139,12 @@ public class SeatService {
             .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_IN_USE));
 
         seatUsage.endUsage(LocalDateTime.now());
-        seatRedisService.releaseSeat(seat.getStore().getId(), seatId);
+
+        try {
+            seatRedisService.releaseSeat(seat.getStore().getId(), seatId);
+        } catch (Exception e) {
+            log.warn("[SeatCheckOut] Redis 좌석 해제 실패 (seatId={}) — DB는 퇴실 처리됨", seatId, e);
+        }
     }
 
     private Student resolveStudent(String qrUuid, String rfidUid) {
@@ -156,19 +163,19 @@ public class SeatService {
 
     public List<SeatResponse> findAllSeats(Long storeId) {
         if (storeId != null) {
-            return seatRepository.findAllByStoreId(storeId)
+            return seatRepository.findAllByStoreIdWithStore(storeId)
                 .stream()
                 .map(SeatResponse::fromEntity)
                 .toList();
         }
-        return seatRepository.findAll()
+        return seatRepository.findAllWithStore()
             .stream()
             .map(SeatResponse::fromEntity)
             .toList();
     }
 
     public SeatResponse findSeatById(Long seatId) {
-        Seat seat = seatRepository.findById(seatId)
+        Seat seat = seatRepository.findByIdWithStore(seatId)
             .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_FOUND));
         return SeatResponse.fromEntity(seat);
     }

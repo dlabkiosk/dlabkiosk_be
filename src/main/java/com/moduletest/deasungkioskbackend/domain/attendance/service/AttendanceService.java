@@ -33,6 +33,9 @@ public class AttendanceService {
 
         validateStudentStore(student, storeId);
 
+        // 동시 등원 방지: Student 행에 비관적 락
+        studentRepository.findByIdForUpdate(student.getId());
+
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);

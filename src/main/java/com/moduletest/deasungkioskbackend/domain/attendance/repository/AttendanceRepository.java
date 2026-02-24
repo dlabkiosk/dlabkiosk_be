@@ -11,6 +11,8 @@ import org.springframework.data.repository.query.Param;
 public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
     @Query("SELECT a FROM Attendance a "
+        + "JOIN FETCH a.student "
+        + "JOIN FETCH a.store "
         + "WHERE a.student.id = :studentId "
         + "AND a.checkInAt >= :startOfDay "
         + "AND a.checkInAt < :endOfDay "

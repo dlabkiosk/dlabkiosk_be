@@ -27,19 +27,19 @@ public class StudentService {
 
     public List<StudentResponse> findAllStudents(Long storeId) {
         if (storeId != null) {
-            return studentRepository.findAllByStoreId(storeId)
+            return studentRepository.findAllByStoreIdWithStore(storeId)
                 .stream()
                 .map(StudentResponse::fromEntity)
                 .toList();
         }
-        return studentRepository.findAll()
+        return studentRepository.findAllWithStore()
             .stream()
             .map(StudentResponse::fromEntity)
             .toList();
     }
 
     public StudentResponse findStudentById(Long studentId) {
-        Student student = studentRepository.findById(studentId)
+        Student student = studentRepository.findByIdWithStore(studentId)
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
         return StudentResponse.fromEntity(student);
     }
