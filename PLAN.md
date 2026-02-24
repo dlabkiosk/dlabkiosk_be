@@ -9,7 +9,7 @@
 | 캐시 | Redis 7 (Docker)                     |
 | 인증 | Spring Security + JWT (jjwt) — 관리자(ADMIN) + 키오스크(KIOSK) 이중 인증, Redis 토큰 저장 |
 | 파일 저장 | AWS S3 + CloudFront                  |
-| 좌석 상태 캐싱 | Redis Hash + 폴링                   |
+| 좌석 상태 캐싱 | Redis Hash (진입 시 조회 + 실패 시 재조회) |
 | DB 마이그레이션 | Flyway                               |
 | SQL 로깅 | P6Spy (local 프로필만)                   |
 | 엑셀 | Apache POI (SXSSFWorkbook)           |
@@ -37,7 +37,7 @@ com.moduletest.deasungkioskbackend
 │   ├── student/         # 학생 관리 (QR UUID + RFID UID)
 │   ├── attendance/      # QR/RFID 출석 (등/하원)
 │   ├── outing/          # 학생 외출/복귀
-│   ├── seat/            # 좌석 관리 + Redis 캐싱 (폴링)
+│   ├── seat/            # 좌석 관리 + Redis 캐싱
 │   ├── meal/            # 식단표 (S3 이미지 + Redis 캐시)
 │   └── report/          # 엑셀 리포트
 ```
@@ -161,11 +161,13 @@ com.moduletest.deasungkioskbackend
 - [x] `SeatService` — OUTING: 접두사 파싱 추가
 - [x] ErrorCode 추가: OT001(미등원), OT002(이미 외출 중), OT003(외출 기록 없음)
 
-### Phase 5: 좌석 관리 + Redis 캐싱 (폴링)
+### Phase 5: 좌석 관리 + Redis 캐싱
 
-SSE 대신 폴링 방식 채택. 키오스크가 5~10초마다 조회 API 호출.
-- 소규모(지점당 3~4대)에서는 폴링이 단순하고 충분
-- 대규모에서도 폴링이 유리 (stateless, 스케일아웃 자유, 배포 시 영향 없음)
+좌석 현황 조회 방식: **진입 시 조회 + 실패 시 재조회** (폴링/SSE 없음)
+- 좌석 화면 진입 시 Redis에서 현황 1회 조회
+- 좌석 입실 시도 시 Redis HSETNX로 선점 → 실패하면 에러 응답 + 최신 현황 재조회
+- 지점당 키오스크 2~3대로 동시 충돌 확률 극히 낮음, HSETNX가 원자적으로 해결
+- 폴링 불필요: 화면 갱신으로 인한 UX 저하(깜빡임, 터치 오입력) 방지
 - Redis는 좌석 현재 상태 캐싱용. DB는 기록(히스토리)용
 
 좌석 배치도:
@@ -186,7 +188,7 @@ Redis 좌석 상태 값 형식:
 - [x] `RedisConfig` — RedisTemplate<String, String>
 - [x] Redis Hash `seat:status:{storeId}` — 현재 좌석 상태
 - [x] `SeatRedisWarmUpRunner` — 서버 기동 시 DB → Redis 초기화 (연결 실패해도 서버 정상 기동)
-- [x] `GET /api/v1/kiosk/seats` — 좌석 현황 (Redis 조회, 폴링용, storeId 토큰에서)
+- [x] `GET /api/v1/kiosk/seats` — 좌석 현황 (Redis 조회, 화면 진입 시 호출, storeId 토큰에서)
 - [x] `POST /api/v1/kiosk/seats/{seatId}/check-in` — 좌석 입실 (QR/RFID + Redis 선점 + DB 저장)
 - [x] `POST /api/v1/kiosk/seats/{seatId}/check-out` — 좌석 퇴실 (DB 종료 + Redis 갱신)
 - [x] 어드민 CRUD: `POST/GET/PUT/DELETE /api/v1/admin/seats`
@@ -199,6 +201,37 @@ Redis 좌석 상태 값 형식:
 - [ ] `@Cacheable`/`@CacheEvict` — Redis 캐시 (TTL 1시간)
 - [ ] 어드민 CRUD + 이미지 업로드
 - [ ] 키오스크 조회: `GET /api/v1/kiosk/meal-plans` (storeId 토큰에서)
+
+### Phase 5.5: 공부 시간 랭킹 (Redis Sorted Set)
+
+지점별/전체 공부 시간 랭킹. Redis ZSET으로 실시간 순위 제공.
+
+**점수 갱신 시점:**
+- 좌석 퇴실 시: `ended_at - started_at` (초 단위) 누적
+- 외출 시작 시: `외출시작 - 마지막입실/복귀` (초 단위) 누적
+- 외출 시간은 제외 (외출 중에는 점수 안 쌓임)
+
+**Redis 키 구조:**
+- `ranking:study:{storeId}:{날짜}` — 지점별 일일 랭킹
+- `ranking:study:all:{날짜}` — 전체 일일 랭킹
+- TTL 30일 (자동 만료)
+
+**명령어:**
+- `ZINCRBY` — 퇴실/외출 시작 시 공부 시간(초) 누적
+- `ZREVRANGE` — 점수 높은 순 Top N 조회
+
+**구현 목록:**
+- [ ] `StudyRankingRedisService` — ZINCRBY(점수 누적), ZREVRANGE(랭킹 조회)
+- [ ] `SeatService` 퇴실 로직에 랭킹 점수 갱신 추가
+- [ ] `OutingService` 외출 시작 로직에 랭킹 점수 갱신 추가
+- [ ] `RankingResponse` (rank, studentName, studyTime)
+- [ ] `RankingController`: `GET /api/v1/kiosk/rankings` — 지점 랭킹 (storeId 토큰에서)
+- [ ] `RankingController`: `GET /api/v1/kiosk/rankings/all` — 전체 랭킹
+- [ ] `GET /api/v1/admin/rankings?storeId=` — 어드민 랭킹 조회
+
+**향후 확장 (필요 시):**
+- 주간/월간 랭킹: 일별 ZSET을 `ZUNIONSTORE`로 합산
+- DB 백업: `daily_study_summary` 테이블에 일별 집계 저장 (장기 통계/엑셀 리포트용)
 
 ### Phase 7: 엑셀 리포트
 
@@ -218,8 +251,9 @@ Phase 0 (기반)
     → Phase 4.5 (키오스크 인증)
     → Phase 4.6 (외출/복귀)
     → Phase 5 (좌석 + Redis)
+    → Phase 5.5 (공부 시간 랭킹) ← Phase 5 좌석 퇴실 + Phase 4.6 외출에서 점수 갱신
     → Phase 6 (식단표)
-      → Phase 7 (엑셀) ← Phase 4, 5 데이터 필요
+      → Phase 7 (엑셀) ← Phase 4, 5, 5.5 데이터 필요
   Phase 3 (배리어프리) — 보류, 필요 시 복귀
 ```
 
@@ -238,9 +272,11 @@ Phase 0 (기반)
 | `POST /api/v1/kiosk/attendance/**` | KIOSK JWT | 출석 (등/하원) |
 | `POST /api/v1/kiosk/outings/start` | KIOSK JWT | 외출 시작 |
 | `POST /api/v1/kiosk/outings/end` | KIOSK JWT | 외출 복귀 |
-| `GET /api/v1/kiosk/seats` | KIOSK JWT | 좌석 현황 (폴링) |
+| `GET /api/v1/kiosk/seats` | KIOSK JWT | 좌석 현황 (진입 시 조회) |
 | `POST /api/v1/kiosk/seats/{id}/check-in` | KIOSK JWT | 좌석 입실 |
 | `POST /api/v1/kiosk/seats/{id}/check-out` | KIOSK JWT | 좌석 퇴실 |
+| `GET /api/v1/kiosk/rankings` | KIOSK JWT | 지점 공부 시간 랭킹 (Phase 5.5) |
+| `GET /api/v1/kiosk/rankings/all` | KIOSK JWT | 전체 공부 시간 랭킹 (Phase 5.5) |
 | `GET /api/v1/kiosk/meal-plans` | KIOSK JWT | 식단 조회 (Phase 6) |
 | `/api/v1/admin/**` | ADMIN JWT | 모든 어드민 기능 |
 

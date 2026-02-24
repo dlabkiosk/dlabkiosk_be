@@ -33,9 +33,10 @@ public final class QrCodeService {
                 qrUuid, BarcodeFormat.QR_CODE, QR_SIZE, QR_SIZE, hints
             );
 
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            MatrixToImageWriter.writeToStream(bitMatrix, QR_FORMAT, outputStream);
-            return outputStream.toByteArray();
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                MatrixToImageWriter.writeToStream(bitMatrix, QR_FORMAT, outputStream);
+                return outputStream.toByteArray();
+            }
         } catch (WriterException | IOException e) {
             throw new StudentException(ErrorCode.QR_CODE_GENERATION_FAILED);
         }

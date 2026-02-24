@@ -25,8 +25,9 @@ public class SeatController {
 
     private final SeatService seatService;
 
-    @Operation(summary = "좌석 현황 조회 (폴링용)",
-        description = "로그인한 지점의 전체 좌석 현황을 조회한다. 키오스크에서 5~10초 간격으로 폴링.")
+    @Operation(summary = "좌석 현황 조회",
+        description = "로그인한 지점의 전체 좌석 현황을 조회한다. "
+            + "화면 진입 시 1회 호출. 입실 실패 시 최신 현황 재조회.")
     @GetMapping
     public CommonResponse<List<SeatStatusResponse>> findSeatStatus() {
         Long storeId = getStoreIdFromToken();

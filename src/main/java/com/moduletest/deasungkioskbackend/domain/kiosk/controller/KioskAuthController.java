@@ -1,8 +1,10 @@
 package com.moduletest.deasungkioskbackend.domain.kiosk.controller;
 
+import static com.moduletest.deasungkioskbackend.common.util.CookieUtil.addAccessToken;
+import static com.moduletest.deasungkioskbackend.common.util.CookieUtil.clearAccessToken;
+
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.security.JwtTokenProvider;
-import com.moduletest.deasungkioskbackend.common.util.CookieUtil;
 import com.moduletest.deasungkioskbackend.domain.kiosk.dto.KioskLoginRequest;
 import com.moduletest.deasungkioskbackend.domain.kiosk.dto.KioskLoginResponse;
 import com.moduletest.deasungkioskbackend.domain.kiosk.service.KioskAuthService;
@@ -34,7 +36,7 @@ public class KioskAuthController {
         @Valid @RequestBody KioskLoginRequest request,
         HttpServletResponse response) {
         KioskAuthService.KioskLoginResult result = kioskAuthService.login(request);
-        CookieUtil.addAccessToken(response, result.token(), jwtTokenProvider.getKioskExpiration());
+        addAccessToken(response, result.token(), jwtTokenProvider.getKioskExpiration());
         return CommonResponse.success(result.storeInfo());
     }
 
@@ -47,7 +49,7 @@ public class KioskAuthController {
             Long storeId = Long.valueOf(authentication.getName());
             kioskAuthService.logout(storeId);
         }
-        CookieUtil.clearAccessToken(response);
+        clearAccessToken(response);
         return CommonResponse.success(null);
     }
 }
