@@ -21,6 +21,7 @@ public enum ErrorCode {
     INVALID_TOKEN("A004", "유효하지 않은 토큰입니다", HttpStatus.UNAUTHORIZED),
     UNAUTHENTICATED("A006", "인증이 필요합니다", HttpStatus.UNAUTHORIZED),
     ACCESS_DENIED("A007", "접근 권한이 없습니다", HttpStatus.FORBIDDEN),
+    INVALID_REFRESH_TOKEN("A008", "유효하지 않은 리프레시 토큰입니다", HttpStatus.UNAUTHORIZED),
 
 
     // Store

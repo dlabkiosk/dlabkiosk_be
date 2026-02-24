@@ -36,6 +36,12 @@ public class TokenRedisService {
         return token.equals(stored);
     }
 
+    public boolean isRefreshTokenValid(Long userId, String token) {
+        String key = ADMIN_REFRESH_PREFIX + userId;
+        String stored = redisTemplate.opsForValue().get(key);
+        return token.equals(stored);
+    }
+
     public boolean isKioskTokenValid(Long storeId, String token) {
         String key = KIOSK_TOKEN_PREFIX + storeId;
         String stored = redisTemplate.opsForValue().get(key);

@@ -64,6 +64,28 @@ public class AuthService {
         return new String[] {accessToken, refreshToken};
     }
 
+    public String refresh(String refreshToken) {
+        Long userId = jwtTokenProvider.getUserId(refreshToken);
+
+        if (!tokenRedisService.isRefreshTokenValid(userId, refreshToken)) {
+            throw new AdminException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        AdminUser adminUser = adminUserRepository.findById(userId)
+            .orElseThrow(() -> new AdminException(ErrorCode.ADMIN_NOT_FOUND));
+
+        String newAccessToken = jwtTokenProvider.createAccessToken(
+            String.valueOf(adminUser.getId()),
+            adminUser.getLoginId(),
+            adminUser.getRole()
+        );
+
+        tokenRedisService.saveAdminAccessToken(
+            adminUser.getId(), newAccessToken, jwtTokenProvider.getAccessExpiration());
+
+        return newAccessToken;
+    }
+
     public void logout(Long userId) {
         tokenRedisService.removeAdminTokens(userId);
     }

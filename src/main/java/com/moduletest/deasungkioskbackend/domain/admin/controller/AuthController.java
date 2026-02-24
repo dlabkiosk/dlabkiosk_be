@@ -2,13 +2,16 @@ package com.moduletest.deasungkioskbackend.domain.admin.controller;
 
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.security.JwtTokenProvider;
 import com.moduletest.deasungkioskbackend.common.util.CookieUtil;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.LoginRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.SignupRequest;
+import com.moduletest.deasungkioskbackend.domain.admin.exception.AdminException;
 import com.moduletest.deasungkioskbackend.domain.admin.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +46,21 @@ public class AuthController {
         String[] tokens = authService.login(loginRequest);
         CookieUtil.addAccessToken(response, tokens[0], jwtTokenProvider.getAccessExpiration());
         CookieUtil.addRefreshToken(response, tokens[1], jwtTokenProvider.getRefreshExpiration());
+        return CommonResponse.success(null);
+    }
+
+    @Operation(summary = "관리자 토큰 재발급",
+        description = "refreshToken 쿠키로 accessToken을 재발급한다. accessToken 만료 시 호출한다.")
+    @PostMapping("/refresh")
+    public CommonResponse<Void> refresh(HttpServletRequest request,
+                                        HttpServletResponse response) {
+        String refreshToken = CookieUtil.extractCookie(request, "refreshToken");
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new AdminException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        String newAccessToken = authService.refresh(refreshToken);
+        CookieUtil.addAccessToken(response, newAccessToken, jwtTokenProvider.getAccessExpiration());
         return CommonResponse.success(null);
     }
 
