@@ -3,6 +3,7 @@ package com.moduletest.deasungkioskbackend.domain.admin.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.security.JwtTokenProvider;
+import com.moduletest.deasungkioskbackend.common.security.TokenRedisService;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.LoginRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.SignupRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.entity.AdminUser;
@@ -21,6 +22,7 @@ public class AuthService {
     private final AdminUserRepository adminUserRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
+    private final TokenRedisService tokenRedisService;
 
     @Transactional
     public void signup(SignupRequest request) {
@@ -54,8 +56,15 @@ public class AuthService {
             String.valueOf(adminUser.getId())
         );
 
+        tokenRedisService.saveAdminAccessToken(
+            adminUser.getId(), accessToken, jwtTokenProvider.getAccessExpiration());
+        tokenRedisService.saveAdminRefreshToken(
+            adminUser.getId(), refreshToken, jwtTokenProvider.getRefreshExpiration());
+
         return new String[] {accessToken, refreshToken};
     }
 
-
+    public void logout(Long userId) {
+        tokenRedisService.removeAdminTokens(userId);
+    }
 }

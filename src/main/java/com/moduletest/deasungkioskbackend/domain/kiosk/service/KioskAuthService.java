@@ -2,6 +2,7 @@ package com.moduletest.deasungkioskbackend.domain.kiosk.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.security.JwtTokenProvider;
+import com.moduletest.deasungkioskbackend.common.security.TokenRedisService;
 import com.moduletest.deasungkioskbackend.domain.kiosk.dto.KioskLoginRequest;
 import com.moduletest.deasungkioskbackend.domain.kiosk.dto.KioskLoginResponse;
 import com.moduletest.deasungkioskbackend.domain.kiosk.exception.KioskException;
@@ -18,6 +19,7 @@ public class KioskAuthService {
 
     private final StoreRepository storeRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final TokenRedisService tokenRedisService;
 
     public KioskLoginResult login(KioskLoginRequest request) {
         Store store = storeRepository.findByStoreCode(request.storeCode())
@@ -32,9 +34,16 @@ public class KioskAuthService {
         }
 
         String token = jwtTokenProvider.createKioskToken(store.getId(), store.getStoreCode());
-        KioskLoginResponse loginResponse = KioskLoginResponse.fromEntity(store);
 
+        tokenRedisService.saveKioskToken(
+            store.getId(), token, jwtTokenProvider.getKioskExpiration());
+
+        KioskLoginResponse loginResponse = KioskLoginResponse.fromEntity(store);
         return new KioskLoginResult(token, loginResponse);
+    }
+
+    public void logout(Long storeId) {
+        tokenRedisService.removeKioskToken(storeId);
     }
 
     public record KioskLoginResult(String token, KioskLoginResponse storeInfo) { }
