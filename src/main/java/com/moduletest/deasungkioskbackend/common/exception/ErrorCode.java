@@ -61,6 +61,10 @@ public enum ErrorCode {
     KIOSK_INVALID_CREDENTIALS("K001", "지점 코드 또는 PIN이 올바르지 않습니다", HttpStatus.UNAUTHORIZED),
     KIOSK_STORE_INACTIVE("K002", "비활성화된 지점입니다", HttpStatus.FORBIDDEN),
     STUDENT_NOT_IN_THIS_STORE("K003", "해당 지점에 소속되지 않은 학생입니다", HttpStatus.FORBIDDEN),
+
+
+    // Notice
+    NOTICE_NOT_FOUND("NTC001", "공지사항을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     ;
 
     private final String code;
