@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.attendance.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.attendance.dto.AttendanceResponse;
 import com.moduletest.deasungkioskbackend.domain.attendance.dto.CheckInRequest;
 import com.moduletest.deasungkioskbackend.domain.attendance.dto.CheckOutRequest;
@@ -10,7 +11,6 @@ import com.moduletest.deasungkioskbackend.domain.attendance.exception.Attendance
 import com.moduletest.deasungkioskbackend.domain.attendance.repository.AttendanceRepository;
 import com.moduletest.deasungkioskbackend.domain.kiosk.exception.KioskException;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
-import com.moduletest.deasungkioskbackend.domain.student.exception.StudentException;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -26,10 +26,13 @@ public class AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
     private final StudentRepository studentRepository;
+    private final StudentResolverService studentResolverService;
 
     @Transactional
     public AttendanceResponse checkIn(CheckInRequest request, Long storeId) {
-        Student student = resolveStudent(request.qrUuid(), request.rfidUid());
+        Student student = studentResolverService.resolveStudent(
+            request.qrUuid(), request.rfidUid(),
+            request.studentNumber(), request.phone());
 
         validateStudentStore(student, storeId);
 
@@ -61,7 +64,9 @@ public class AttendanceService {
 
     @Transactional
     public AttendanceResponse checkOut(CheckOutRequest request, Long storeId) {
-        Student student = resolveStudent(request.qrUuid(), request.rfidUid());
+        Student student = studentResolverService.resolveStudent(
+            request.qrUuid(), request.rfidUid(),
+            request.studentNumber(), request.phone());
 
         validateStudentStore(student, storeId);
 
@@ -76,18 +81,6 @@ public class AttendanceService {
 
         attendance.checkOut(LocalDateTime.now());
         return AttendanceResponse.fromEntity(attendance);
-    }
-
-    private Student resolveStudent(String qrUuid, String rfidUid) {
-        if (qrUuid != null && !qrUuid.isBlank()) {
-            return studentRepository.findByQrUuid(qrUuid)
-                .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND_BY_QR));
-        }
-        if (rfidUid != null && !rfidUid.isBlank()) {
-            return studentRepository.findByRfidUid(rfidUid)
-                .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND_BY_RFID));
-        }
-        throw new AttendanceException(ErrorCode.INVALID_CHECK_IN_REQUEST);
     }
 
     private void validateStudentStore(Student student, Long storeId) {

@@ -15,7 +15,13 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     Optional<Student> findByRfidUid(String rfidUid);
 
+    Optional<Student> findByStudentNumber(String studentNumber);
+
+    Optional<Student> findByPhone(String phone);
+
     boolean existsByPhone(String phone);
+
+    boolean existsByStudentNumber(String studentNumber);
 
     @Query("SELECT s FROM Student s JOIN FETCH s.store WHERE s.store.id = :storeId")
     List<Student> findAllByStoreIdWithStore(@Param("storeId") Long storeId);

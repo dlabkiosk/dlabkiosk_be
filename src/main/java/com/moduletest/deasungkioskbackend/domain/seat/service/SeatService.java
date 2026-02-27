@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.seat.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatCheckInRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatResponse;
@@ -16,10 +17,8 @@ import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageReposi
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
-import com.moduletest.deasungkioskbackend.domain.attendance.exception.AttendanceException;
 import com.moduletest.deasungkioskbackend.domain.kiosk.exception.KioskException;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
-import com.moduletest.deasungkioskbackend.domain.student.exception.StudentException;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -40,6 +39,7 @@ public class SeatService {
     private final SeatUsageRepository seatUsageRepository;
     private final StoreRepository storeRepository;
     private final StudentRepository studentRepository;
+    private final StudentResolverService studentResolverService;
     private final SeatRedisService seatRedisService;
 
 
@@ -89,7 +89,9 @@ public class SeatService {
 
     @Transactional
     public void seatCheckIn(Long seatId, SeatCheckInRequest request, Long storeId) {
-        Student student = resolveStudent(request.qrUuid(), request.rfidUid());
+        Student student = studentResolverService.resolveStudent(
+            request.qrUuid(), request.rfidUid(),
+            request.studentNumber(), request.phone());
 
         if (!student.getStore().getId().equals(storeId)) {
             throw new KioskException(ErrorCode.STUDENT_NOT_IN_THIS_STORE);
@@ -145,18 +147,6 @@ public class SeatService {
         } catch (Exception e) {
             log.warn("[SeatCheckOut] Redis 좌석 해제 실패 (seatId={}) — DB는 퇴실 처리됨", seatId, e);
         }
-    }
-
-    private Student resolveStudent(String qrUuid, String rfidUid) {
-        if (qrUuid != null && !qrUuid.isBlank()) {
-            return studentRepository.findByQrUuid(qrUuid)
-                .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND_BY_QR));
-        }
-        if (rfidUid != null && !rfidUid.isBlank()) {
-            return studentRepository.findByRfidUid(rfidUid)
-                .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND_BY_RFID));
-        }
-        throw new AttendanceException(ErrorCode.INVALID_CHECK_IN_REQUEST);
     }
 
     // ===== 관리자 API =====

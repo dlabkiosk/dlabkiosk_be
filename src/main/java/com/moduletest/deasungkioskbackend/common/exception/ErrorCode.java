@@ -33,12 +33,16 @@ public enum ErrorCode {
     STUDENT_NOT_FOUND("STU001", "학생을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     DUPLICATE_STUDENT_PHONE("STU002", "이미 등록된 전화번호입니다", HttpStatus.CONFLICT),
     QR_CODE_GENERATION_FAILED("STU003", "QR 코드 생성에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
+    STUDENT_NOT_FOUND_BY_STUDENT_NUMBER("STU004", "학번에 해당하는 학생을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+    DUPLICATE_STUDENT_NUMBER("STU005", "이미 사용 중인 학번입니다", HttpStatus.CONFLICT),
 
 
     // Attendance
     STUDENT_NOT_FOUND_BY_QR("ATT001", "QR 코드에 해당하는 학생을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     STUDENT_NOT_FOUND_BY_RFID("ATT004", "RFID 카드에 해당하는 학생을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     INVALID_CHECK_IN_REQUEST("ATT005", "QR UUID 또는 RFID UID 중 하나는 필수입니다", HttpStatus.BAD_REQUEST),
+    STUDENT_NOT_FOUND_BY_PHONE("ATT006", "전화번호에 해당하는 학생을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+    INVALID_STUDENT_IDENTIFIER("ATT007", "학생 인식 정보가 필요합니다 (QR/RFID/학번/전화번호 중 하나)", HttpStatus.BAD_REQUEST),
     ALREADY_CHECKED_IN("ATT002", "이미 등원 처리된 학생입니다", HttpStatus.CONFLICT),
     NOT_CHECKED_IN("ATT003", "등원 기록이 없습니다", HttpStatus.BAD_REQUEST),
 
@@ -65,7 +69,14 @@ public enum ErrorCode {
 
     // Notice
     NOTICE_NOT_FOUND("NTC001", "공지사항을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
-    ;
+
+
+    // Advertisement
+    ADVERTISEMENT_NOT_FOUND("AD001", "광고를 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+
+
+    // Exam Schedule
+    EXAM_SCHEDULE_NOT_FOUND("ES001", "시험 일정을 찾을 수 없습니다", HttpStatus.NOT_FOUND);
 
     private final String code;
     private final String message;

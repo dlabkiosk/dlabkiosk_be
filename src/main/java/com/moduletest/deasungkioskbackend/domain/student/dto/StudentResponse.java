@@ -20,6 +20,8 @@ public record StudentResponse(
     String qrUuid,
     @Schema(description = "RFID 카드 UID", example = "A1B2C3D4")
     String rfidUid,
+    @Schema(description = "학번", example = "2024-001")
+    String studentNumber,
     @Schema(description = "학년", example = "고3")
     String grade,
     @Schema(description = "생성일시")
@@ -37,6 +39,7 @@ public record StudentResponse(
             student.getPhone(),
             student.getQrUuid(),
             student.getRfidUid(),
+            student.getStudentNumber(),
             student.getGrade(),
             student.getCreatedAt(),
             student.getUpdatedAt()

@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.student.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
@@ -24,6 +25,7 @@ public class StudentService {
     private final StudentRepository studentRepository;
     private final StoreRepository storeRepository;
     private final QrCodeService qrCodeService;
+    private final StudentResolverService studentResolverService;
 
     public List<StudentResponse> findAllStudents(Long storeId) {
         if (storeId != null) {
@@ -53,6 +55,11 @@ public class StudentService {
             throw new StudentException(ErrorCode.DUPLICATE_STUDENT_PHONE);
         }
 
+        if (request.studentNumber() != null && !request.studentNumber().isBlank()
+            && studentRepository.existsByStudentNumber(request.studentNumber())) {
+            throw new StudentException(ErrorCode.DUPLICATE_STUDENT_NUMBER);
+        }
+
         Student student = Student.builder()
             .store(store)
             .name(request.name())
@@ -60,6 +67,7 @@ public class StudentService {
             .qrUuid(UUID.randomUUID().toString())
             .grade(request.grade())
             .rfidUid(request.rfidUid())
+            .studentNumber(request.studentNumber())
             .build();
 
         Student savedStudent = studentRepository.save(student);
@@ -74,7 +82,8 @@ public class StudentService {
         Store store = storeRepository.findById(request.storeId())
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
-        student.updateInfo(request.name(), request.phone(), request.grade(), store);
+        student.updateInfo(request.name(), request.phone(), request.grade(),
+            store, request.studentNumber());
 
         if (request.rfidUid() != null) {
             student.updateRfidUid(request.rfidUid());
@@ -88,6 +97,13 @@ public class StudentService {
         Student student = studentRepository.findById(studentId)
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
         studentRepository.delete(student);
+    }
+
+    public StudentResponse searchStudent(String qrUuid, String rfidUid,
+                                         String studentNumber, String phone) {
+        Student student = studentResolverService.resolveStudent(
+            qrUuid, rfidUid, studentNumber, phone);
+        return StudentResponse.fromEntity(student);
     }
 
     public byte[] generateStudentQrCode(Long studentId) {

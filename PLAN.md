@@ -14,7 +14,7 @@
 | SQL 로깅 | P6Spy (local 프로필만)                   |
 | 엑셀 | Apache POI (SXSSFWorkbook)           |
 | QR 생성 | ZXing                                |
-| 학생 인식 | QR (UUID) + RFID (HID 방식 카드 리더기)   |
+| 학생 인식 | QR (UUID) + RFID (HID) + 학번 + 전화번호 |
 | 기타 | Lombok, Jakarta Validation           |
 
 ---
@@ -39,6 +39,7 @@ com.moduletest.deasungkioskbackend
 │   ├── outing/          # 학생 외출/복귀
 │   ├── seat/            # 좌석 관리 + Redis 캐싱
 │   ├── notice/          # 공지사항 관리
+│   ├── examschedule/    # 시험 일정 관리
 │   ├── meal/            # 식단표 (S3 이미지 + Redis 캐시)
 │   └── report/          # 엑셀 리포트
 ```
@@ -68,7 +69,8 @@ com.moduletest.deasungkioskbackend
 | `V11__create_outings.sql` | outings 테이블 (Phase 4.6) |
 | `V12__add_indexes.sql` | attendances, outings, seat_usages 복합 인덱스 4개 |
 | `V13__create_notices.sql` | notices 테이블 (Phase 9) |
-| `V14__add_bf_enabled_to_stores.sql` | stores에 bf_enabled 컬럼 추가 (Phase 3) |
+| `V14__create_advertisements.sql` | advertisements 테이블 |
+| `V15__create_exam_schedules.sql` | exam_schedules 테이블 (Phase 10) |
 
 ---
 
@@ -282,6 +284,129 @@ DB 테이블 없이 Redis만 사용.
 - [x] 어드민 CRUD: `POST/GET/PUT/DELETE /api/v1/admin/notices` (?storeId= 필터)
 - [x] 키오스크 조회: `GET /api/v1/kiosk/notices` — 해당 지점 공지 목록 (storeId 토큰에서, KIOSK 인증 필요)
 
+### Phase 10: 시험 일정
+
+관리자가 지점별 시험 일정(시험명 + 시험일)을 등록하고, 키오스크에서 목록 조회.
+
+- [x] `V15__create_exam_schedules.sql` — store_id(FK), exam_name(VARCHAR 100), exam_date(DATE) + 복합 인덱스(store_id, exam_date)
+- [x] `ExamSchedule` 엔티티 (Store @ManyToOne LAZY, examName, examDate(LocalDate), updateInfo 메서드)
+- [x] `ExamScheduleRepository` (findByIdWithStore, findAllWithStore, findAllByStoreIdWithStore — 전부 FETCH JOIN, 시험일 오름차순)
+- [x] `ExamScheduleException` (도메인별 예외 분리)
+- [x] `ExamScheduleCreateRequest` (storeId, examName, examDate), `ExamScheduleUpdateRequest` (examName, examDate), `ExamScheduleResponse` (record, fromEntity)
+- [x] `ExamScheduleService` — CRUD + 지점별 목록 조회 + Store 검증
+- [x] 어드민 CRUD: `POST/GET/PUT/DELETE /api/v1/admin/exam-schedules` (?storeId= 필터)
+- [x] 키오스크 조회: `GET /api/v1/kiosk/exam-schedules` — 해당 지점 시험 일정 (storeId 토큰에서, KIOSK 인증 필요)
+- [x] ErrorCode 추가: ES001(시험 일정 없음)
+
+---
+
+## DLab PDF 요구사항 (2026-02-27)
+
+### DSA 없이 착수 가능
+
+#### Phase 11: 학번/전화번호 학생 인식 추가
+
+기존 QR/RFID 외에 학번/전화번호로 학생 식별. 학생증 분실/QR 불가 시 대체 수단.
+
+- [ ] `StudentRepository`에 `findByStudentNumber()`, `findByPhone()` 추가
+- [ ] 기존 `resolveStudent()` 분기에 학번/전화번호 방식 추가
+- [ ] `CheckInRequest`, `CheckOutRequest` 등에 `studentNumber`, `phone` 필드 추가
+- [ ] 식사 체크, 외출, 좌석이탈 등 모든 학생 인식 API에 동일 적용
+- [ ] ⚠️ 대리 체크 리스크 있음 — DLab에 수용 여부 확인 필요
+
+#### Phase 12: 순공시간 계산 + 랭킹
+
+순공시간 = (하원-등원) - 외출시간 - 좌석이탈시간. Redis Sorted Set으로 주간 랭킹.
+
+- [ ] `StudyRankingRedisService` — ZINCRBY(점수 누적), ZREVRANGE(랭킹 조회)
+- [ ] 순공시간 갱신 시점: 좌석 퇴실, 외출 시작, 좌석이탈 시작, 하원 시 최종 정산
+- [ ] Redis 키: `ranking:study:{storeId}:{yyyy-Wxx}` (주간), TTL 30일
+- [ ] 하원 API 응답에 당일 순공시간 포함
+- [ ] `GET /api/v1/kiosk/rankings` — 이번 주 실시간 랭킹 (월~현재)
+- [ ] `GET /api/v1/kiosk/rankings/last-week` — 지난주 확정 랭킹
+- [ ] `GET /api/v1/admin/rankings?storeId=` — 관리자 랭킹 조회
+
+#### Phase 13: 좌석이탈/복귀
+
+외출과 별개로, 학원 안에서 자기 좌석을 비우는 경우 (화장실/상담/질의응답/강의실 등).
+
+- [ ] `departure_reasons` 테이블 — id, store_id(nullable), reason_name, display_order, active
+- [ ] `seat_departures` 테이블 — student_id, seat_id, store_id, reason_id, departed_at, returned_at
+- [ ] `DepartureReason` 엔티티 + CRUD (관리자가 항목 추가/삭제)
+- [ ] `SeatDeparture` 엔티티 + Repository
+- [ ] `POST /api/v1/kiosk/seats/departure` — 좌석이탈 신청 (좌석번호 + 이탈사유)
+- [ ] `POST /api/v1/kiosk/seats/return` — 좌석복귀 처리
+- [ ] `GET /api/v1/admin/seat-departures` — 이탈 현황 조회
+- [ ] `PUT /api/v1/admin/seat-departures/{id}/force-return` — 관리자 임의 복귀
+- [ ] `CRUD /api/v1/admin/departure-reasons` — 이탈사유 항목 관리
+- [ ] Redis 좌석 상태에 DEPARTED:{studentId}:{reason} 추가
+- [ ] 좌석배치표에 이탈 상태 표시
+
+#### Phase 14: 하원 후 복귀 자동변환
+
+하원 처리된 학생이 다시 태깅하면 자동으로 하원→외출 변환 + 재등원.
+
+- [ ] `POST /api/v1/kiosk/attendance/re-check-in` — 하원 후 복귀 전용 API
+- [ ] 기존 하원 기록의 status를 CHECKED_OUT → 외출로 변환
+- [ ] 복귀 태깅 시간을 외출복귀로 기록
+- [ ] 좌석/순공시간/Redis 상태 롤백 + 재설정 로직
+- [ ] ⚠️ 트랜잭션 설계 중요 — 우리 DB + DSA 양쪽 수정 필요 (DSA 전달은 나중에)
+
+#### Phase 15: 비대면 신청 (좌석대기/변경 + 휴대폰 미소지)
+
+키오스크에서 학생이 신청 → 관리자 페이지에서 확인/처리.
+
+- [ ] `seat_change_requests` 테이블 — student_id, store_id, current_seat, desired_zone, desired_seat, status(PENDING/APPROVED/REJECTED), reason
+- [ ] `phone_absences` 테이블 — student_id, store_id, seat_number, parent_phone, status, reported_at
+- [ ] `POST /api/v1/kiosk/seat-requests` — 좌석대기/변경 신청
+- [ ] `POST /api/v1/kiosk/phone-absence` — 휴대폰 미소지 신청
+- [ ] `GET /api/v1/admin/seat-requests` — 신청 목록
+- [ ] `PUT /api/v1/admin/seat-requests/{id}/approve` — 승인
+- [ ] `PUT /api/v1/admin/seat-requests/{id}/reject` — 거절
+- [ ] `GET /api/v1/admin/phone-absences` — 미소지 목록
+- [ ] `PUT /api/v1/admin/phone-absences/{id}/confirm` — 확인 처리
+
+#### Phase 16: 학생 맞춤형 공지 (비대면 공지)
+
+관리자가 학생별 개별 메시지 등록, 태깅 시 노출.
+
+- [ ] `student_messages` 테이블 — student_id, message, active, expires_at
+- [ ] `POST /api/v1/admin/student-messages` — 메시지 등록
+- [ ] `GET /api/v1/admin/student-messages` — 메시지 목록
+- [ ] `DELETE /api/v1/admin/student-messages/{id}` — 삭제
+- [ ] 등원 API 응답에 개별 메시지 리스트 포함
+
+#### Phase 17: 식사 체크
+
+키오스크에서 RFID/QR/학번/전화번호로 점심/저녁 식사 체크. DSA 전달은 스펙 확정 후.
+
+- [ ] `meal_checks` 테이블 — student_id, store_id, meal_date, meal_type(LUNCH/DINNER), checked_at
+- [ ] `POST /api/v1/kiosk/meals/check` — 식사 체크
+- [ ] `GET /api/v1/kiosk/meals/status` — 당일 식사 체크 여부 조회
+
+#### Phase 18: 좌석배치표 등원상태 세분화
+
+좌석배치표에 등원/지각/미등원/외출/이탈 등 상세 상태 표시.
+
+- [ ] 기존 `GET /api/v1/kiosk/seats` 응답에 등원상태 필드 추가
+- [ ] 등원 판정: 7:49까지 등원, 7:50 이후 지각 (기준시간 관리자 설정 가능하게?)
+- [ ] `GET /api/v1/admin/seat-map` — 관리자 실시간 좌석배치표 (좌석번호/이름/등원상태)
+
+### DSA 스펙 확정 후 착수
+
+#### DSA 연동 Phase
+
+- [ ] students 테이블에 `dsa_student_id` 컬럼 추가 (DSA 키 매핑)
+- [ ] `DsaDataSource` 인터페이스 + 구현체 (DB직접/View/REST 중 확정된 방식)
+- [ ] 학생 데이터 동기화 스케줄러 (`@Scheduled`, 새벽 배치 + 수동 트리거)
+- [ ] 결과 전달 비동기 처리 (등원/하원/외출/식사 → DSA)
+- [ ] `pending_sync_events` 테이블 — 실패 건 재시도 큐
+- [ ] 정합성 체크 (새벽 양쪽 데이터 비교 + 불일치 알림)
+- [ ] 급식 신청 내역 동기화 (DSA → 우리 DB 캐싱)
+- [ ] 수납 내역 동기화 (DSA → 우리 DB 캐싱)
+- [ ] 사유신청권 동기화 (DSA → 우리 DB 캐싱)
+- [ ] 좌석 배정 동기화 (DSA → 우리 DB 캐싱)
+
 ---
 
 ## UX 개선 검토 사항
@@ -317,11 +442,23 @@ Phase 0 (기반)
     → Phase 4.5 (키오스크 인증)
     → Phase 4.6 (외출/복귀)
     → Phase 5 (좌석 + Redis)
-    → Phase 5.5 (공부 시간 랭킹) ← Phase 5 좌석 퇴실 + Phase 4.6 외출에서 점수 갱신
-    → Phase 6 (식단표)
-      → Phase 7 (엑셀) ← Phase 4, 5, 5.5 데이터 필요
-    → Phase 8 (키오스크 모니터링) ← Phase 4.5 키오스크 인증 필요
-    → Phase 9 (공지사항) ← Phase 2 지점 데이터 필요
+    → Phase 9 (공지사항)
+    → Phase 10 (시험 일정)
+    ── DLab PDF 요구사항 (DSA 없이 착수 가능) ──
+    → Phase 11 (학번/전화번호 인식) ← Phase 4 학생 인식 확장
+    → Phase 12 (순공시간 + 랭킹) ← Phase 5 좌석 퇴실 + Phase 4.6 외출 + Phase 13 이탈
+    → Phase 13 (좌석이탈/복귀) ← Phase 5 좌석 상태 확장
+    → Phase 14 (하원 후 복귀 자동변환) ← Phase 4 출석 + Phase 4.6 외출
+    → Phase 15 (비대면 신청) ← Phase 5 좌석
+    → Phase 16 (학생 맞춤형 공지) ← Phase 4 학생
+    → Phase 17 (식사 체크) ← Phase 11 학생 인식
+    → Phase 18 (좌석배치표 세분화) ← Phase 5 좌석 + Phase 13 이탈
+    ── DSA 스펙 확정 후 ──
+    → DSA 연동 Phase ← 전체 Phase 의존
+    ── 기존 보류 ──
+    → Phase 6 (식단표) ← DSA 연동
+      → Phase 7 (엑셀) ← Phase 4, 5, 12 데이터 필요
+    → Phase 8 (키오스크 모니터링) ← Phase 4.5 키오스크 인증
   Phase 3 (배리어프리 원격 제어) ← Phase 2 Store 엔티티 확장
 ```
 
@@ -349,6 +486,21 @@ Phase 0 (기반)
 | `POST /api/v1/kiosk/heartbeat` | KIOSK JWT | 키오스크 heartbeat ping (Phase 8) |
 | `GET /api/v1/admin/kiosks/status` | ADMIN JWT | 전체 키오스크 온/오프라인 조회 (Phase 8) |
 | `GET /api/v1/kiosk/notices` | KIOSK JWT | 공지사항 목록 (Phase 9) |
+| `GET /api/v1/kiosk/exam-schedules` | KIOSK JWT | 시험 일정 목록 (Phase 10) |
+| `POST /api/v1/kiosk/attendance/re-check-in` | KIOSK JWT | 하원 후 복귀 (Phase 14) |
+| `POST /api/v1/kiosk/meals/check` | KIOSK JWT | 식사 체크 (Phase 17) |
+| `GET /api/v1/kiosk/meals/status` | KIOSK JWT | 당일 식사 체크 여부 (Phase 17) |
+| `POST /api/v1/kiosk/seats/departure` | KIOSK JWT | 좌석이탈 신청 (Phase 13) |
+| `POST /api/v1/kiosk/seats/return` | KIOSK JWT | 좌석복귀 처리 (Phase 13) |
+| `POST /api/v1/kiosk/seat-requests` | KIOSK JWT | 좌석대기/변경 신청 (Phase 15) |
+| `POST /api/v1/kiosk/phone-absence` | KIOSK JWT | 휴대폰 미소지 신청 (Phase 15) |
+| `GET /api/v1/kiosk/rankings/last-week` | KIOSK JWT | 지난주 확정 랭킹 (Phase 12) |
+| `GET /api/v1/admin/seat-departures` | ADMIN JWT | 좌석이탈 현황 (Phase 13) |
+| `CRUD /api/v1/admin/departure-reasons` | ADMIN JWT | 이탈사유 항목 관리 (Phase 13) |
+| `GET/PUT /api/v1/admin/seat-requests/**` | ADMIN JWT | 좌석 신청 처리 (Phase 15) |
+| `GET/PUT /api/v1/admin/phone-absences/**` | ADMIN JWT | 미소지 신청 처리 (Phase 15) |
+| `CRUD /api/v1/admin/student-messages` | ADMIN JWT | 학생 맞춤형 공지 (Phase 16) |
+| `GET /api/v1/admin/seat-map` | ADMIN JWT | 실시간 좌석배치표 (Phase 18) |
 | `GET /api/v1/kiosk/settings` | KIOSK JWT | BF 설정값 조회 (Phase 3) |
 | `POST /api/admin/auth/refresh` | X | 관리자 토큰 재발급 (refreshToken 쿠키) |
 | `/api/v1/admin/**` | ADMIN JWT | 모든 어드민 기능 |
@@ -487,23 +639,60 @@ DSA 서버 ──(주기적 동기화)──→ 우리 DB (학생 정보 + qrUui
 3. DSA API 호출 (출석/하원/급식 등 결과 전달)
 4. 통합 홈페이지 식단표 동기화
 
+### PK 매핑
+
+- students 테이블에 `dsa_student_id` 컬럼 추가 (DSA 키, 학번 가능성 높음)
+- DSA 동기화 시 dsa_student_id 기준으로 매칭, qrUuid는 우리가 생성/유지
+- DSA API 호출 시 dsa_student_id로 전달
+
 ### 동기화 정책
 
-- DSA → 우리 DB 단방향 동기화
+**DSA → 우리 (가져오기):**
+- 하루 1회 새벽 배치 동기화 (`@Scheduled`)
+- 관리자 수동 트리거 API 제공 (신규 학생 즉시 반영용)
 - 동기화 시 DSA 데이터로 덮어쓰기, qrUuid는 유지
-- 동기화 주기: 설정 가능 (기본 1시간 등)
-- 관리자 수동 트리거 API 제공
+- DSA 접근 방식: 1지망 DB 읽기 권한 → 2지망 View → 3지망 API
+
+**우리 → DSA (전달하기):**
+- 이벤트 발생 즉시 비동기 전달
+- 전달 대상: 등원/하원/외출·복귀/식사체크/좌석변경승인/출결자동수정
+- 학생 응답은 우리 DB 저장 시점에 바로 반환 (DSA 전달과 분리)
+
+**정합성 체크:**
+- 하루 1회 새벽에 양쪽 데이터 비교
+- 불일치 건 로그 + 관리자 알림
 
 ### DSA API 실패 대응
 
-- 우리 DB에 임시 저장 → DSA 복구 후 재전송 (큐/재시도 방식)
+- `pending_sync_events` 테이블에 실패 건 저장
+- 재시도 간격: 1분 → 5분 → 10분 (점진적)
+- 계속 실패 시 관리자에게 알림
 - 키오스크는 DSA 장애와 무관하게 정상 동작
 
-### 선행 조건
+### DSA에 요구해야 할 API
 
-- DSA API 스펙 확인 필요 (REST/SOAP, 인증 방식, 엔드포인트 목록)
-- DSA 측 학생 조회 API, 출석 기록 API, 급식 조회 API 존재 여부 확인
-- 좌석 배정 데이터 존재 여부 및 형태 확인 필요
+**DB 읽기 권한 받으면 조회 API 불필요, 결과 전달 API만 필요:**
+
+| # | API | 방향 | 용도 |
+|---|-----|------|------|
+| 1 | 등원 결과 전달 | 우리→DSA | 등원 시간 반영 |
+| 2 | 하원 결과 전달 | 우리→DSA | 하원 시간 반영 |
+| 3 | 외출 시작 전달 | 우리→DSA | 외출 시간+사유 반영 |
+| 4 | 외출 복귀 전달 | 우리→DSA | 복귀 시간 반영 |
+| 5 | 식사 체크 전달 | 우리→DSA | 점심/저녁 체크 반영 |
+| 6 | 좌석 변경 승인 전달 | 우리→DSA | 좌석 배정 업데이트 |
+| 7 | 출결 자동수정 전달 | 우리→DSA | 하원→외출 변환 반영 |
+
+**DB 권한 못 받으면 조회 API 추가 필요 (최대 +6개)**
+
+### 사전 확인 필수 사항
+
+- API 방식 (REST/SOAP), 인증 방식, 응답 형식 (JSON/XML)
+- DSA 학생 식별키 (학번? 내부 ID?)
+- DSA 서버 위치 (내부망/클라우드/VPN)
+- Rate Limit, 테스트 환경 제공 여부
+- 좌석이탈/휴대폰 미소지가 DSA에 있는 기능인지
+- 기존 키오스크 교체인지 신규인지 (데이터 마이그레이션 범위)
 
 ---
 
