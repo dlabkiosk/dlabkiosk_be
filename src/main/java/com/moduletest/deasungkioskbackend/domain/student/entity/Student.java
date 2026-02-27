@@ -45,22 +45,28 @@ public class Student extends BaseTimeEntity {
     @Column(name = "rfid_uid", unique = true, length = 50)
     private String rfidUid;
 
+    @Column(name = "student_number", unique = true, length = 30)
+    private String studentNumber;
+
     @Builder
     public Student(Store store, String name, String phone, String qrUuid,
-                   String grade, String rfidUid) {
+                   String grade, String rfidUid, String studentNumber) {
         this.store = store;
         this.name = name;
         this.phone = phone;
         this.qrUuid = qrUuid;
         this.grade = grade;
         this.rfidUid = rfidUid;
+        this.studentNumber = studentNumber;
     }
 
-    public void updateInfo(String name, String phone, String grade, Store store) {
+    public void updateInfo(String name, String phone, String grade,
+                           Store store, String studentNumber) {
         this.name = name;
         this.phone = phone;
         this.grade = grade;
         this.store = store;
+        this.studentNumber = studentNumber;
     }
 
     public void updateRfidUid(String rfidUid) {

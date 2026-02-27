@@ -1,8 +1,8 @@
 package com.moduletest.deasungkioskbackend.domain.outing.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.attendance.entity.AttendanceStatus;
-import com.moduletest.deasungkioskbackend.domain.attendance.exception.AttendanceException;
 import com.moduletest.deasungkioskbackend.domain.attendance.repository.AttendanceRepository;
 import com.moduletest.deasungkioskbackend.domain.kiosk.exception.KioskException;
 import com.moduletest.deasungkioskbackend.domain.outing.dto.OutingEndRequest;
@@ -15,7 +15,6 @@ import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsageStatus;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.service.SeatRedisService;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
-import com.moduletest.deasungkioskbackend.domain.student.exception.StudentException;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -32,12 +31,15 @@ public class OutingService {
     private final OutingRepository outingRepository;
     private final AttendanceRepository attendanceRepository;
     private final StudentRepository studentRepository;
+    private final StudentResolverService studentResolverService;
     private final SeatUsageRepository seatUsageRepository;
     private final SeatRedisService seatRedisService;
 
     @Transactional
     public OutingResponse startOuting(OutingStartRequest request, Long storeId) {
-        Student student = resolveStudent(request.qrUuid(), request.rfidUid());
+        Student student = studentResolverService.resolveStudent(
+            request.qrUuid(), request.rfidUid(),
+            request.studentNumber(), request.phone());
         validateStudentStore(student, storeId);
 
         LocalDate today = LocalDate.now();
@@ -88,7 +90,9 @@ public class OutingService {
 
     @Transactional
     public OutingResponse endOuting(OutingEndRequest request, Long storeId) {
-        Student student = resolveStudent(request.qrUuid(), request.rfidUid());
+        Student student = studentResolverService.resolveStudent(
+            request.qrUuid(), request.rfidUid(),
+            request.studentNumber(), request.phone());
         validateStudentStore(student, storeId);
 
         LocalDate today = LocalDate.now();
@@ -113,18 +117,6 @@ public class OutingService {
             });
 
         return OutingResponse.fromEntity(outing);
-    }
-
-    private Student resolveStudent(String qrUuid, String rfidUid) {
-        if (qrUuid != null && !qrUuid.isBlank()) {
-            return studentRepository.findByQrUuid(qrUuid)
-                .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND_BY_QR));
-        }
-        if (rfidUid != null && !rfidUid.isBlank()) {
-            return studentRepository.findByRfidUid(rfidUid)
-                .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND_BY_RFID));
-        }
-        throw new AttendanceException(ErrorCode.INVALID_CHECK_IN_REQUEST);
     }
 
     private void validateStudentStore(Student student, Long storeId) {

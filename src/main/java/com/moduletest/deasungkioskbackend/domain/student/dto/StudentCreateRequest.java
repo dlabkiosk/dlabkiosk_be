@@ -28,5 +28,9 @@ public record StudentCreateRequest(
 
     @Schema(description = "RFID 카드 UID (선택, 나중에 등록 가능)", example = "A1B2C3D4")
     @Size(max = 50, message = "RFID UID는 50자를 초과할 수 없습니다.")
-    String rfidUid
+    String rfidUid,
+
+    @Schema(description = "학번 (선택, 나중에 등록 가능)", example = "2024-001")
+    @Size(max = 30, message = "학번은 30자를 초과할 수 없습니다.")
+    String studentNumber
 ) { }
