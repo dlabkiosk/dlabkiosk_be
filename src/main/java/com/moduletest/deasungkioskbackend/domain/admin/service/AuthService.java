@@ -4,6 +4,7 @@ package com.moduletest.deasungkioskbackend.domain.admin.service;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.security.JwtTokenProvider;
 import com.moduletest.deasungkioskbackend.common.security.TokenRedisService;
+import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserResponse;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.LoginRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.SignupRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.entity.AdminUser;
@@ -84,6 +85,12 @@ public class AuthService {
             adminUser.getId(), newAccessToken, jwtTokenProvider.getAccessExpiration());
 
         return newAccessToken;
+    }
+
+    public AdminUserResponse findCurrentUser(Long userId) {
+        AdminUser adminUser = adminUserRepository.findById(userId)
+            .orElseThrow(() -> new AdminException(ErrorCode.ADMIN_NOT_FOUND));
+        return AdminUserResponse.fromEntity(adminUser);
     }
 
     public void logout(Long userId) {

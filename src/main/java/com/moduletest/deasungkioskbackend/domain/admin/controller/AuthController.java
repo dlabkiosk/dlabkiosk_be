@@ -5,6 +5,7 @@ import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.security.JwtTokenProvider;
 import com.moduletest.deasungkioskbackend.common.util.CookieUtil;
+import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserResponse;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.LoginRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.SignupRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.exception.AdminException;
@@ -17,6 +18,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -62,6 +64,15 @@ public class AuthController {
         String newAccessToken = authService.refresh(refreshToken);
         CookieUtil.addAccessToken(response, newAccessToken, jwtTokenProvider.getAccessExpiration());
         return CommonResponse.success(null);
+    }
+
+    @Operation(summary = "내 정보 조회",
+        description = "현재 로그인된 관리자의 정보를 반환한다.")
+    @GetMapping("/me")
+    public CommonResponse<AdminUserResponse> me() {
+        Long userId = Long.valueOf(
+            SecurityContextHolder.getContext().getAuthentication().getName());
+        return CommonResponse.success(authService.findCurrentUser(userId));
     }
 
     @Operation(summary = "관리자 로그아웃",

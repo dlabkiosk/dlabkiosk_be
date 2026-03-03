@@ -15,6 +15,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,6 +39,15 @@ public class KioskAuthController {
         KioskAuthService.KioskLoginResult result = kioskAuthService.login(request);
         addAccessToken(response, result.token(), jwtTokenProvider.getKioskExpiration());
         return CommonResponse.success(result.storeInfo());
+    }
+
+    @Operation(summary = "키오스크 내 정보 조회",
+        description = "현재 로그인된 키오스크의 지점 정보를 반환한다. 페이지 새로고침 시 상태 복구에 사용한다.")
+    @GetMapping("/me")
+    public CommonResponse<KioskLoginResponse> me() {
+        Long storeId = Long.valueOf(
+            SecurityContextHolder.getContext().getAuthentication().getName());
+        return CommonResponse.success(kioskAuthService.findCurrentStore(storeId));
     }
 
     @Operation(summary = "키오스크 로그아웃",

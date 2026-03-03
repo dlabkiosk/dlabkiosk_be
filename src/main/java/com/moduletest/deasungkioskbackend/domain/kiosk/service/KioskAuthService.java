@@ -42,6 +42,12 @@ public class KioskAuthService {
         return new KioskLoginResult(token, loginResponse);
     }
 
+    public KioskLoginResponse findCurrentStore(Long storeId) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new KioskException(ErrorCode.STORE_NOT_FOUND));
+        return KioskLoginResponse.fromEntity(store);
+    }
+
     public void logout(Long storeId) {
         tokenRedisService.removeKioskToken(storeId);
     }
