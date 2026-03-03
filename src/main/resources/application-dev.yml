@@ -37,5 +37,16 @@ decorator:
     p6spy:
       enable-logging: true
 
+
+cloud:
+  aws:
+    s3:
+      bucket: ${S3_BUCKET}
+    credentials:
+      access-key: ${AWS_ACCESS_KEY}
+      secret-key: ${AWS_SECRET_KEY}
+    region:
+      static: ap-northeast-2
+
 server:
   port: 8080
