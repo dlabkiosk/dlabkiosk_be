@@ -1,0 +1,68 @@
+name: CD
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Grant execute permission
+        run: chmod +x gradlew
+
+      - name: Build JAR
+        run: ./gradlew clean bootJar -x test
+
+      - name: Docker build
+        run: docker build -t kiosk-backend:latest .
+
+      - name: Save Docker image
+        run: docker save kiosk-backend:latest | gzip > kiosk-backend.tar.gz
+
+      - name: Copy image to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: kiosk-backend.tar.gz
+          target: /home/${{ secrets.EC2_USER }}
+
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/${{ secrets.EC2_USER }}
+            docker load < kiosk-backend.tar.gz
+            docker stop kiosk-backend || true
+            docker rm kiosk-backend || true
+            docker run -d \
+              --name kiosk-backend \
+              --restart unless-stopped \
+              -p 8081:8080 \
+              -e DB_URL=${{ secrets.DB_URL }} \
+              -e DB_USER=${{ secrets.DB_USER }} \
+              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              -e REDIS_HOST=${{ secrets.REDIS_HOST }} \
+              -e REDIS_PORT=${{ secrets.REDIS_PORT }} \
+              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              -e JWT_ACCESS_EXPIRATION=${{ secrets.JWT_ACCESS_EXPIRATION }} \
+              -e JWT_REFRESH_EXPIRATION=${{ secrets.JWT_REFRESH_EXPIRATION }} \
+              -e KIOSK_TOKEN_EXPIRATION=${{ secrets.KIOSK_TOKEN_EXPIRATION }} \
+              kiosk-backend:latest
+            rm kiosk-backend.tar.gz
+            docker image prune -f
