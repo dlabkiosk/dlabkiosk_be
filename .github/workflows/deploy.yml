@@ -31,14 +31,14 @@ jobs:
       - name: Save Docker image
         run: docker save kiosk-backend:latest | gzip > kiosk-backend.tar.gz
 
-      - name: Copy image to EC2
+      - name: Copy files to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: kiosk-backend.tar.gz
-          target: /home/${{ secrets.EC2_USER }}
+          source: "kiosk-backend.tar.gz,docker-compose.prod.yml"
+          target: /home/${{ secrets.EC2_USER }}/kiosk
 
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -47,23 +47,22 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /home/${{ secrets.EC2_USER }}
+            cd /home/${{ secrets.EC2_USER }}/kiosk
+
+            cat > .env.prod << 'ENVEOF'
+            DB_URL=${{ secrets.DB_URL }}
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            REDIS_HOST=${{ secrets.REDIS_HOST }}
+            REDIS_PORT=${{ secrets.REDIS_PORT }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_ACCESS_EXPIRATION=${{ secrets.JWT_ACCESS_EXPIRATION }}
+            JWT_REFRESH_EXPIRATION=${{ secrets.JWT_REFRESH_EXPIRATION }}
+            KIOSK_TOKEN_EXPIRATION=${{ secrets.KIOSK_TOKEN_EXPIRATION }}
+            ENVEOF
+
             docker load < kiosk-backend.tar.gz
-            docker stop kiosk-backend || true
-            docker rm kiosk-backend || true
-            docker run -d \
-              --name kiosk-backend \
-              --restart unless-stopped \
-              -p 8081:8080 \
-              -e DB_URL=${{ secrets.DB_URL }} \
-              -e DB_USER=${{ secrets.DB_USER }} \
-              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-              -e REDIS_HOST=${{ secrets.REDIS_HOST }} \
-              -e REDIS_PORT=${{ secrets.REDIS_PORT }} \
-              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
-              -e JWT_ACCESS_EXPIRATION=${{ secrets.JWT_ACCESS_EXPIRATION }} \
-              -e JWT_REFRESH_EXPIRATION=${{ secrets.JWT_REFRESH_EXPIRATION }} \
-              -e KIOSK_TOKEN_EXPIRATION=${{ secrets.KIOSK_TOKEN_EXPIRATION }} \
-              kiosk-backend:latest
+            docker compose -f docker-compose.prod.yml down
+            docker compose -f docker-compose.prod.yml up -d
             rm kiosk-backend.tar.gz
             docker image prune -f
