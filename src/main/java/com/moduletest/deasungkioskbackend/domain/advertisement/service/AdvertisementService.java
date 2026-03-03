@@ -1,7 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.advertisement.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
-import com.moduletest.deasungkioskbackend.common.service.FileStorageService;
+import com.moduletest.deasungkioskbackend.common.service.S3Service;
 import com.moduletest.deasungkioskbackend.domain.advertisement.dto.AdvertisementResponse;
 import com.moduletest.deasungkioskbackend.domain.advertisement.entity.Advertisement;
 import com.moduletest.deasungkioskbackend.domain.advertisement.exception.AdvertisementException;
@@ -22,7 +22,7 @@ public class AdvertisementService {
 
     private final AdvertisementRepository advertisementRepository;
     private final StoreRepository storeRepository;
-    private final FileStorageService fileStorageService;
+    private final S3Service s3Service;
 
     public List<AdvertisementResponse> findAllAdvertisements(Long storeId) {
         if (storeId != null) {
@@ -49,12 +49,12 @@ public class AdvertisementService {
 
     @Transactional
     public AdvertisementResponse createAdvertisement(Long storeId, MultipartFile file,
-                                                     String mediaType, int displayOrder,
-                                                     int displaySeconds) {
+        String mediaType, int displayOrder,
+        int displaySeconds) {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
-        String fileUrl = fileStorageService.store(file);
+        String fileUrl = s3Service.upload(file);
 
         Advertisement advertisement = Advertisement.builder()
             .store(store)
@@ -71,15 +71,15 @@ public class AdvertisementService {
 
     @Transactional
     public AdvertisementResponse updateAdvertisement(Long id, MultipartFile file,
-                                                     String mediaType, Integer displayOrder,
-                                                     Integer displaySeconds, Boolean active) {
+        String mediaType, Integer displayOrder,
+        Integer displaySeconds, Boolean active) {
         Advertisement advertisement = advertisementRepository.findByIdWithStore(id)
             .orElseThrow(() -> new AdvertisementException(ErrorCode.ADVERTISEMENT_NOT_FOUND));
 
         String newImageUrl = null;
         if (file != null && !file.isEmpty()) {
-            fileStorageService.delete(advertisement.getImageUrl());
-            newImageUrl = fileStorageService.store(file);
+            s3Service.delete(advertisement.getImageUrl());
+            newImageUrl = s3Service.upload(file);
         }
 
         advertisement.updateInfo(newImageUrl, mediaType, displayOrder, displaySeconds, active);
@@ -90,7 +90,7 @@ public class AdvertisementService {
     public void deleteAdvertisement(Long id) {
         Advertisement advertisement = advertisementRepository.findById(id)
             .orElseThrow(() -> new AdvertisementException(ErrorCode.ADVERTISEMENT_NOT_FOUND));
-        fileStorageService.delete(advertisement.getImageUrl());
+        s3Service.delete(advertisement.getImageUrl());
         advertisementRepository.delete(advertisement);
     }
 }
