@@ -9,7 +9,9 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -49,6 +51,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         subject, null,
                         List.of(new SimpleGrantedAuthority("ROLE_" + role))
                     );
+
+                Map<String, Object> details = new HashMap<>();
+                details.put("role", role);
+                Long storeId = claims.get("storeId", Long.class);
+                if (storeId != null) {
+                    details.put("storeId", storeId);
+                }
+                authentication.setDetails(details);
+
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (ExpiredJwtException e) {
                 request.setAttribute("exception", "EXPIRED_TOKEN");

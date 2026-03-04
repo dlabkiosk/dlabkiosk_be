@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.examschedule.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.examschedule.dto.ExamScheduleCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.examschedule.dto.ExamScheduleResponse;
 import com.moduletest.deasungkioskbackend.domain.examschedule.dto.ExamScheduleUpdateRequest;
@@ -33,9 +34,10 @@ public class ExamScheduleAdminController {
     @GetMapping
     public CommonResponse<List<ExamScheduleResponse>> findAllExamSchedules(
         @RequestParam(required = false) Long storeId) {
+        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
         List<ExamScheduleResponse> examSchedules;
-        if (storeId != null) {
-            examSchedules = examScheduleService.findAllExamSchedulesByStoreId(storeId);
+        if (resolvedStoreId != null) {
+            examSchedules = examScheduleService.findAllExamSchedulesByStoreId(resolvedStoreId);
         } else {
             examSchedules = examScheduleService.findAllExamSchedules();
         }

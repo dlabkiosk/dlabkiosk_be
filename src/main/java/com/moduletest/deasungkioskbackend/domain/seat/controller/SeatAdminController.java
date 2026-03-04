@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.seat.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatUpdateRequest;
@@ -33,7 +34,8 @@ public class SeatAdminController {
     @GetMapping
     public CommonResponse<List<SeatResponse>> findAllSeats(
         @RequestParam(required = false) Long storeId) {
-        List<SeatResponse> seats = seatService.findAllSeats(storeId);
+        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
+        List<SeatResponse> seats = seatService.findAllSeats(resolvedStoreId);
         return CommonResponse.success(seats);
     }
 

@@ -1,11 +1,15 @@
 package com.moduletest.deasungkioskbackend.domain.admin.entity;
 
 import com.moduletest.deasungkioskbackend.common.entity.BaseTimeEntity;
+import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -34,12 +38,20 @@ public class AdminUser extends BaseTimeEntity {
     @Column(nullable = false, length = 20)
     private String role;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id", nullable = false)
+    private Store store;
+
     @Builder
-    public AdminUser(String loginId, String password, String name, String role) {
+    public AdminUser(String loginId, String password, String name, String role, Store store) {
         this.loginId = loginId;
         this.password = password;
         this.name = name;
         this.role = role;
+        this.store = store;
     }
-    
+
+    public void promoteToAdmin() {
+        this.role = "ADMIN";
+    }
 }

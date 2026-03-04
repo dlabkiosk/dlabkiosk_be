@@ -2,6 +2,7 @@ package com.moduletest.deasungkioskbackend.domain.admin.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 @Schema(description = "관리자 회원가입 요청")
@@ -18,5 +19,9 @@ public record SignupRequest(
 
     @Schema(description = "관리자 이름", example = "홍길동")
     @NotBlank(message = "이름은 필수 입력 항목입니다.")
-    String name
+    String name,
+
+    @Schema(description = "소속 지점 ID", example = "1")
+    @NotNull(message = "지점 ID는 필수 입력 항목입니다.")
+    Long storeId
 ) { }

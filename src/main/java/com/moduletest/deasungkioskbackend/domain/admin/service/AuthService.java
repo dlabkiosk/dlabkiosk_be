@@ -10,6 +10,9 @@ import com.moduletest.deasungkioskbackend.domain.admin.dto.SignupRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.entity.AdminUser;
 import com.moduletest.deasungkioskbackend.domain.admin.exception.AdminException;
 import com.moduletest.deasungkioskbackend.domain.admin.repository.AdminUserRepository;
+import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
+import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
+import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final AdminUserRepository adminUserRepository;
+    private final StoreRepository storeRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final TokenRedisService tokenRedisService;
@@ -31,17 +35,21 @@ public class AuthService {
             throw new AdminException(ErrorCode.DUPLICATE_LOGIN_ID);
         }
 
+        Store store = storeRepository.findById(request.storeId())
+            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
+
         AdminUser adminUser = AdminUser.builder()
             .loginId(request.loginId())
             .password(passwordEncoder.encode(request.password()))
             .name(request.name())
-            .role("ADMIN")
+            .role("MANAGER")
+            .store(store)
             .build();
         adminUserRepository.save(adminUser);
     }
 
     public String[] login(LoginRequest loginRequest) {
-        AdminUser adminUser = adminUserRepository.findByLoginId(loginRequest.userId())
+        AdminUser adminUser = adminUserRepository.findByLoginIdWithStore(loginRequest.userId())
             .orElseThrow(() -> new AdminException(ErrorCode.INVALID_CREDENTIALS));
 
         if (!passwordEncoder.matches(loginRequest.password(), adminUser.getPassword())) {
@@ -51,7 +59,8 @@ public class AuthService {
         String accessToken = jwtTokenProvider.createAccessToken(
             String.valueOf(adminUser.getId()),
             adminUser.getLoginId(),
-            adminUser.getRole()
+            adminUser.getRole(),
+            adminUser.getStore().getId()
         );
         String refreshToken = jwtTokenProvider.createRefreshToken(
             String.valueOf(adminUser.getId())
@@ -72,13 +81,14 @@ public class AuthService {
             throw new AdminException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        AdminUser adminUser = adminUserRepository.findById(userId)
+        AdminUser adminUser = adminUserRepository.findByIdWithStore(userId)
             .orElseThrow(() -> new AdminException(ErrorCode.ADMIN_NOT_FOUND));
 
         String newAccessToken = jwtTokenProvider.createAccessToken(
             String.valueOf(adminUser.getId()),
             adminUser.getLoginId(),
-            adminUser.getRole()
+            adminUser.getRole(),
+            adminUser.getStore().getId()
         );
 
         tokenRedisService.saveAdminAccessToken(
@@ -88,7 +98,7 @@ public class AuthService {
     }
 
     public AdminUserResponse findCurrentUser(Long userId) {
-        AdminUser adminUser = adminUserRepository.findById(userId)
+        AdminUser adminUser = adminUserRepository.findByIdWithStore(userId)
             .orElseThrow(() -> new AdminException(ErrorCode.ADMIN_NOT_FOUND));
         return AdminUserResponse.fromEntity(adminUser);
     }

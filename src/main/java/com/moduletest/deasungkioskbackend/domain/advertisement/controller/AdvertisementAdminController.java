@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.advertisement.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.advertisement.dto.AdvertisementResponse;
 import com.moduletest.deasungkioskbackend.domain.advertisement.service.AdvertisementService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,8 +31,9 @@ public class AdvertisementAdminController {
     @GetMapping
     public CommonResponse<List<AdvertisementResponse>> findAllAdvertisements(
         @RequestParam(required = false) Long storeId) {
+        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
         return CommonResponse.success(
-            advertisementService.findAllAdvertisements(storeId));
+            advertisementService.findAllAdvertisements(resolvedStoreId));
     }
 
     @Operation(summary = "광고 상세 조회")

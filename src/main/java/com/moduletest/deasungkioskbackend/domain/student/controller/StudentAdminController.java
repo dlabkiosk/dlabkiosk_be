@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.student.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentResponse;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentUpdateRequest;
@@ -36,7 +37,8 @@ public class StudentAdminController {
     @GetMapping
     public CommonResponse<List<StudentResponse>> findAllStudents(
         @RequestParam(required = false) Long storeId) {
-        List<StudentResponse> students = studentService.findAllStudents(storeId);
+        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
+        List<StudentResponse> students = studentService.findAllStudents(resolvedStoreId);
         return CommonResponse.success(students);
     }
 
