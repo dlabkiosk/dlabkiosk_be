@@ -86,6 +86,10 @@ public enum ErrorCode {
     ALREADY_ON_SEAT_LEAVE("SL001", "이미 좌석이탈 중입니다", HttpStatus.CONFLICT),
     NOT_ON_SEAT_LEAVE("SL002", "진행 중인 좌석이탈이 없습니다", HttpStatus.BAD_REQUEST),
     NO_ACTIVE_SEAT("SL003", "사용 중인 좌석이 없습니다", HttpStatus.BAD_REQUEST),
+
+
+    // Phone Submission
+    ALREADY_SUBMITTED_PHONE("PS001", "오늘 이미 휴대폰 미소지 신청을 했습니다", HttpStatus.CONFLICT),
     ;
 
 
