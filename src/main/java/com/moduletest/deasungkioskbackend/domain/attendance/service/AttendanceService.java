@@ -31,8 +31,7 @@ public class AttendanceService {
     @Transactional
     public AttendanceResponse checkIn(CheckInRequest request, Long storeId) {
         Student student = studentResolverService.resolveStudent(
-            request.qrUuid(), request.rfidUid(),
-            request.studentNumber(), request.phone());
+            request.identifier(), request.studentNumber(), request.phone());
 
         validateStudentStore(student, storeId);
 
@@ -65,8 +64,7 @@ public class AttendanceService {
     @Transactional
     public AttendanceResponse checkOut(CheckOutRequest request, Long storeId) {
         Student student = studentResolverService.resolveStudent(
-            request.qrUuid(), request.rfidUid(),
-            request.studentNumber(), request.phone());
+            request.identifier(), request.studentNumber(), request.phone());
 
         validateStudentStore(student, storeId);
 

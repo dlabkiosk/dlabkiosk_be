@@ -24,6 +24,10 @@ public record StudentResponse(
     String studentNumber,
     @Schema(description = "학년", example = "고3")
     String grade,
+    @Schema(description = "배정 좌석 ID")
+    Long assignedSeatId,
+    @Schema(description = "배정 좌석 라벨", example = "A-1")
+    String assignedSeatLabel,
     @Schema(description = "생성일시")
     LocalDateTime createdAt,
     @Schema(description = "수정일시")
@@ -31,6 +35,12 @@ public record StudentResponse(
 ) {
 
     public static StudentResponse fromEntity(Student student) {
+        Long seatId = null;
+        String seatLabel = null;
+        if (student.getAssignedSeat() != null) {
+            seatId = student.getAssignedSeat().getId();
+            seatLabel = student.getAssignedSeat().getSeatLabel();
+        }
         return new StudentResponse(
             student.getId(),
             student.getStore().getId(),
@@ -41,6 +51,8 @@ public record StudentResponse(
             student.getRfidUid(),
             student.getStudentNumber(),
             student.getGrade(),
+            seatId,
+            seatLabel,
             student.getCreatedAt(),
             student.getUpdatedAt()
         );

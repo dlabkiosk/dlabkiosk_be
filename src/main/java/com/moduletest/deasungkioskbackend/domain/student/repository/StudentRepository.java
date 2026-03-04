@@ -23,13 +23,15 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     boolean existsByStudentNumber(String studentNumber);
 
-    @Query("SELECT s FROM Student s JOIN FETCH s.store WHERE s.store.id = :storeId")
+    @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
+        + " WHERE s.store.id = :storeId")
     List<Student> findAllByStoreIdWithStore(@Param("storeId") Long storeId);
 
-    @Query("SELECT s FROM Student s JOIN FETCH s.store")
+    @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat")
     List<Student> findAllWithStore();
 
-    @Query("SELECT s FROM Student s JOIN FETCH s.store WHERE s.id = :id")
+    @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
+        + " WHERE s.id = :id")
     Optional<Student> findByIdWithStore(@Param("id") Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

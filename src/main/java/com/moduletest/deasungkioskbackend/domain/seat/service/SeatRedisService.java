@@ -68,4 +68,12 @@ public class SeatRedisService {
         return SEAT_STATUS_KEY_PREFIX + storeId;
     }
 
+
+    public void markSeatAway(Long storeId, Long seatId, Long studentId, String studentName) {
+        String key = "seat:" + storeId;
+        String value = "AWAY:" + studentId + ":" + studentName;
+        redisTemplate.opsForHash().put(key, String.valueOf(seatId), value);
+    }
+
+
 }

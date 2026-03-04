@@ -38,11 +38,8 @@ public enum ErrorCode {
 
 
     // Attendance
-    STUDENT_NOT_FOUND_BY_QR("ATT001", "QR 코드에 해당하는 학생을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
-    STUDENT_NOT_FOUND_BY_RFID("ATT004", "RFID 카드에 해당하는 학생을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
-    INVALID_CHECK_IN_REQUEST("ATT005", "QR UUID 또는 RFID UID 중 하나는 필수입니다", HttpStatus.BAD_REQUEST),
     STUDENT_NOT_FOUND_BY_PHONE("ATT006", "전화번호에 해당하는 학생을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
-    INVALID_STUDENT_IDENTIFIER("ATT007", "학생 인식 정보가 필요합니다 (QR/RFID/학번/전화번호 중 하나)",
+    INVALID_STUDENT_IDENTIFIER("ATT007", "학생 인식 정보가 필요합니다 (identifier/학번/전화번호 중 하나)",
         HttpStatus.BAD_REQUEST),
     ALREADY_CHECKED_IN("ATT002", "이미 등원 처리된 학생입니다", HttpStatus.CONFLICT),
     NOT_CHECKED_IN("ATT003", "등원 기록이 없습니다", HttpStatus.BAD_REQUEST),
@@ -54,6 +51,7 @@ public enum ErrorCode {
     SEAT_NOT_IN_USE("SE003", "사용 중이 아닌 좌석입니다", HttpStatus.BAD_REQUEST),
     STUDENT_ALREADY_HAS_SEAT("SE004", "이미 좌석을 사용 중인 학생입니다", HttpStatus.CONFLICT),
     SEAT_REDIS_CONFLICT("SE005", "좌석 선점에 실패했습니다. 다시 시도해주세요", HttpStatus.CONFLICT),
+    NO_ASSIGNED_SEAT("SE006", "배정된 좌석이 없습니다", HttpStatus.BAD_REQUEST),
 
 
     // Outing
@@ -82,7 +80,14 @@ public enum ErrorCode {
 
     // file upload
     FILE_UPLOAD_FAILED("FU001", "파일 업로드에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
-    FILE_DELETE_FAILED("FD001", "파일 삭제에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+    FILE_DELETE_FAILED("FD001", "파일 삭제에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    SEAT_LEAVE_REASON_NOT_FOUND("SLR001", "좌석이탈 사유를 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+    ALREADY_ON_SEAT_LEAVE("SL001", "이미 좌석이탈 중입니다", HttpStatus.CONFLICT),
+    NOT_ON_SEAT_LEAVE("SL002", "진행 중인 좌석이탈이 없습니다", HttpStatus.BAD_REQUEST),
+    NO_ACTIVE_SEAT("SL003", "사용 중인 좌석이 없습니다", HttpStatus.BAD_REQUEST),
+    ;
+
 
     private final String code;
     private final String message;
