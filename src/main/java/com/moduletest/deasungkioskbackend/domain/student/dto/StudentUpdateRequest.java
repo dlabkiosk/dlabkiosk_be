@@ -32,5 +32,8 @@ public record StudentUpdateRequest(
 
     @Schema(description = "학번", example = "2024-001")
     @Size(max = 30, message = "학번은 30자를 초과할 수 없습니다.")
-    String studentNumber
+    String studentNumber,
+
+    @Schema(description = "배정 좌석 ID (null이면 배정 해제)", example = "1")
+    Long seatId
 ) { }

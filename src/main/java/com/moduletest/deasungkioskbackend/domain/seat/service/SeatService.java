@@ -2,6 +2,7 @@ package com.moduletest.deasungkioskbackend.domain.seat.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
+import com.moduletest.deasungkioskbackend.domain.kiosk.exception.KioskException;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatCheckInRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatResponse;
@@ -17,7 +18,6 @@ import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageReposi
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
-import com.moduletest.deasungkioskbackend.domain.kiosk.exception.KioskException;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.time.LocalDateTime;
@@ -69,6 +69,10 @@ public class SeatService {
                 studentId = Long.valueOf(parts[1]);
                 studentName = parts[2];
                 outing = true;
+            } else if (status != null && status.startsWith("AWAY:")) {  // 여기 추가
+                String[] parts = status.split(":", 3);
+                studentId = Long.valueOf(parts[1]);
+                studentName = parts[2];
             }
 
             result.add(new SeatStatusResponse(
@@ -88,17 +92,17 @@ public class SeatService {
 
 
     @Transactional
-    public void seatCheckIn(Long seatId, SeatCheckInRequest request, Long storeId) {
-        Student student = studentResolverService.resolveStudent(
-            request.qrUuid(), request.rfidUid(),
-            request.studentNumber(), request.phone());
+    public void seatCheckIn(SeatCheckInRequest request, Long storeId) {
+        Student student = studentResolverService.resolveByIdentifier(request.identifier());
 
         if (!student.getStore().getId().equals(storeId)) {
             throw new KioskException(ErrorCode.STUDENT_NOT_IN_THIS_STORE);
         }
 
-        Seat seat = seatRepository.findById(seatId)
-            .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_FOUND));
+        Seat seat = student.getAssignedSeat();
+        if (seat == null) {
+            throw new SeatException(ErrorCode.NO_ASSIGNED_SEAT);
+        }
 
         // 이미 좌석 사용 중인 학생인지 확인
         seatUsageRepository.findByStudentIdAndStatus(student.getId(), SeatUsageStatus.IN_USE)
@@ -106,9 +110,11 @@ public class SeatService {
                 throw new SeatException(ErrorCode.STUDENT_ALREADY_HAS_SEAT);
             });
 
+        Long seatId = seat.getId();
+
         // Redis HSETNX로 원자적 선점
         boolean acquired = seatRedisService.tryOccupySeat(
-            seat.getStore().getId(), seatId, student.getId(), student.getName());
+            storeId, seatId, student.getId(), student.getName());
 
         if (!acquired) {
             throw new SeatException(ErrorCode.SEAT_ALREADY_IN_USE);
@@ -124,7 +130,7 @@ public class SeatService {
                 .build();
             seatUsageRepository.save(seatUsage);
         } catch (Exception e) {
-            seatRedisService.releaseSeat(seat.getStore().getId(), seatId);
+            seatRedisService.releaseSeat(storeId, seatId);
             throw e;
         }
 

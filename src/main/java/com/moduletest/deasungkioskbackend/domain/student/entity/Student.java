@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.student.entity;
 
 import com.moduletest.deasungkioskbackend.common.entity.BaseTimeEntity;
+import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -48,9 +49,13 @@ public class Student extends BaseTimeEntity {
     @Column(name = "student_number", unique = true, length = 30)
     private String studentNumber;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_seat_id")
+    private Seat assignedSeat;
+
     @Builder
     public Student(Store store, String name, String phone, String qrUuid,
-                   String grade, String rfidUid, String studentNumber) {
+                   String grade, String rfidUid, String studentNumber, Seat assignedSeat) {
         this.store = store;
         this.name = name;
         this.phone = phone;
@@ -58,6 +63,7 @@ public class Student extends BaseTimeEntity {
         this.grade = grade;
         this.rfidUid = rfidUid;
         this.studentNumber = studentNumber;
+        this.assignedSeat = assignedSeat;
     }
 
     public void updateInfo(String name, String phone, String grade,
@@ -71,5 +77,9 @@ public class Student extends BaseTimeEntity {
 
     public void updateRfidUid(String rfidUid) {
         this.rfidUid = rfidUid;
+    }
+
+    public void assignSeat(Seat seat) {
+        this.assignedSeat = seat;
     }
 }

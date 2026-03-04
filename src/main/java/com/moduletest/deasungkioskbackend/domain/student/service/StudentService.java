@@ -2,6 +2,9 @@ package com.moduletest.deasungkioskbackend.domain.student.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
+import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
+import com.moduletest.deasungkioskbackend.domain.seat.exception.SeatException;
+import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
@@ -24,6 +27,7 @@ public class StudentService {
 
     private final StudentRepository studentRepository;
     private final StoreRepository storeRepository;
+    private final SeatRepository seatRepository;
     private final QrCodeService qrCodeService;
     private final StudentResolverService studentResolverService;
 
@@ -60,6 +64,8 @@ public class StudentService {
             throw new StudentException(ErrorCode.DUPLICATE_STUDENT_NUMBER);
         }
 
+        Seat assignedSeat = resolveSeat(request.seatId());
+
         Student student = Student.builder()
             .store(store)
             .name(request.name())
@@ -68,6 +74,7 @@ public class StudentService {
             .grade(request.grade())
             .rfidUid(request.rfidUid())
             .studentNumber(request.studentNumber())
+            .assignedSeat(assignedSeat)
             .build();
 
         Student savedStudent = studentRepository.save(student);
@@ -89,6 +96,9 @@ public class StudentService {
             student.updateRfidUid(request.rfidUid());
         }
 
+        Seat assignedSeat = resolveSeat(request.seatId());
+        student.assignSeat(assignedSeat);
+
         return StudentResponse.fromEntity(student);
     }
 
@@ -99,11 +109,19 @@ public class StudentService {
         studentRepository.delete(student);
     }
 
-    public StudentResponse searchStudent(String qrUuid, String rfidUid,
+    public StudentResponse searchStudent(String identifier,
                                          String studentNumber, String phone) {
         Student student = studentResolverService.resolveStudent(
-            qrUuid, rfidUid, studentNumber, phone);
+            identifier, studentNumber, phone);
         return StudentResponse.fromEntity(student);
+    }
+
+    private Seat resolveSeat(Long seatId) {
+        if (seatId == null) {
+            return null;
+        }
+        return seatRepository.findById(seatId)
+            .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_FOUND));
     }
 
     public byte[] generateStudentQrCode(Long studentId) {

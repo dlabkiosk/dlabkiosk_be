@@ -20,16 +20,14 @@ public class StudentController {
     private final StudentService studentService;
 
     @Operation(summary = "학생 검색",
-        description = "학번, 전화번호, QR UUID, RFID UID 중 하나로 학생을 검색한다. "
-            + "4가지 중 하나만 전송하고 나머지는 비워야 한다.")
+        description = "identifier(QR UUID 또는 RFID UID), 학번, 전화번호 중 하나로 학생을 검색한다.")
     @GetMapping("/search")
     public CommonResponse<StudentResponse> searchStudent(
-        @RequestParam(required = false) String qrUuid,
-        @RequestParam(required = false) String rfidUid,
+        @RequestParam(required = false) String identifier,
         @RequestParam(required = false) String studentNumber,
         @RequestParam(required = false) String phone) {
         StudentResponse student = studentService.searchStudent(
-            qrUuid, rfidUid, studentNumber, phone);
+            identifier, studentNumber, phone);
         return CommonResponse.success(student);
     }
 }

@@ -36,14 +36,13 @@ public class SeatController {
     }
 
     @Operation(summary = "좌석 입실",
-        description = "QR/RFID로 좌석에 입실한다. 이미 사용 중인 좌석이면 거부된다. "
-            + "qrUuid와 rfidUid 중 하나만 전송해야 하며, 나머지는 null이어야 한다.")
-    @PostMapping("/{seatId}/check-in")
+        description = "QR/RFID로 배정된 좌석에 자동 입실한다. "
+            + "identifier에 QR UUID 또는 RFID UID를 전송.")
+    @PostMapping("/check-in")
     public CommonResponse<Void> seatCheckIn(
-        @PathVariable Long seatId,
         @Valid @RequestBody SeatCheckInRequest request) {
         Long storeId = getStoreIdFromToken();
-        seatService.seatCheckIn(seatId, request, storeId);
+        seatService.seatCheckIn(request, storeId);
         return CommonResponse.success(null);
     }
 

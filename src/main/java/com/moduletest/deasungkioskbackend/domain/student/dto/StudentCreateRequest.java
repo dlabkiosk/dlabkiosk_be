@@ -32,5 +32,8 @@ public record StudentCreateRequest(
 
     @Schema(description = "학번 (선택, 나중에 등록 가능)", example = "2024-001")
     @Size(max = 30, message = "학번은 30자를 초과할 수 없습니다.")
-    String studentNumber
+    String studentNumber,
+
+    @Schema(description = "배정 좌석 ID (선택)", example = "1")
+    Long seatId
 ) { }
