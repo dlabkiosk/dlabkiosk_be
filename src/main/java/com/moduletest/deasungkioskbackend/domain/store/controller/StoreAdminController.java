@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.store.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.store.dto.StoreCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.store.dto.StoreResponse;
 import com.moduletest.deasungkioskbackend.domain.store.dto.StoreUpdateRequest;
@@ -27,9 +28,15 @@ public class StoreAdminController {
 
     private final StoreService storeService;
 
-    @Operation(summary = "전체 지점 목록 조회", description = "등록된 모든 지점을 조회한다.")
+    @Operation(summary = "지점 목록 조회",
+        description = "ADMIN은 전체 지점, MANAGER는 소속 지점만 조회한다.")
     @GetMapping
     public CommonResponse<List<StoreResponse>> findAllStores() {
+        Long resolvedStoreId = SecurityUtil.resolveStoreId(null);
+        if (resolvedStoreId != null) {
+            StoreResponse store = storeService.findStoreById(resolvedStoreId);
+            return CommonResponse.success(List.of(store));
+        }
         List<StoreResponse> stores = storeService.findAllStores();
         return CommonResponse.success(stores);
     }

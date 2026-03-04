@@ -36,13 +36,14 @@ public class JwtTokenProvider {
     }
 
 
-    public String createAccessToken(String userId, String loginId, String role) {
+    public String createAccessToken(String userId, String loginId, String role, Long storeId) {
         Date now = new Date();
 
         return Jwts.builder()
             .subject(userId)
             .claim("loginId", loginId)
             .claim("role", role)
+            .claim("storeId", storeId)
             .issuedAt(now)
             .expiration(new Date(now.getTime() + accessExpiration))
             .signWith(secretKey)

@@ -6,7 +6,9 @@ public record AdminUserResponse(
     Long id,
     String loginId,
     String name,
-    String role
+    String role,
+    Long storeId,
+    String storeName
 ) {
 
     public static AdminUserResponse fromEntity(AdminUser adminUser) {
@@ -14,7 +16,9 @@ public record AdminUserResponse(
             adminUser.getId(),
             adminUser.getLoginId(),
             adminUser.getName(),
-            adminUser.getRole()
+            adminUser.getRole(),
+            adminUser.getStore().getId(),
+            adminUser.getStore().getStoreName()
         );
     }
 }

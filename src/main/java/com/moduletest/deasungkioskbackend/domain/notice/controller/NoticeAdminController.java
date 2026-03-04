@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.notice.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.notice.dto.NoticeCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.notice.dto.NoticeResponse;
 import com.moduletest.deasungkioskbackend.domain.notice.dto.NoticeUpdateRequest;
@@ -34,9 +35,10 @@ public class NoticeAdminController {
     @GetMapping
     public CommonResponse<List<NoticeResponse>> findAllNotices(
         @RequestParam(required = false) Long storeId) {
+        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
         List<NoticeResponse> notices;
-        if (storeId != null) {
-            notices = noticeService.findAllNoticesByStoreId(storeId);
+        if (resolvedStoreId != null) {
+            notices = noticeService.findAllNoticesByStoreId(resolvedStoreId);
         } else {
             notices = noticeService.findAllNotices();
         }
