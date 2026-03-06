@@ -6,15 +6,20 @@ import com.moduletest.deasungkioskbackend.domain.seatleave.dto.SeatLeaveResponse
 import com.moduletest.deasungkioskbackend.domain.seatleave.service.SeatLeaveService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,26 +32,44 @@ public class SeatLeaveAdminController {
 
     private final SeatLeaveService seatLeaveService;
 
-    @Operation(summary = "당일 좌석이탈 현황 조회",
-        description = "지점의 당일 좌석이탈 내역을 조회한다.")
+    @Operation(summary = "좌석이탈 현황 조회 (페이지네이션)",
+        description = "기간별 좌석이탈 현황을 조회한다. 날짜 미지정 시 당일 기준. "
+            + "MANAGER: 자기 지점만. ADMIN: 전체 지점. "
+            + "페이지네이션: ?page=0&size=20&sort=startedAt,desc")
     @GetMapping
-    public CommonResponse<List<SeatLeaveResponse>> findAllSeatLeavesToday(
-        @RequestParam(required = false) Long storeId) {
-        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
+    public CommonResponse<Page<SeatLeaveResponse>> findAllSeatLeaves(
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        LocalDate startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        LocalDate endDate,
+        @ParameterObject @PageableDefault(size = 20, sort = "startedAt",
+            direction = org.springframework.data.domain.Sort.Direction.DESC)
+        Pageable pageable) {
+        Long storeId = SecurityUtil.resolveStoreId(null);
+        LocalDate start = startDate != null ? startDate : LocalDate.now();
+        LocalDate end = endDate != null ? endDate : LocalDate.now();
         return CommonResponse.success(
-            seatLeaveService.findAllByStoreIdToday(resolvedStoreId));
+            seatLeaveService.findAllByPeriod(storeId, start, end, pageable));
+    }
+
+    @Operation(summary = "좌석이탈 강제 복귀처리",
+        description = "이탈 중인 학생을 관리자가 강제로 복귀 처리한다. "
+            + "좌석 상태가 AWAY → IN_USE로 복원되고, 이탈 시간이 차감에 반영된다.")
+    @PostMapping("/{id}/force-return")
+    public CommonResponse<SeatLeaveResponse> forceEndLeave(@PathVariable Long id) {
+        return CommonResponse.success(seatLeaveService.forceEndLeave(id));
     }
 
     @Operation(summary = "좌석이탈 엑셀 다운로드",
-        description = "기간별 좌석이탈 내역을 엑셀(.xlsx)로 다운로드한다.")
+        description = "MANAGER: 자기 지점 기간별 내역. ADMIN: 전체 지점 기간별 내역. "
+            + "엑셀(.xlsx) 파일로 다운로드한다.")
     @GetMapping("/export")
     public ResponseEntity<byte[]> exportSeatLeaves(
-        @RequestParam(required = false) Long storeId,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
-        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
-        byte[] excelBytes = seatLeaveService.exportToExcel(resolvedStoreId, startDate, endDate);
+        Long storeId = SecurityUtil.resolveStoreId(null);
+        byte[] excelBytes = seatLeaveService.exportToExcel(storeId, startDate, endDate);
 
         String filename = "seat-leaves_"
             + startDate.format(DateTimeFormatter.BASIC_ISO_DATE) + "_"

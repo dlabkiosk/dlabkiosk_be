@@ -15,6 +15,7 @@ import com.moduletest.deasungkioskbackend.domain.seatleave.exception.SeatLeaveEx
 import com.moduletest.deasungkioskbackend.domain.seatleave.repository.SeatLeaveReasonRepository;
 import com.moduletest.deasungkioskbackend.domain.seatleave.repository.SeatLeaveRepository;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
+import com.moduletest.deasungkioskbackend.domain.studytime.service.StudyTimeRedisService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDate;
@@ -22,6 +23,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Row;
@@ -41,10 +44,12 @@ public class SeatLeaveService {
     private final SeatUsageRepository seatUsageRepository;
     private final SeatRedisService seatRedisService;
     private final StudentResolverService studentResolverService;
+    private final StudyTimeRedisService studyTimeRedisService;
 
     @Transactional
     public SeatLeaveResponse startLeave(Long storeId, SeatLeaveStartRequest request) {
-        Student student = studentResolverService.resolveByIdentifier(request.identifier());
+        Student student = studentResolverService.resolveBySeatLabel(
+            request.seatLabel(), storeId);
 
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
 
@@ -83,7 +88,8 @@ public class SeatLeaveService {
 
     @Transactional
     public SeatLeaveResponse endLeave(Long storeId, SeatLeaveEndRequest request) {
-        Student student = studentResolverService.resolveByIdentifier(request.identifier());
+        Student student = studentResolverService.resolveBySeatLabel(
+            request.seatLabel(), storeId);
 
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
 
@@ -93,6 +99,10 @@ public class SeatLeaveService {
 
         seatLeave.endLeave();
 
+        studyTimeRedisService.addSeatLeaveDeduction(
+            storeId, student.getId(),
+            seatLeave.getStartedAt(), seatLeave.getEndedAt());
+
         // Redis 상태 복원 (AWAY → IN_USE)
         seatRedisService.markSeatInUse(
             storeId, seatLeave.getSeat().getId(),
@@ -101,20 +111,47 @@ public class SeatLeaveService {
         return SeatLeaveResponse.fromEntity(seatLeave);
     }
 
-    public List<SeatLeaveResponse> findAllByStoreIdToday(Long storeId) {
-        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        return seatLeaveRepository.findAllByStoreIdToday(storeId, startOfDay)
-            .stream()
-            .map(SeatLeaveResponse::fromEntity)
-            .toList();
+    @Transactional
+    public SeatLeaveResponse forceEndLeave(Long seatLeaveId) {
+        SeatLeave seatLeave = seatLeaveRepository.findByIdWithDetails(seatLeaveId)
+            .orElseThrow(() -> new SeatLeaveException(ErrorCode.NOT_ON_SEAT_LEAVE));
+
+        if (seatLeave.getEndedAt() != null) {
+            throw new SeatLeaveException(ErrorCode.NOT_ON_SEAT_LEAVE);
+        }
+
+        seatLeave.endLeave();
+
+        Long storeId = seatLeave.getStore().getId();
+        Long studentId = seatLeave.getStudent().getId();
+
+        studyTimeRedisService.addSeatLeaveDeduction(
+            storeId, studentId,
+            seatLeave.getStartedAt(), seatLeave.getEndedAt());
+
+        seatRedisService.markSeatInUse(
+            storeId, seatLeave.getSeat().getId(),
+            studentId, seatLeave.getStudent().getName());
+
+        return SeatLeaveResponse.fromEntity(seatLeave);
+    }
+
+    public Page<SeatLeaveResponse> findAllByPeriod(Long storeId,
+        LocalDate startDate, LocalDate endDate, Pageable pageable) {
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+        Page<SeatLeave> page;
+        if (storeId != null) {
+            page = seatLeaveRepository.findPageByStoreIdAndPeriod(
+                storeId, start, end, pageable);
+        } else {
+            page = seatLeaveRepository.findPageByPeriod(start, end, pageable);
+        }
+        return page.map(SeatLeaveResponse::fromEntity);
     }
 
     public byte[] exportToExcel(Long storeId, LocalDate startDate, LocalDate endDate) {
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime end = endDate.plusDays(1).atStartOfDay();
-
-        List<SeatLeave> leaves = seatLeaveRepository
-            .findAllByStoreIdAndPeriod(storeId, start, end);
+        List<SeatLeave> leaves = findLeavesByPeriod(storeId, startDate, endDate);
 
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -167,5 +204,15 @@ public class SeatLeaveService {
         } catch (IOException e) {
             throw new SeatLeaveException(ErrorCode.FILE_UPLOAD_FAILED);
         }
+    }
+
+    private List<SeatLeave> findLeavesByPeriod(Long storeId,
+        LocalDate startDate, LocalDate endDate) {
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+        if (storeId != null) {
+            return seatLeaveRepository.findAllByStoreIdAndPeriod(storeId, start, end);
+        }
+        return seatLeaveRepository.findAllByPeriod(start, end);
     }
 }

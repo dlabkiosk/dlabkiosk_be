@@ -28,6 +28,15 @@ public class StudentResolverService {
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
     }
 
+    public Student resolveBySeatLabel(String seatLabel, Long storeId) {
+        if (seatLabel == null || seatLabel.isBlank()) {
+            throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
+        }
+        return studentRepository.findBySeatLabelAndStoreId(seatLabel.trim(), storeId)
+            .orElseThrow(() -> new StudentException(
+                ErrorCode.STUDENT_NOT_FOUND_BY_SEAT_LABEL));
+    }
+
     public Student resolveStudent(String identifier, String studentNumber, String phone) {
         if (identifier != null && !identifier.isBlank()) {
             return resolveByIdentifier(identifier);

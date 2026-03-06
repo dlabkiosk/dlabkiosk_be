@@ -27,6 +27,7 @@ public enum ErrorCode {
     // Store
     STORE_NOT_FOUND("ST001", "지점을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     DUPLICATE_STORE_CODE("ST002", "이미 사용 중인 지점 코드입니다", HttpStatus.CONFLICT),
+    STORE_ID_REQUIRED("ST003", "ADMIN은 지점 ID를 지정해야 합니다", HttpStatus.BAD_REQUEST),
 
 
     // Student
@@ -90,6 +91,13 @@ public enum ErrorCode {
 
     // Phone Submission
     ALREADY_SUBMITTED_PHONE("PS001", "오늘 이미 휴대폰 미소지 신청을 했습니다", HttpStatus.CONFLICT),
+
+    // Seat Label
+    STUDENT_NOT_FOUND_BY_SEAT_LABEL("SL004", "해당 좌석에 배정된 학생이 없습니다", HttpStatus.NOT_FOUND),
+
+    // Student Message
+    STUDENT_MESSAGE_NOT_FOUND("SM001", "학생 메시지를 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+    MESSAGE_TEMPLATE_NOT_FOUND("MT001", "메시지 템플릿을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     ;
 
 

@@ -1,26 +1,17 @@
 package com.moduletest.deasungkioskbackend.domain.seat.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
-import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
-import com.moduletest.deasungkioskbackend.domain.kiosk.exception.KioskException;
-import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatCheckInRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatType;
-import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsage;
-import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsageStatus;
 import com.moduletest.deasungkioskbackend.domain.seat.exception.SeatException;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatRepository;
-import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
-import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
-import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,10 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class SeatService {
 
     private final SeatRepository seatRepository;
-    private final SeatUsageRepository seatUsageRepository;
     private final StoreRepository storeRepository;
-    private final StudentRepository studentRepository;
-    private final StudentResolverService studentResolverService;
     private final SeatRedisService seatRedisService;
 
 
@@ -57,6 +45,7 @@ public class SeatService {
             String status = (String) redisStatus.get(seat.getId().toString());
             boolean available = status == null;
             boolean outing = false;
+            boolean away = false;
             Long studentId = null;
             String studentName = null;
 
@@ -69,10 +58,11 @@ public class SeatService {
                 studentId = Long.valueOf(parts[1]);
                 studentName = parts[2];
                 outing = true;
-            } else if (status != null && status.startsWith("AWAY:")) {  // 여기 추가
+            } else if (status != null && status.startsWith("AWAY:")) {
                 String[] parts = status.split(":", 3);
                 studentId = Long.valueOf(parts[1]);
                 studentName = parts[2];
+                away = true;
             }
 
             result.add(new SeatStatusResponse(
@@ -83,6 +73,7 @@ public class SeatService {
                 seat.getYPos(),
                 available,
                 outing,
+                away,
                 studentId,
                 studentName
             ));
@@ -90,70 +81,6 @@ public class SeatService {
         return result;
     }
 
-
-    @Transactional
-    public void seatCheckIn(SeatCheckInRequest request, Long storeId) {
-        Student student = studentResolverService.resolveByIdentifier(request.identifier());
-
-        if (!student.getStore().getId().equals(storeId)) {
-            throw new KioskException(ErrorCode.STUDENT_NOT_IN_THIS_STORE);
-        }
-
-        Seat seat = student.getAssignedSeat();
-        if (seat == null) {
-            throw new SeatException(ErrorCode.NO_ASSIGNED_SEAT);
-        }
-
-        // 이미 좌석 사용 중인 학생인지 확인
-        seatUsageRepository.findByStudentIdAndStatus(student.getId(), SeatUsageStatus.IN_USE)
-            .ifPresent(usage -> {
-                throw new SeatException(ErrorCode.STUDENT_ALREADY_HAS_SEAT);
-            });
-
-        Long seatId = seat.getId();
-
-        // Redis HSETNX로 원자적 선점
-        boolean acquired = seatRedisService.tryOccupySeat(
-            storeId, seatId, student.getId(), student.getName());
-
-        if (!acquired) {
-            throw new SeatException(ErrorCode.SEAT_ALREADY_IN_USE);
-        }
-
-        // DB 저장 (실패 시 Redis 롤백)
-        try {
-            SeatUsage seatUsage = SeatUsage.builder()
-                .seat(seat)
-                .student(student)
-                .store(seat.getStore())
-                .startedAt(LocalDateTime.now())
-                .build();
-            seatUsageRepository.save(seatUsage);
-        } catch (Exception e) {
-            seatRedisService.releaseSeat(storeId, seatId);
-            throw e;
-        }
-
-    }
-
-
-    @Transactional
-    public void seatCheckOut(Long seatId) {
-        Seat seat = seatRepository.findById(seatId)
-            .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_FOUND));
-
-        SeatUsage seatUsage = seatUsageRepository
-            .findBySeatIdAndStatus(seatId, SeatUsageStatus.IN_USE)
-            .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_IN_USE));
-
-        seatUsage.endUsage(LocalDateTime.now());
-
-        try {
-            seatRedisService.releaseSeat(seat.getStore().getId(), seatId);
-        } catch (Exception e) {
-            log.warn("[SeatCheckOut] Redis 좌석 해제 실패 (seatId={}) — DB는 퇴실 처리됨", seatId, e);
-        }
-    }
 
     // ===== 관리자 API =====
 
@@ -177,8 +104,8 @@ public class SeatService {
     }
 
     @Transactional
-    public SeatResponse createSeat(SeatCreateRequest request) {
-        Store store = storeRepository.findById(request.storeId())
+    public SeatResponse createSeat(SeatCreateRequest request, Long storeId) {
+        Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
         Seat seat = Seat.builder()

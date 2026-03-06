@@ -30,14 +30,13 @@ public class ExamScheduleAdminController {
     private final ExamScheduleService examScheduleService;
 
     @Operation(summary = "시험 일정 목록 조회",
-        description = "전체 또는 지점별 시험 일정을 조회한다. storeId 미입력 시 전체 조회.")
+        description = "MANAGER: 자기 지점 시험 일정만 조회. ADMIN: 전체 시험 일정 조회.")
     @GetMapping
-    public CommonResponse<List<ExamScheduleResponse>> findAllExamSchedules(
-        @RequestParam(required = false) Long storeId) {
-        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
+    public CommonResponse<List<ExamScheduleResponse>> findAllExamSchedules() {
+        Long storeId = SecurityUtil.resolveStoreId(null);
         List<ExamScheduleResponse> examSchedules;
-        if (resolvedStoreId != null) {
-            examSchedules = examScheduleService.findAllExamSchedulesByStoreId(resolvedStoreId);
+        if (storeId != null) {
+            examSchedules = examScheduleService.findAllExamSchedulesByStoreId(storeId);
         } else {
             examSchedules = examScheduleService.findAllExamSchedules();
         }
@@ -53,11 +52,15 @@ public class ExamScheduleAdminController {
         return CommonResponse.success(examSchedule);
     }
 
-    @Operation(summary = "시험 일정 등록", description = "새 시험 일정을 등록한다.")
+    @Operation(summary = "시험 일정 등록",
+        description = "MANAGER: 자기 지점에 자동 등록. ADMIN: storeId 필수 — 등록할 지점 지정.")
     @PostMapping
     public CommonResponse<ExamScheduleResponse> createExamSchedule(
+        @RequestParam(required = false) Long storeId,
         @Valid @RequestBody ExamScheduleCreateRequest request) {
-        ExamScheduleResponse examSchedule = examScheduleService.createExamSchedule(request);
+        Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(storeId);
+        ExamScheduleResponse examSchedule =
+            examScheduleService.createExamSchedule(request, resolvedStoreId);
         return CommonResponse.success(examSchedule);
     }
 

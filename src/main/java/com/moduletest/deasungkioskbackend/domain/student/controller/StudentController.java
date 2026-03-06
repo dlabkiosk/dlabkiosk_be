@@ -6,6 +6,7 @@ import com.moduletest.deasungkioskbackend.domain.student.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -29,5 +30,17 @@ public class StudentController {
         StudentResponse student = studentService.searchStudent(
             identifier, studentNumber, phone);
         return CommonResponse.success(student);
+    }
+
+    @Operation(summary = "좌석번호로 학생 조회",
+        description = "좌석번호(라벨)를 입력하면 해당 좌석에 배정된 학생 정보를 반환한다. "
+            + "좌석이탈/휴대폰 미소지 신청 전 확인 화면용.")
+    @GetMapping("/by-seat")
+    public CommonResponse<StudentResponse> findStudentBySeatLabel(
+        @RequestParam String seatLabel) {
+        Long storeId = Long.valueOf(
+            SecurityContextHolder.getContext().getAuthentication().getName());
+        return CommonResponse.success(
+            studentService.findBySeatLabel(seatLabel, storeId));
     }
 }

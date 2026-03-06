@@ -16,6 +16,7 @@ import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageReposi
 import com.moduletest.deasungkioskbackend.domain.seat.service.SeatRedisService;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
+import com.moduletest.deasungkioskbackend.domain.studytime.service.StudyTimeRedisService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -34,6 +35,7 @@ public class OutingService {
     private final StudentResolverService studentResolverService;
     private final SeatUsageRepository seatUsageRepository;
     private final SeatRedisService seatRedisService;
+    private final StudyTimeRedisService studyTimeRedisService;
 
     @Transactional
     public OutingResponse startOuting(OutingStartRequest request, Long storeId) {
@@ -64,11 +66,14 @@ public class OutingService {
             throw new OutingException(ErrorCode.ALREADY_ON_OUTING);
         }
 
+        // TODO: DSA 연동 후 사전 승인된 외출 신청이 있는지 확인 필요
+        //  - DSA에서 외출/조퇴 사전 승인 데이터를 조회
+        //  - 승인된 신청이 없으면 거부
+
         // 외출 레코드 생성
         Outing outing = Outing.builder()
             .student(student)
             .store(student.getStore())
-            .reason(request.reason())
             .startedAt(LocalDateTime.now())
             .build();
 
@@ -103,6 +108,10 @@ public class OutingService {
             .orElseThrow(() -> new OutingException(ErrorCode.NOT_ON_OUTING));
 
         outing.endOuting(LocalDateTime.now());
+
+        studyTimeRedisService.addOutingDeduction(
+            storeId, student.getId(),
+            outing.getStartedAt(), outing.getEndedAt());
 
         // 좌석 사용 중이면 Redis 상태를 IN_USE로 복원
         seatUsageRepository.findByStudentIdAndStatus(student.getId(), SeatUsageStatus.IN_USE)
