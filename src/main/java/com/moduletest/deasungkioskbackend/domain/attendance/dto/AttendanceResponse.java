@@ -22,7 +22,9 @@ public record AttendanceResponse(
     @Schema(description = "등원 시각")
     LocalDateTime checkInAt,
     @Schema(description = "하원 시각 (하원 전이면 null)")
-    LocalDateTime checkOutAt
+    LocalDateTime checkOutAt,
+    @Schema(description = "금일 순공시간 (분 단위, 하원 시에만 계산됨)", example = "578")
+    Long studyTimeMinutes
 ) {
 
     public static AttendanceResponse fromEntity(Attendance attendance) {
@@ -34,7 +36,23 @@ public record AttendanceResponse(
             attendance.getStore().getStoreName(),
             attendance.getStatus(),
             attendance.getCheckInAt(),
-            attendance.getCheckOutAt()
+            attendance.getCheckOutAt(),
+            null
+        );
+    }
+
+    public static AttendanceResponse fromEntityWithStudyTime(Attendance attendance,
+        long studyTimeMinutes) {
+        return new AttendanceResponse(
+            attendance.getId(),
+            attendance.getStudent().getId(),
+            attendance.getStudent().getName(),
+            attendance.getStore().getId(),
+            attendance.getStore().getStoreName(),
+            attendance.getStatus(),
+            attendance.getCheckInAt(),
+            attendance.getCheckOutAt(),
+            studyTimeMinutes
         );
     }
 }
