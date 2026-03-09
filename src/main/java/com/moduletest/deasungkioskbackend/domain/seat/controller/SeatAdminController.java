@@ -30,12 +30,11 @@ public class SeatAdminController {
     private final SeatService seatService;
 
     @Operation(summary = "좌석 목록 조회",
-        description = "전체 좌석을 조회한다. storeId를 전달하면 해당 지점 좌석만 필터링된다.")
+        description = "MANAGER: 자기 지점 좌석만 조회. ADMIN: 전체 좌석 조회.")
     @GetMapping
-    public CommonResponse<List<SeatResponse>> findAllSeats(
-        @RequestParam(required = false) Long storeId) {
-        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
-        List<SeatResponse> seats = seatService.findAllSeats(resolvedStoreId);
+    public CommonResponse<List<SeatResponse>> findAllSeats() {
+        Long storeId = SecurityUtil.resolveStoreId(null);
+        List<SeatResponse> seats = seatService.findAllSeats(storeId);
         return CommonResponse.success(seats);
     }
 
@@ -47,11 +46,15 @@ public class SeatAdminController {
     }
 
     @Operation(summary = "좌석 등록",
-        description = "새 좌석을 등록한다. 좌표(x_pos, y_pos)는 캔버스 픽셀 단위.")
+        description = "MANAGER: 자기 지점에 자동 등록. "
+            + "ADMIN: storeId 필수 — 등록할 지점 지정. "
+            + "좌표(x_pos, y_pos)는 캔버스 픽셀 단위.")
     @PostMapping
     public CommonResponse<SeatResponse> createSeat(
+        @RequestParam(required = false) Long storeId,
         @Valid @RequestBody SeatCreateRequest request) {
-        SeatResponse seat = seatService.createSeat(request);
+        Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(storeId);
+        SeatResponse seat = seatService.createSeat(request, resolvedStoreId);
         return CommonResponse.success(seat);
     }
 

@@ -44,8 +44,9 @@ public class ExamScheduleService {
     }
 
     @Transactional
-    public ExamScheduleResponse createExamSchedule(ExamScheduleCreateRequest request) {
-        Store store = storeRepository.findById(request.storeId())
+    public ExamScheduleResponse createExamSchedule(ExamScheduleCreateRequest request,
+        Long storeId) {
+        Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
         ExamSchedule examSchedule = ExamSchedule.builder()

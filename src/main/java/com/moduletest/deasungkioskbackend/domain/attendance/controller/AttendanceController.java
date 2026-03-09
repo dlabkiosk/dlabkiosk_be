@@ -24,9 +24,9 @@ public class AttendanceController {
     private final AttendanceService attendanceService;
 
     @Operation(summary = "등원 (체크인)",
-        description = "키오스크에서 QR을 스캔하면 UUID로 등원 처리한다. "
-            + "당일 이미 등원 상태면 거부된다. 학생이 해당 지점 소속이 아니면 거부된다. "
-            + "qrUuid와 rfidUid 중 하나만 전송해야 하며, 나머지는 null이어야 한다.")
+        description = "키오스크에서 QR/RFID로 등원 처리한다. "
+            + "배정된 좌석이 있으면 자동으로 좌석 입실도 함께 처리된다. "
+            + "당일 이미 등원 상태면 거부된다. 학생이 해당 지점 소속이 아니면 거부된다.")
     @PostMapping("/check-in")
     public CommonResponse<AttendanceResponse> checkIn(
         @Valid @RequestBody CheckInRequest request) {
@@ -37,7 +37,7 @@ public class AttendanceController {
 
     @Operation(summary = "하원 (체크아웃)",
         description = "QR/RFID로 하원 처리한다. 당일 등원 기록이 없으면 거부된다. "
-            + "qrUuid와 rfidUid 중 하나만 전송해야 하며, 나머지는 null이어야 한다.")
+            + "사용 중인 좌석이 있으면 자동으로 좌석 퇴실도 함께 처리된다.")
     @PostMapping("/check-out")
     public CommonResponse<AttendanceResponse> checkOut(
         @Valid @RequestBody CheckOutRequest request) {

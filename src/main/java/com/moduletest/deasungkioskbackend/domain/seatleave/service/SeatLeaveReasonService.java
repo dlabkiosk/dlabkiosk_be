@@ -27,7 +27,11 @@ public class SeatLeaveReasonService {
 
 
     public List<SeatLeaveReasonResponse> findAllByStoreId(Long storeId) {
-        return seatLeaveReasonRepository.findAllActiveByStoreId(storeId).stream()
+        if (storeId != null) {
+            return seatLeaveReasonRepository.findAllByStoreIdWithStore(storeId).stream()
+                .map(SeatLeaveReasonResponse::fromEntity).toList();
+        }
+        return seatLeaveReasonRepository.findAll().stream()
             .map(SeatLeaveReasonResponse::fromEntity).toList();
     }
 
@@ -39,8 +43,9 @@ public class SeatLeaveReasonService {
 
 
     @Transactional
-    public SeatLeaveReasonResponse createReason(SeatLeaveReasonCreateRequest request) {
-        Store store = storeRepository.findById(request.storeId())
+    public SeatLeaveReasonResponse createReason(SeatLeaveReasonCreateRequest request,
+        Long storeId) {
+        Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new SeatLeaveException(
                 ErrorCode.STORE_NOT_FOUND));
 

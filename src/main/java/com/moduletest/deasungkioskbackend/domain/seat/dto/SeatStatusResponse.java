@@ -18,6 +18,8 @@ public record SeatStatusResponse(
     boolean available,
     @Schema(description = "사용 중인 학생이 외출 중인지 여부", example = "false")
     boolean outing,
+    @Schema(description = "사용 중인 학생이 좌석이탈 중인지 여부", example = "false")
+    boolean away,
     @Schema(description = "사용 중인 학생 ID (비어있으면 null)", example = "3")
     Long studentId,
     @Schema(description = "사용 중인 학생 이름 (비어있으면 null)", example = "김민준")

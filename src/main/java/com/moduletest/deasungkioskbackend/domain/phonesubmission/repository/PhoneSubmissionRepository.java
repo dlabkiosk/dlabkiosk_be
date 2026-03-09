@@ -3,6 +3,8 @@ package com.moduletest.deasungkioskbackend.domain.phonesubmission.repository;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.entity.PhoneSubmission;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,7 +21,54 @@ public interface PhoneSubmissionRepository extends JpaRepository<PhoneSubmission
         @Param("storeId") Long storeId,
         @Param("startOfDay") LocalDateTime startOfDay);
 
+    @Query("SELECT ps FROM PhoneSubmission ps "
+        + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
+        + "WHERE ps.submittedAt >= :startOfDay "
+        + "ORDER BY ps.submittedAt DESC")
+    List<PhoneSubmission> findAllToday(
+        @Param("startOfDay") LocalDateTime startOfDay);
+
     boolean existsByStudentIdAndSubmittedAtGreaterThanEqual(
         Long studentId, LocalDateTime startOfDay);
 
+    @Query("SELECT ps FROM PhoneSubmission ps "
+        + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
+        + "WHERE ps.store.id = :storeId "
+        + "AND ps.submittedAt >= :startDate AND ps.submittedAt < :endDate "
+        + "ORDER BY ps.submittedAt DESC")
+    List<PhoneSubmission> findAllByStoreIdAndPeriod(
+        @Param("storeId") Long storeId,
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT ps FROM PhoneSubmission ps "
+        + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
+        + "WHERE ps.submittedAt >= :startDate AND ps.submittedAt < :endDate "
+        + "ORDER BY ps.submittedAt DESC")
+    List<PhoneSubmission> findAllByPeriod(
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate);
+
+    @Query(value = "SELECT ps FROM PhoneSubmission ps "
+        + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
+        + "WHERE ps.store.id = :storeId "
+        + "AND ps.submittedAt >= :startDate AND ps.submittedAt < :endDate",
+        countQuery = "SELECT COUNT(ps) FROM PhoneSubmission ps "
+            + "WHERE ps.store.id = :storeId "
+            + "AND ps.submittedAt >= :startDate AND ps.submittedAt < :endDate")
+    Page<PhoneSubmission> findPageByStoreIdAndPeriod(
+        @Param("storeId") Long storeId,
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate,
+        Pageable pageable);
+
+    @Query(value = "SELECT ps FROM PhoneSubmission ps "
+        + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
+        + "WHERE ps.submittedAt >= :startDate AND ps.submittedAt < :endDate",
+        countQuery = "SELECT COUNT(ps) FROM PhoneSubmission ps "
+            + "WHERE ps.submittedAt >= :startDate AND ps.submittedAt < :endDate")
+    Page<PhoneSubmission> findPageByPeriod(
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate,
+        Pageable pageable);
 }

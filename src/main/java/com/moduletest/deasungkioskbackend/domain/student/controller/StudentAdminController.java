@@ -33,12 +33,11 @@ public class StudentAdminController {
     private final StudentService studentService;
 
     @Operation(summary = "학생 목록 조회",
-        description = "전체 학생 목록을 조회한다. storeId를 전달하면 해당 지점 학생만 필터링된다.")
+        description = "MANAGER: 자기 지점 학생만 조회. ADMIN: 전체 학생 조회.")
     @GetMapping
-    public CommonResponse<List<StudentResponse>> findAllStudents(
-        @RequestParam(required = false) Long storeId) {
-        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
-        List<StudentResponse> students = studentService.findAllStudents(resolvedStoreId);
+    public CommonResponse<List<StudentResponse>> findAllStudents() {
+        Long storeId = SecurityUtil.resolveStoreId(null);
+        List<StudentResponse> students = studentService.findAllStudents(storeId);
         return CommonResponse.success(students);
     }
 
@@ -50,15 +49,19 @@ public class StudentAdminController {
     }
 
     @Operation(summary = "학생 등록",
-        description = "학생을 등록한다. QR용 UUID가 자동 생성된다. 전화번호는 전체 시스템에서 중복 불가.")
+        description = "MANAGER: 자기 지점에 자동 등록. "
+            + "ADMIN: storeId 필수 — 등록할 지점 지정. "
+            + "QR용 UUID가 자동 생성된다.")
     @PostMapping
     public CommonResponse<StudentResponse> createStudent(
+        @RequestParam(required = false) Long storeId,
         @Valid @RequestBody StudentCreateRequest request) {
-        StudentResponse student = studentService.createStudent(request);
+        Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(storeId);
+        StudentResponse student = studentService.createStudent(request, resolvedStoreId);
         return CommonResponse.success(student);
     }
 
-    @Operation(summary = "학생 정보 수정", description = "학생 정보를 전체 수정한다.")
+    @Operation(summary = "학생 정보 수정", description = "학생 정보를 수정한다. 소속 지점은 변경되지 않는다.")
     @PutMapping("/{studentId}")
     public CommonResponse<StudentResponse> updateStudent(
         @PathVariable Long studentId,

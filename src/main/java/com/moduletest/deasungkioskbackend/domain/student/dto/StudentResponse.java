@@ -24,6 +24,8 @@ public record StudentResponse(
     String studentNumber,
     @Schema(description = "학년", example = "고3")
     String grade,
+    @Schema(description = "반", example = "A반")
+    String className,
     @Schema(description = "배정 좌석 ID")
     Long assignedSeatId,
     @Schema(description = "배정 좌석 라벨", example = "A-1")
@@ -51,6 +53,7 @@ public record StudentResponse(
             student.getRfidUid(),
             student.getStudentNumber(),
             student.getGrade(),
+            student.getClassName(),
             seatId,
             seatLabel,
             student.getCreatedAt(),

@@ -39,7 +39,7 @@ public class SeatLeaveController {
     }
 
     @Operation(summary = "좌석이탈 신청",
-        description = "좌석이탈을 신청한다. 학생 인식은 qrUuid/rfidUid/studentNumber/phone 중 하나만 전송.")
+        description = "좌석번호를 입력하여 좌석이탈을 신청한다. 해당 좌석에 배정된 학생이 자동 식별된다.")
     @PostMapping("/start")
     public CommonResponse<SeatLeaveResponse> startSeatLeave(
         @Valid @RequestBody SeatLeaveStartRequest request) {
@@ -49,7 +49,7 @@ public class SeatLeaveController {
     }
 
     @Operation(summary = "좌석이탈 복귀",
-        description = "좌석이탈 상태에서 복귀한다. 학생 인식은 qrUuid/rfidUid/studentNumber/phone 중 하나만 전송.")
+        description = "좌석번호를 입력하여 이탈 상태에서 복귀한다. 해당 좌석에서 이탈 중인 학생이 자동 식별된다.")
     @PostMapping("/end")
     public CommonResponse<SeatLeaveResponse> endSeatLeave(
         @Valid @RequestBody SeatLeaveEndRequest request) {

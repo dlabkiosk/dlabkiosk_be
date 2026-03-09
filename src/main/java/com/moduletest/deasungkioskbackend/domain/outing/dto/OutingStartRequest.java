@@ -1,7 +1,6 @@
 package com.moduletest.deasungkioskbackend.domain.outing.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Size;
 
 @Schema(description = "외출 시작 요청 — identifier, 학번, 전화번호 중 하나 필수")
 public record OutingStartRequest(
@@ -15,9 +14,5 @@ public record OutingStartRequest(
 
     @Schema(description = "전화번호. 전화번호로 인식 시 이 값만 전송.",
         example = "010-1234-5678")
-    String phone,
-
-    @Schema(description = "외출 사유 (선택)", example = "점심 식사")
-    @Size(max = 100, message = "외출 사유는 100자 이내여야 합니다")
-    String reason
+    String phone
 ) { }

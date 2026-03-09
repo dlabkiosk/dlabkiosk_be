@@ -37,4 +37,10 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Student s WHERE s.id = :id")
     Optional<Student> findByIdForUpdate(@Param("id") Long id);
+
+    @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
+        + " WHERE s.assignedSeat.seatLabel = :seatLabel AND s.store.id = :storeId")
+    Optional<Student> findBySeatLabelAndStoreId(
+        @Param("seatLabel") String seatLabel,
+        @Param("storeId") Long storeId);
 }

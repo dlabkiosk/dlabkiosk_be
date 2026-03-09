@@ -51,8 +51,8 @@ public class StudentService {
     }
 
     @Transactional
-    public StudentResponse createStudent(StudentCreateRequest request) {
-        Store store = storeRepository.findById(request.storeId())
+    public StudentResponse createStudent(StudentCreateRequest request, Long storeId) {
+        Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
         if (studentRepository.existsByPhone(request.phone())) {
@@ -72,6 +72,7 @@ public class StudentService {
             .phone(request.phone())
             .qrUuid(UUID.randomUUID().toString())
             .grade(request.grade())
+            .className(request.className())
             .rfidUid(request.rfidUid())
             .studentNumber(request.studentNumber())
             .assignedSeat(assignedSeat)
@@ -86,11 +87,8 @@ public class StudentService {
         Student student = studentRepository.findById(studentId)
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
 
-        Store store = storeRepository.findById(request.storeId())
-            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
-
         student.updateInfo(request.name(), request.phone(), request.grade(),
-            store, request.studentNumber());
+            request.className(), student.getStore(), request.studentNumber());
 
         if (request.rfidUid() != null) {
             student.updateRfidUid(request.rfidUid());
@@ -113,6 +111,11 @@ public class StudentService {
                                          String studentNumber, String phone) {
         Student student = studentResolverService.resolveStudent(
             identifier, studentNumber, phone);
+        return StudentResponse.fromEntity(student);
+    }
+
+    public StudentResponse findBySeatLabel(String seatLabel, Long storeId) {
+        Student student = studentResolverService.resolveBySeatLabel(seatLabel, storeId);
         return StudentResponse.fromEntity(student);
     }
 

@@ -54,8 +54,8 @@ public class NoticeService {
     }
 
     @Transactional
-    public NoticeResponse createNotice(NoticeCreateRequest request) {
-        Store store = storeRepository.findById(request.storeId())
+    public NoticeResponse createNotice(NoticeCreateRequest request, Long storeId) {
+        Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
         Notice notice = Notice.builder()

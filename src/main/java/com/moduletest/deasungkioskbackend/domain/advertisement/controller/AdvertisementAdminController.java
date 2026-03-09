@@ -27,13 +27,12 @@ public class AdvertisementAdminController {
     private final AdvertisementService advertisementService;
 
     @Operation(summary = "광고 목록 조회",
-        description = "전체 광고 목록을 조회한다. storeId로 지점별 필터 가능.")
+        description = "MANAGER: 자기 지점 광고만 조회. ADMIN: 전체 광고 조회.")
     @GetMapping
-    public CommonResponse<List<AdvertisementResponse>> findAllAdvertisements(
-        @RequestParam(required = false) Long storeId) {
-        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
+    public CommonResponse<List<AdvertisementResponse>> findAllAdvertisements() {
+        Long storeId = SecurityUtil.resolveStoreId(null);
         return CommonResponse.success(
-            advertisementService.findAllAdvertisements(resolvedStoreId));
+            advertisementService.findAllAdvertisements(storeId));
     }
 
     @Operation(summary = "광고 상세 조회")
@@ -45,17 +44,19 @@ public class AdvertisementAdminController {
     }
 
     @Operation(summary = "광고 등록",
-        description = "multipart/form-data로 파일과 설정을 함께 전송. mediaType은 IMAGE 또는 VIDEO.")
+        description = "MANAGER: 자기 지점에 자동 등록. ADMIN: storeId 필수 — 등록할 지점 지정. "
+            + "multipart/form-data로 파일과 설정을 함께 전송. mediaType은 IMAGE 또는 VIDEO.")
     @PostMapping(consumes = "multipart/form-data")
     public CommonResponse<AdvertisementResponse> createAdvertisement(
-        @RequestParam Long storeId,
+        @RequestParam(required = false) Long storeId,
         @RequestParam MultipartFile file,
         @RequestParam(defaultValue = "IMAGE") String mediaType,
         @RequestParam(defaultValue = "0") int displayOrder,
         @RequestParam(defaultValue = "5") int displaySeconds) {
+        Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(storeId);
         return CommonResponse.success(
             advertisementService.createAdvertisement(
-                storeId, file, mediaType, displayOrder, displaySeconds));
+                resolvedStoreId, file, mediaType, displayOrder, displaySeconds));
     }
 
     @Operation(summary = "광고 수정",

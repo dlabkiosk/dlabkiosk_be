@@ -26,7 +26,7 @@ public class OutingController {
     @Operation(summary = "외출 시작",
         description = "QR/RFID로 외출을 시작한다. 등원 상태가 아니면 거부된다. "
             + "좌석 사용 중이면 좌석 상태가 '외출 중'으로 변경된다. "
-            + "qrUuid와 rfidUid 중 하나만 전송해야 하며, 나머지는 null이어야 한다.")
+            + "TODO: DSA 연동 후 사전 승인된 외출만 허용하도록 변경 예정.")
     @PostMapping("/start")
     public CommonResponse<OutingResponse> startOuting(
         @Valid @RequestBody OutingStartRequest request) {
