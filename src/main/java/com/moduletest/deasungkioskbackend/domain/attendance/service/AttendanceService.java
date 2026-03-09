@@ -17,11 +17,14 @@ import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageReposi
 import com.moduletest.deasungkioskbackend.domain.seat.service.SeatRedisService;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
+import com.moduletest.deasungkioskbackend.domain.studentmessage.entity.StudentMessage;
+import com.moduletest.deasungkioskbackend.domain.studentmessage.repository.StudentMessageRepository;
 import com.moduletest.deasungkioskbackend.domain.studytime.service.StudyTimeRedisService;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,6 +41,7 @@ public class AttendanceService {
     private final StudentResolverService studentResolverService;
     private final SeatUsageRepository seatUsageRepository;
     private final SeatRedisService seatRedisService;
+    private final StudentMessageRepository studentMessageRepository;
     private final StudyTimeRedisService studyTimeRedisService;
 
     @Transactional
@@ -74,7 +78,14 @@ public class AttendanceService {
         // 배정된 좌석이 있으면 자동 입실
         seatCheckIn(student, storeId);
 
-        return AttendanceResponse.fromEntity(savedAttendance);
+        // 활성 학생 메시지 조회
+        List<String> messages = studentMessageRepository
+            .findAllActiveByStudentId(student.getId())
+            .stream()
+            .map(StudentMessage::getContent)
+            .toList();
+
+        return AttendanceResponse.fromEntityWithMessages(savedAttendance, messages);
     }
 
     @Transactional

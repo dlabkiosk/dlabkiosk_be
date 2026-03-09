@@ -38,7 +38,7 @@ public class StudentMessage extends BaseTimeEntity {
     @Column(nullable = false, length = 500)
     private String content;
 
-    @Column(nullable = false)
+    @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
     @Builder
