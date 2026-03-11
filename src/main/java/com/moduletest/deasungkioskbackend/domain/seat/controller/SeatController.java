@@ -22,7 +22,8 @@ public class SeatController {
 
     @Operation(summary = "좌석 현황 조회",
         description = "로그인한 지점의 전체 좌석 현황을 조회한다. "
-            + "좌석 입실/퇴실은 등원/하원 시 자동 처리된다.")
+            + "좌석 입실/퇴실은 등원/하원 시 자동 처리된다. "
+            + "[보류] 키오스크 프론트에서 현재 사용하지 않음. Redis 좌석 상태 추적 로직과 함께 추후 정리 예정.")
     @GetMapping
     public CommonResponse<List<SeatStatusResponse>> findSeatStatus() {
         Long storeId = getStoreIdFromToken();

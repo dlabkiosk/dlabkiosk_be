@@ -98,6 +98,14 @@ public enum ErrorCode {
     // Student Message
     STUDENT_MESSAGE_NOT_FOUND("SM001", "학생 메시지를 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     MESSAGE_TEMPLATE_NOT_FOUND("MT001", "메시지 템플릿을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+
+    // Seat Change Request
+    SEAT_CHANGE_REQUEST_NOT_FOUND("SCR001", "좌석 변경 신청을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+    ALREADY_PENDING_SEAT_CHANGE("SCR002", "이미 대기 중인 좌석 변경 신청이 있습니다", HttpStatus.CONFLICT),
+    DESIRED_SEAT_ALREADY_ASSIGNED("SCR003", "희망 좌석이 이미 다른 학생에게 배정되어 있습니다", HttpStatus.CONFLICT),
+    SEAT_CHANGE_ALREADY_PROCESSED("SCR004", "이미 처리된 좌석 변경 신청입니다", HttpStatus.BAD_REQUEST),
+    SEAT_NOT_IN_THIS_STORE("SCR005", "해당 지점의 좌석이 아닙니다", HttpStatus.BAD_REQUEST),
+    DESIRED_SEAT_IS_CURRENT("SCR006", "현재 배정된 좌석과 동일한 좌석입니다", HttpStatus.BAD_REQUEST),
     ;
 
 

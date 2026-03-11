@@ -43,4 +43,6 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     Optional<Student> findBySeatLabelAndStoreId(
         @Param("seatLabel") String seatLabel,
         @Param("storeId") Long storeId);
+
+    boolean existsByAssignedSeatId(Long assignedSeatId);
 }
