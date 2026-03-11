@@ -5,10 +5,13 @@ import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
 import com.moduletest.deasungkioskbackend.domain.seat.exception.SeatException;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatRepository;
+import com.moduletest.deasungkioskbackend.domain.seatchangerequest.entity.SeatChangeRequest;
+import com.moduletest.deasungkioskbackend.domain.seatchangerequest.repository.SeatChangeRequestRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentCreateRequest;
+import com.moduletest.deasungkioskbackend.domain.student.dto.StudentKioskResponse;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentResponse;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
@@ -30,6 +33,7 @@ public class StudentService {
     private final SeatRepository seatRepository;
     private final QrCodeService qrCodeService;
     private final StudentResolverService studentResolverService;
+    private final SeatChangeRequestRepository seatChangeRequestRepository;
 
     public List<StudentResponse> findAllStudents(Long storeId) {
         if (storeId != null) {
@@ -112,6 +116,20 @@ public class StudentService {
         Student student = studentResolverService.resolveStudent(
             identifier, studentNumber, phone);
         return StudentResponse.fromEntity(student);
+    }
+
+    public StudentKioskResponse searchStudentForKiosk(String identifier,
+                                                      String studentNumber, String phone) {
+        Student student = studentResolverService.resolveStudent(
+            identifier, studentNumber, phone);
+
+        SeatChangeRequest latestRequest = seatChangeRequestRepository
+            .findAllByStudentIdWithDetails(student.getId())
+            .stream()
+            .findFirst()
+            .orElse(null);
+
+        return StudentKioskResponse.of(student, latestRequest);
     }
 
     public StudentResponse findBySeatLabel(String seatLabel, Long storeId) {

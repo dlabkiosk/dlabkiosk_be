@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.student.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.domain.student.dto.StudentKioskResponse;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentResponse;
 import com.moduletest.deasungkioskbackend.domain.student.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,14 +21,15 @@ public class StudentController {
 
     private final StudentService studentService;
 
-    @Operation(summary = "학생 검색",
-        description = "identifier(QR UUID 또는 RFID UID), 학번, 전화번호 중 하나로 학생을 검색한다.")
+    @Operation(summary = "학생 검색 (키오스크)",
+        description = "identifier(QR UUID 또는 RFID UID), 학번, 전화번호 중 하나로 학생을 검색한다. "
+            + "좌석 변경 신청 정보가 있으면 함께 반환한다.")
     @GetMapping("/search")
-    public CommonResponse<StudentResponse> searchStudent(
-        @RequestParam(required = false) String identifier,
-        @RequestParam(required = false) String studentNumber,
-        @RequestParam(required = false) String phone) {
-        StudentResponse student = studentService.searchStudent(
+    public CommonResponse<StudentKioskResponse> searchStudent(
+            @RequestParam(required = false) String identifier,
+            @RequestParam(required = false) String studentNumber,
+            @RequestParam(required = false) String phone) {
+        StudentKioskResponse student = studentService.searchStudentForKiosk(
             identifier, studentNumber, phone);
         return CommonResponse.success(student);
     }
@@ -37,7 +39,7 @@ public class StudentController {
             + "좌석이탈/휴대폰 미소지 신청 전 확인 화면용.")
     @GetMapping("/by-seat")
     public CommonResponse<StudentResponse> findStudentBySeatLabel(
-        @RequestParam String seatLabel) {
+            @RequestParam String seatLabel) {
         Long storeId = Long.valueOf(
             SecurityContextHolder.getContext().getAuthentication().getName());
         return CommonResponse.success(
