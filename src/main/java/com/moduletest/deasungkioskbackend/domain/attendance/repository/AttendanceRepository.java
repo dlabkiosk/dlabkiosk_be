@@ -23,4 +23,14 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         @Param("endOfDay") LocalDateTime endOfDay,
         @Param("status") AttendanceStatus status
     );
+
+    @Query("SELECT COUNT(a) FROM Attendance a "
+        + "WHERE a.store.id = :storeId "
+        + "AND a.checkInAt >= :startOfDay "
+        + "AND a.checkInAt < :endOfDay")
+    long countTodayByStoreId(
+        @Param("storeId") Long storeId,
+        @Param("startOfDay") LocalDateTime startOfDay,
+        @Param("endOfDay") LocalDateTime endOfDay
+    );
 }

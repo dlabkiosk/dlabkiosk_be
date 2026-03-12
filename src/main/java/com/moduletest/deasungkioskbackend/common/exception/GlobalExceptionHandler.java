@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.common.exception;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.dsa.exception.DsaApiException;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -130,6 +131,20 @@ public class GlobalExceptionHandler {
                 .body(CommonResponse.error(
                         "INVALID_INPUT_VALUE",
                         message
+                ));
+    }
+
+    @ExceptionHandler(DsaApiException.class)
+    public ResponseEntity<CommonResponse<Object>> handleDsaApiException(
+            DsaApiException ex) {
+
+        log.error("DSA API error - code: {}, message: {}", ex.getDsaCode(), ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
+                .body(CommonResponse.error(
+                        "DSA_API_ERROR",
+                        ex.getMessage()
                 ));
     }
 

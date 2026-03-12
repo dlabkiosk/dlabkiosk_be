@@ -22,15 +22,14 @@ public class StudentController {
     private final StudentService studentService;
 
     @Operation(summary = "학생 검색 (키오스크)",
-        description = "identifier(QR UUID 또는 RFID UID), 학번, 전화번호 중 하나로 학생을 검색한다. "
+        description = "identifier(RFID UID 또는 QR UUID) 또는 학번으로 학생을 검색한다. "
             + "좌석 변경 신청 정보가 있으면 함께 반환한다.")
     @GetMapping("/search")
     public CommonResponse<StudentKioskResponse> searchStudent(
             @RequestParam(required = false) String identifier,
-            @RequestParam(required = false) String studentNumber,
-            @RequestParam(required = false) String phone) {
+            @RequestParam(required = false) String studentNumber) {
         StudentKioskResponse student = studentService.searchStudentForKiosk(
-            identifier, studentNumber, phone);
+            identifier, studentNumber);
         return CommonResponse.success(student);
     }
 

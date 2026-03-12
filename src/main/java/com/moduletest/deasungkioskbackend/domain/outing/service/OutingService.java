@@ -40,7 +40,7 @@ public class OutingService {
     @Transactional
     public OutingResponse startOuting(OutingStartRequest request, Long storeId) {
         Student student = studentResolverService.resolveStudent(
-            request.identifier(), request.studentNumber(), request.phone());
+            request.identifier(), request.studentNumber());
         validateStudentStore(student, storeId);
 
         LocalDate today = LocalDate.now();
@@ -95,7 +95,7 @@ public class OutingService {
     @Transactional
     public OutingResponse endOuting(OutingEndRequest request, Long storeId) {
         Student student = studentResolverService.resolveStudent(
-            request.identifier(), request.studentNumber(), request.phone());
+            request.identifier(), request.studentNumber());
         validateStudentStore(student, storeId);
 
         LocalDate today = LocalDate.now();

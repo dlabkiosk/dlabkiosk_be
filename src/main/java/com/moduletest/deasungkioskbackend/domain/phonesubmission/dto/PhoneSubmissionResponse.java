@@ -14,8 +14,6 @@ public record PhoneSubmissionResponse(
     String studentName,
     @Schema(description = "학번", example = "2024-001")
     String studentNumber,
-    @Schema(description = "반", example = "A반")
-    String className,
     @Schema(description = "배정 좌석", example = "A-1")
     String seatLabel,
     @Schema(description = "신청 시간")
@@ -28,7 +26,6 @@ public record PhoneSubmissionResponse(
             ps.getStudent().getId(),
             ps.getStudent().getName(),
             ps.getStudent().getStudentNumber(),
-            ps.getStudent().getClassName(),
             ps.getStudent().getAssignedSeat() != null
                 ? ps.getStudent().getAssignedSeat().getSeatLabel() : null,
             ps.getSubmittedAt()
