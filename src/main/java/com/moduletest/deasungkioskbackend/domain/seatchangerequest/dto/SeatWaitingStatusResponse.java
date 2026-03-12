@@ -38,9 +38,6 @@ public record SeatWaitingStatusResponse(
         @Schema(description = "학번", example = "20250101")
         String studentNumber,
 
-        @Schema(description = "반", example = "A반")
-        String className,
-
         @Schema(description = "해당 좌석 신청 순위 (1~3)", example = "1")
         int priority,
 

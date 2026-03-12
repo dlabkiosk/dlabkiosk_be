@@ -6,14 +6,11 @@ import jakarta.validation.constraints.NotNull;
 @Schema(description = "좌석 변경 신청 요청")
 public record SeatChangeRequestCreateRequest(
 
-    @Schema(description = "학생 식별자 (QR UUID 또는 RFID UID)", example = "abc-123")
+    @Schema(description = "학생 식별자 (RFID UID 또는 QR UUID)", example = "A1B2C3D4")
     String identifier,
 
     @Schema(description = "학번", example = "20250101")
     String studentNumber,
-
-    @Schema(description = "전화번호", example = "01012345678")
-    String phone,
 
     @NotNull(message = "1순위 희망 좌석 ID는 필수입니다")
     @Schema(description = "1순위 희망 좌석 ID", example = "5")

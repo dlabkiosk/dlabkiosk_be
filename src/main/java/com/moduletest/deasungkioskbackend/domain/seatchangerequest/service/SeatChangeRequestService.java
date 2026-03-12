@@ -43,7 +43,7 @@ public class SeatChangeRequestService {
     public SeatChangeRequestResponse createRequest(SeatChangeRequestCreateRequest request,
                                                    Long storeId) {
         Student student = studentResolverService.resolveStudent(
-            request.identifier(), request.studentNumber(), request.phone());
+            request.identifier(), request.studentNumber());
 
         if (!student.getStore().getId().equals(storeId)) {
             throw new SeatChangeRequestException(ErrorCode.STUDENT_NOT_IN_THIS_STORE);
@@ -213,7 +213,6 @@ public class SeatChangeRequestService {
                             req.getId(),
                             req.getStudent().getName(),
                             req.getStudent().getStudentNumber(),
-                            req.getStudent().getClassName(),
                             priority,
                             req.getCreatedAt()
                         ));

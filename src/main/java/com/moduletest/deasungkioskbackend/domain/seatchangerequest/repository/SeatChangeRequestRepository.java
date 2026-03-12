@@ -87,4 +87,15 @@ public interface SeatChangeRequestRepository extends JpaRepository<SeatChangeReq
     List<SeatChangeRequest> findAllByStoreIdAndStatusWithStudent(
         @Param("storeId") Long storeId,
         @Param("status") SeatChangeRequestStatus status);
+
+    @Query("SELECT r FROM SeatChangeRequest r"
+        + " JOIN FETCH r.student"
+        + " JOIN FETCH r.desiredSeat1"
+        + " WHERE r.store.id = :storeId"
+        + " AND r.status = :status"
+        + " ORDER BY r.createdAt DESC")
+    List<SeatChangeRequest> findRecentByStoreIdAndStatus(
+        @Param("storeId") Long storeId,
+        @Param("status") SeatChangeRequestStatus status,
+        Pageable pageable);
 }

@@ -17,12 +17,6 @@ public record StudentKioskResponse(
     @Schema(description = "학번", example = "2024-001")
     String studentNumber,
 
-    @Schema(description = "반", example = "A반")
-    String className,
-
-    @Schema(description = "학년", example = "고3")
-    String grade,
-
     @Schema(description = "배정 좌석 라벨", example = "A-1")
     String assignedSeatLabel,
 
@@ -45,8 +39,6 @@ public record StudentKioskResponse(
             student.getId(),
             student.getName(),
             student.getStudentNumber(),
-            student.getClassName(),
-            student.getGrade(),
             seatLabel,
             requestInfo
         );

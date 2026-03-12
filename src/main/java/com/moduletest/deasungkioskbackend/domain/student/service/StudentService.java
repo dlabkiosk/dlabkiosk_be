@@ -18,7 +18,6 @@ import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.exception.StudentException;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.util.List;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +30,6 @@ public class StudentService {
     private final StudentRepository studentRepository;
     private final StoreRepository storeRepository;
     private final SeatRepository seatRepository;
-    private final QrCodeService qrCodeService;
     private final StudentResolverService studentResolverService;
     private final SeatChangeRequestRepository seatChangeRequestRepository;
 
@@ -59,10 +57,6 @@ public class StudentService {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
-        if (studentRepository.existsByPhone(request.phone())) {
-            throw new StudentException(ErrorCode.DUPLICATE_STUDENT_PHONE);
-        }
-
         if (request.studentNumber() != null && !request.studentNumber().isBlank()
             && studentRepository.existsByStudentNumber(request.studentNumber())) {
             throw new StudentException(ErrorCode.DUPLICATE_STUDENT_NUMBER);
@@ -73,10 +67,6 @@ public class StudentService {
         Student student = Student.builder()
             .store(store)
             .name(request.name())
-            .phone(request.phone())
-            .qrUuid(UUID.randomUUID().toString())
-            .grade(request.grade())
-            .className(request.className())
             .rfidUid(request.rfidUid())
             .studentNumber(request.studentNumber())
             .assignedSeat(assignedSeat)
@@ -91,8 +81,7 @@ public class StudentService {
         Student student = studentRepository.findById(studentId)
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
 
-        student.updateInfo(request.name(), request.phone(), request.grade(),
-            request.className(), student.getStore(), request.studentNumber());
+        student.updateInfo(request.name(), request.studentNumber());
 
         if (request.rfidUid() != null) {
             student.updateRfidUid(request.rfidUid());
@@ -111,17 +100,16 @@ public class StudentService {
         studentRepository.delete(student);
     }
 
-    public StudentResponse searchStudent(String identifier,
-                                         String studentNumber, String phone) {
+    public StudentResponse searchStudent(String identifier, String studentNumber) {
         Student student = studentResolverService.resolveStudent(
-            identifier, studentNumber, phone);
+            identifier, studentNumber);
         return StudentResponse.fromEntity(student);
     }
 
     public StudentKioskResponse searchStudentForKiosk(String identifier,
-                                                      String studentNumber, String phone) {
+                                                      String studentNumber) {
         Student student = studentResolverService.resolveStudent(
-            identifier, studentNumber, phone);
+            identifier, studentNumber);
 
         SeatChangeRequest latestRequest = seatChangeRequestRepository
             .findAllByStudentIdWithDetails(student.getId())
@@ -148,6 +136,6 @@ public class StudentService {
     public byte[] generateStudentQrCode(Long studentId) {
         Student student = studentRepository.findById(studentId)
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
-        return qrCodeService.generateQrCodePng(student.getQrUuid());
+        return QrCodeService.generateQrCodePng(student.getRfidUid());
     }
 }

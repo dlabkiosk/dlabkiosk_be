@@ -31,4 +31,15 @@ public interface OutingRepository extends JpaRepository<Outing, Long> {
         @Param("startOfDay") LocalDateTime startOfDay,
         @Param("endOfDay") LocalDateTime endOfDay
     );
+
+    @Query("SELECT COUNT(o) FROM Outing o "
+        + "WHERE o.store.id = :storeId "
+        + "AND o.startedAt >= :startOfDay "
+        + "AND o.startedAt < :endOfDay "
+        + "AND o.endedAt IS NULL")
+    long countActiveByStoreIdToday(
+        @Param("storeId") Long storeId,
+        @Param("startOfDay") LocalDateTime startOfDay,
+        @Param("endOfDay") LocalDateTime endOfDay
+    );
 }

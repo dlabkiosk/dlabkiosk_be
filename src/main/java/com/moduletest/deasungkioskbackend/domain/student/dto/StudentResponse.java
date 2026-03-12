@@ -14,18 +14,10 @@ public record StudentResponse(
     String storeName,
     @Schema(description = "학생 이름", example = "김대성")
     String name,
-    @Schema(description = "전화번호", example = "010-1234-5678")
-    String phone,
-    @Schema(description = "QR 코드용 UUID", example = "550e8400-e29b-41d4-a716-446655440000")
-    String qrUuid,
-    @Schema(description = "RFID 카드 UID", example = "A1B2C3D4")
+    @Schema(description = "RFID UID", example = "A1B2C3D4")
     String rfidUid,
     @Schema(description = "학번", example = "2024-001")
     String studentNumber,
-    @Schema(description = "학년", example = "고3")
-    String grade,
-    @Schema(description = "반", example = "A반")
-    String className,
     @Schema(description = "배정 좌석 ID")
     Long assignedSeatId,
     @Schema(description = "배정 좌석 라벨", example = "A-1")
@@ -48,12 +40,8 @@ public record StudentResponse(
             student.getStore().getId(),
             student.getStore().getStoreName(),
             student.getName(),
-            student.getPhone(),
-            student.getQrUuid(),
             student.getRfidUid(),
             student.getStudentNumber(),
-            student.getGrade(),
-            student.getClassName(),
             seatId,
             seatLabel,
             student.getCreatedAt(),

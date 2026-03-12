@@ -61,10 +61,9 @@ public class SeatChangeRequestController {
     public CommonResponse<Void> cancelRequest(
             @PathVariable Long requestId,
             @RequestParam(required = false) String identifier,
-            @RequestParam(required = false) String studentNumber,
-            @RequestParam(required = false) String phone) {
+            @RequestParam(required = false) String studentNumber) {
         Student student = studentResolverService.resolveStudent(
-            identifier, studentNumber, phone);
+            identifier, studentNumber);
         seatChangeRequestService.cancelRequest(requestId, student.getId());
         return CommonResponse.success(null);
     }

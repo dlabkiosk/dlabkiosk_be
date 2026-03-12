@@ -19,9 +19,6 @@ public record SeatChangeRequestResponse(
     @Schema(description = "학번", example = "20250101")
     String studentNumber,
 
-    @Schema(description = "반", example = "A반")
-    String className,
-
     @Schema(description = "지점 ID", example = "1")
     Long storeId,
 
@@ -59,7 +56,6 @@ public record SeatChangeRequestResponse(
             request.getStudent().getId(),
             request.getStudent().getName(),
             request.getStudent().getStudentNumber(),
-            request.getStudent().getClassName(),
             request.getStore().getId(),
             request.getStore().getStoreName(),
             request.getCurrentSeat() != null

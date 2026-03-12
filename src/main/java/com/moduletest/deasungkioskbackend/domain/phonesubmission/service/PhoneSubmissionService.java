@@ -91,7 +91,7 @@ public class PhoneSubmissionService {
             headerStyle.setFont(headerFont);
 
             Row header = sheet.createRow(0);
-            String[] columns = {"번호", "학생명", "학번", "반", "배정좌석", "신청시간"};
+            String[] columns = {"번호", "학생명", "학번", "배정좌석", "신청시간"};
             for (int i = 0; i < columns.length; i++) {
                 header.createCell(i).setCellValue(columns[i]);
                 header.getCell(i).setCellStyle(headerStyle);
@@ -106,12 +106,9 @@ public class PhoneSubmissionService {
                     ps.getStudent().getStudentNumber() != null
                         ? ps.getStudent().getStudentNumber() : "");
                 row.createCell(3).setCellValue(
-                    ps.getStudent().getClassName() != null
-                        ? ps.getStudent().getClassName() : "");
-                row.createCell(4).setCellValue(
                     ps.getStudent().getAssignedSeat() != null
                         ? ps.getStudent().getAssignedSeat().getSeatLabel() : "");
-                row.createCell(5).setCellValue(ps.getSubmittedAt().format(dtf));
+                row.createCell(4).setCellValue(ps.getSubmittedAt().format(dtf));
             }
 
             for (int i = 0; i < columns.length; i++) {

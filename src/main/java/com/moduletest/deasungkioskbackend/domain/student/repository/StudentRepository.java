@@ -11,17 +11,9 @@ import org.springframework.data.repository.query.Param;
 
 public interface StudentRepository extends JpaRepository<Student, Long> {
 
-    Optional<Student> findByQrUuid(String qrUuid);
-
     Optional<Student> findByRfidUid(String rfidUid);
 
     Optional<Student> findByStudentNumber(String studentNumber);
-
-    Optional<Student> findByPhone(String phone);
-
-    boolean existsByPhone(String phone);
-
-    boolean existsByStudentNumber(String studentNumber);
 
     @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
         + " WHERE s.store.id = :storeId")
@@ -44,5 +36,9 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
         @Param("seatLabel") String seatLabel,
         @Param("storeId") Long storeId);
 
+    boolean existsByStudentNumber(String studentNumber);
+
     boolean existsByAssignedSeatId(Long assignedSeatId);
+
+    long countByStoreId(Long storeId);
 }
