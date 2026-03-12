@@ -50,3 +50,11 @@ cloud:
 
 server:
   port: 8080
+
+
+
+dsa:
+  api:
+    base-url: https://api.dshw.co.kr
+    connect-timeout: 10000
+    read-timeout: 10000

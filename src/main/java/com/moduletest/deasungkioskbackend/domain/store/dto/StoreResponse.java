@@ -18,6 +18,8 @@ public record StoreResponse(
     String phone,
     @Schema(description = "활성화 여부", example = "true")
     boolean active,
+    @Schema(description = "DSA 연동 여부", example = "true")
+    boolean dsaConnected,
     @Schema(description = "생성일시")
     LocalDateTime createdAt,
     @Schema(description = "수정일시")
@@ -25,6 +27,9 @@ public record StoreResponse(
 ) {
 
     public static StoreResponse fromEntity(Store store) {
+        boolean dsaConnected = store.getDsaAcadCd() != null
+            && store.getDsaClientId() != null
+            && store.getDsaSecretId() != null;
         return new StoreResponse(
             store.getId(),
             store.getStoreName(),
@@ -32,6 +37,7 @@ public record StoreResponse(
             store.getAddress(),
             store.getPhone(),
             store.isActive(),
+            dsaConnected,
             store.getCreatedAt(),
             store.getUpdatedAt()
         );
