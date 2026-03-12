@@ -41,15 +41,28 @@ public class Store extends BaseTimeEntity {
     @Column(name = "kiosk_pin", nullable = false, length = 10)
     private String kioskPin;
 
+    @Column(name = "dsa_acad_cd", length = 50)
+    private String dsaAcadCd;
+
+    @Column(name = "dsa_client_id", length = 100)
+    private String dsaClientId;
+
+    @Column(name = "dsa_secret_id", length = 200)
+    private String dsaSecretId;
+
     @Builder
     public Store(String storeName, String storeCode, String address, String phone,
-                 boolean active, String kioskPin) {
+                 boolean active, String kioskPin, String dsaAcadCd, String dsaClientId,
+                 String dsaSecretId) {
         this.storeName = storeName;
         this.storeCode = storeCode;
         this.address = address;
         this.phone = phone;
         this.active = active;
         this.kioskPin = kioskPin != null ? kioskPin : "0000";
+        this.dsaAcadCd = dsaAcadCd;
+        this.dsaClientId = dsaClientId;
+        this.dsaSecretId = dsaSecretId;
     }
 
     public void updateInfo(String storeName, String address, String phone, boolean active) {
@@ -63,5 +76,13 @@ public class Store extends BaseTimeEntity {
         this.kioskPin = kioskPin;
     }
 
+    public void updateDsaCredentials(String dsaAcadCd, String dsaClientId, String dsaSecretId) {
+        this.dsaAcadCd = dsaAcadCd;
+        this.dsaClientId = dsaClientId;
+        this.dsaSecretId = dsaSecretId;
+    }
 
+    public boolean hasDsaCredentials() {
+        return dsaAcadCd != null && dsaClientId != null && dsaSecretId != null;
+    }
 }

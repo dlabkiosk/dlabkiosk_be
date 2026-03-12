@@ -106,6 +106,7 @@ public enum ErrorCode {
     SEAT_CHANGE_ALREADY_PROCESSED("SCR004", "이미 처리된 좌석 변경 신청입니다", HttpStatus.BAD_REQUEST),
     SEAT_NOT_IN_THIS_STORE("SCR005", "해당 지점의 좌석이 아닙니다", HttpStatus.BAD_REQUEST),
     DESIRED_SEAT_IS_CURRENT("SCR006", "현재 배정된 좌석과 동일한 좌석입니다", HttpStatus.BAD_REQUEST),
+
     ;
 
 

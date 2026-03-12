@@ -50,6 +50,9 @@ jobs:
       S3_BUCKET: test-bucket
       AWS_ACCESS_KEY: test-key
       AWS_SECRET_KEY: test-secret
+      DSA_API_BASE_URL: https://api.dshw.co.kr
+      DSA_API_CONNECT_TIMEOUT: 5000
+      DSA_API_READ_TIMEOUT: 10000
 
     steps:
       - uses: actions/checkout@v4
