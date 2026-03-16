@@ -10,6 +10,9 @@ import com.moduletest.deasungkioskbackend.domain.attendance.entity.AttendanceSta
 import com.moduletest.deasungkioskbackend.domain.attendance.exception.AttendanceException;
 import com.moduletest.deasungkioskbackend.domain.attendance.repository.AttendanceRepository;
 import com.moduletest.deasungkioskbackend.domain.kiosk.exception.KioskException;
+import com.moduletest.deasungkioskbackend.domain.meal.entity.MealTag;
+import com.moduletest.deasungkioskbackend.domain.meal.entity.MealType;
+import com.moduletest.deasungkioskbackend.domain.meal.repository.MealTagRepository;
 import com.moduletest.deasungkioskbackend.domain.outing.entity.Outing;
 import com.moduletest.deasungkioskbackend.domain.outing.repository.OutingRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
@@ -27,6 +30,7 @@ import com.moduletest.deasungkioskbackend.domain.studytime.service.StudyTimeRedi
 import com.moduletest.deasungkioskbackend.domain.tag.dto.TagConfirmRequest;
 import com.moduletest.deasungkioskbackend.domain.tag.dto.TagRequest;
 import com.moduletest.deasungkioskbackend.domain.tag.dto.TagResponse;
+import com.moduletest.deasungkioskbackend.domain.tag.dto.TagResponse.MealInfo;
 import com.moduletest.deasungkioskbackend.domain.tag.dto.TagResponse.PendingAction;
 import com.moduletest.deasungkioskbackend.domain.tag.entity.AttendAction;
 import java.time.Duration;
@@ -57,10 +61,11 @@ public class TagService {
     private final StudentMessageRepository studentMessageRepository;
     private final DsaAttendanceService dsaAttendanceService;
     private final DsaRequestService dsaRequestService;
+    private final MealTagRepository mealTagRepository;
 
     @Transactional
     public TagResponse processTag(TagRequest request, Long storeId) {
-        Student student = studentResolverService.resolveByIdentifier(request.identifier());
+        Student student = studentResolverService.resolveAuto(request.identifier(), storeId);
         validateStudentStore(student, storeId);
         studentRepository.findByIdForUpdate(student.getId());
 
@@ -71,16 +76,21 @@ public class TagService {
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
 
-        // 1. 외출 중이면 → 바로 복귀 처리
+        MealType mealType = MealType.fromCurrentTime(LocalTime.now());
+        MealInfo mealInfo = buildMealInfo(mealType, student, today);
+
+        // 1. 외출 중이면 → 복귀 처리 우선 (+ 급식 정보 포함)
         Optional<Outing> activeOuting = outingRepository
             .findActiveOutingByStudentToday(student.getId(), startOfDay, endOfDay);
         if (activeOuting.isPresent()) {
             AttendAction dsaAction = dsaAttendanceService.sendAttendTag(
                 student.getRfidUid(), store);
-            return handleOutingEnd(AttendAction.R, student, storeId, dsaAction != null);
+            TagResponse response = handleOutingEnd(
+                AttendAction.R, student, storeId, dsaAction != null);
+            return withMealInfo(response, mealInfo);
         }
 
-        // 2. 미등원이면 → 바로 등원 처리
+        // 2. 미등원이면 → 등원 처리 우선 (+ 급식 정보 포함)
         // TODO: 조퇴 후 재태그 시 조퇴→외출 변환 필요 (DSA 조퇴 수정 API 확정 후 구현)
         Optional<Attendance> checkedIn = attendanceRepository
             .findTodayAttendanceByStudentAndStatus(
@@ -89,15 +99,56 @@ public class TagService {
             AttendAction dsaAction = dsaAttendanceService.sendAttendTag(
                 student.getRfidUid(), store);
             AttendAction action = (dsaAction == AttendAction.A) ? AttendAction.A : AttendAction.S;
-            return handleCheckIn(action, student, storeId, dsaAction != null);
+            TagResponse response = handleCheckIn(action, student, storeId, dsaAction != null);
+            return withMealInfo(response, mealInfo);
         }
 
-        // 3. 등원 상태 → DSA 3.16으로 승인된 사유신청 확인
+        // 3. 등원 상태 + 식사시간 → 급식 체크 우선, 외출/조퇴/하원은 pendingActions로
+        if (mealType != null) {
+            return handleMealTimeTag(mealType, mealInfo, student, store, storeId,
+                startOfDay, endOfDay);
+        }
+
+        // 4. 식사시간 아님 → 기존 로직 (승인신청 확인 → 하원)
+        return handleCheckedInTag(student, store, storeId, startOfDay, endOfDay, null);
+    }
+
+    private TagResponse handleMealTimeTag(MealType mealType, MealInfo mealInfo,
+                                          Student student, Store store, Long storeId,
+                                          LocalDateTime startOfDay, LocalDateTime endOfDay) {
+        // 승인된 외출/조퇴 신청 확인
+        List<ApprovedRequest> approvedRequests = dsaRequestService
+            .findApprovedRequests(student.getRfidUid(), store);
+
+        List<PendingAction> pendingActions = new ArrayList<>();
+
+        // 외출/조퇴 승인 있으면 급식 먼저 → 외출/조퇴
+        if (!approvedRequests.isEmpty()) {
+            pendingActions.addAll(buildPendingActions(approvedRequests));
+        } else {
+            // 승인 없으면 급식 먼저 → 하원
+            pendingActions.add(new PendingAction(AttendAction.T, "하원 하시겠습니까?", null));
+        }
+
+        return TagResponse.builder()
+            .processed(false)
+            .studentId(student.getId())
+            .studentName(student.getName())
+            .studentNumber(student.getStudentNumber())
+            .seatLabel(getSeatLabel(student))
+            .pendingActions(pendingActions)
+            .dsaSynced(true)
+            .mealInfo(mealInfo)
+            .build();
+    }
+
+    private TagResponse handleCheckedInTag(Student student, Store store, Long storeId,
+                                           LocalDateTime startOfDay, LocalDateTime endOfDay,
+                                           MealInfo mealInfo) {
         List<ApprovedRequest> approvedRequests = dsaRequestService
             .findApprovedRequests(student.getRfidUid(), store);
 
         if (!approvedRequests.isEmpty()) {
-            // 승인된 신청이 있으면 → 프론트에 확인 요청
             List<PendingAction> pendingActions = buildPendingActions(approvedRequests);
             return TagResponse.builder()
                 .processed(false)
@@ -107,17 +158,19 @@ public class TagService {
                 .seatLabel(getSeatLabel(student))
                 .pendingActions(pendingActions)
                 .dsaSynced(true)
+                .mealInfo(mealInfo)
                 .build();
         }
 
-        // 4. 승인된 신청 없음 → 하원 처리
+        // 승인된 신청 없음 → 하원 처리
         dsaAttendanceService.sendAttendTag(student.getRfidUid(), store);
-        return handleCheckOut(AttendAction.T, student, storeId, true);
+        TagResponse response = handleCheckOut(AttendAction.T, student, storeId, true);
+        return withMealInfo(response, mealInfo);
     }
 
     @Transactional
     public TagResponse confirmTag(TagConfirmRequest request, Long storeId) {
-        Student student = studentResolverService.resolveByIdentifier(request.identifier());
+        Student student = studentResolverService.resolveAuto(request.identifier(), storeId);
         validateStudentStore(student, storeId);
         studentRepository.findByIdForUpdate(student.getId());
 
@@ -134,10 +187,110 @@ public class TagService {
         };
     }
 
+    @Transactional
+    public TagResponse confirmMealTag(String value, Long storeId) {
+        Student student = studentResolverService.resolveAuto(value, storeId);
+        validateStudentStore(student, storeId);
+
+        MealType mealType = MealType.fromCurrentTime(LocalTime.now());
+        if (mealType == null) {
+            throw new AttendanceException(ErrorCode.NOT_MEAL_TIME);
+        }
+
+        LocalDate today = LocalDate.now();
+
+        if (mealTagRepository.existsByStudentIdAndMealDateAndMealType(
+                student.getId(), today, mealType)) {
+            throw new AttendanceException(ErrorCode.ALREADY_MEAL_TAGGED);
+        }
+
+        // TODO: DSA 급식 신청 조회 API 확정 후 연동. 현재는 전부 신청한 것으로 처리
+        boolean applied = true;
+
+        if (!applied) {
+            return TagResponse.builder()
+                .processed(true)
+                .studentId(student.getId())
+                .studentName(student.getName())
+                .studentNumber(student.getStudentNumber())
+                .seatLabel(getSeatLabel(student))
+                .mealInfo(new MealInfo(mealType, mealType.getLabel(), false, false,
+                    mealType.getLabel() + " 신청내역 없음. 교직원에게 문의하세요!"))
+                .build();
+        }
+
+        MealTag mealTag = MealTag.builder()
+            .student(student)
+            .store(student.getStore())
+            .mealType(mealType)
+            .mealDate(today)
+            .taggedAt(LocalDateTime.now())
+            .build();
+        mealTagRepository.save(mealTag);
+
+        return TagResponse.builder()
+            .processed(true)
+            .studentId(student.getId())
+            .studentName(student.getName())
+            .studentNumber(student.getStudentNumber())
+            .seatLabel(getSeatLabel(student))
+            .mealInfo(new MealInfo(mealType, mealType.getLabel(), true, false,
+                "확인되었습니다."))
+            .build();
+    }
+
+    // ── 급식 헬퍼 ──
+
+    private MealInfo buildMealInfo(MealType mealType, Student student, LocalDate today) {
+        if (mealType == null) {
+            return null;
+        }
+
+        boolean alreadyTagged = mealTagRepository.existsByStudentIdAndMealDateAndMealType(
+            student.getId(), today, mealType);
+
+        if (alreadyTagged) {
+            return new MealInfo(mealType, mealType.getLabel(), true, true,
+                mealType.getLabel() + " 태그 완료");
+        }
+
+        // TODO: DSA 급식 신청 조회 API 확정 후 연동. 현재는 전부 신청한 것으로 처리
+        boolean applied = true;
+
+        if (!applied) {
+            return new MealInfo(mealType, mealType.getLabel(), false, false,
+                mealType.getLabel() + " 신청내역 없음. 교직원에게 문의하세요!");
+        }
+
+        return new MealInfo(mealType, mealType.getLabel(), true, false,
+            mealType.getLabel() + " 태그를 확인해주세요.");
+    }
+
+    private TagResponse withMealInfo(TagResponse response, MealInfo mealInfo) {
+        if (mealInfo == null) {
+            return response;
+        }
+        return TagResponse.builder()
+            .processed(response.processed())
+            .action(response.action())
+            .actionLabel(response.actionLabel())
+            .studentId(response.studentId())
+            .studentName(response.studentName())
+            .studentNumber(response.studentNumber())
+            .seatLabel(response.seatLabel())
+            .checkInAt(response.checkInAt())
+            .checkOutAt(response.checkOutAt())
+            .studyTimeMinutes(response.studyTimeMinutes())
+            .messages(response.messages())
+            .pendingActions(response.pendingActions())
+            .dsaSynced(response.dsaSynced())
+            .mealInfo(mealInfo)
+            .build();
+    }
+
     private List<PendingAction> buildPendingActions(List<ApprovedRequest> requests) {
         List<PendingAction> actions = new ArrayList<>();
         for (ApprovedRequest req : requests) {
-            // reg_gn 값으로 외출/조퇴 구분 (값 미확정 → 일단 모든 승인 건 표시)
             String regGn = req.regGn();
             AttendAction action;
             String message;
@@ -150,7 +303,6 @@ public class TagService {
                 action = AttendAction.D;
                 message = "외출 하시겠습니까?";
             } else {
-                // reg_gn 값 미확정 시 기본 표시
                 action = AttendAction.D;
                 message = "승인된 신청이 있습니다. 외출 하시겠습니까?";
             }
@@ -163,7 +315,7 @@ public class TagService {
     // ── 액션 핸들러 ──
 
     private TagResponse handleCheckIn(AttendAction action, Student student,
-        Long storeId, boolean dsaSynced) {
+                                      Long storeId, boolean dsaSynced) {
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
@@ -207,7 +359,7 @@ public class TagService {
     }
 
     private TagResponse handleCheckOut(AttendAction action, Student student,
-        Long storeId, boolean dsaSynced) {
+                                       Long storeId, boolean dsaSynced) {
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
@@ -254,7 +406,7 @@ public class TagService {
     }
 
     private TagResponse handleOutingStart(AttendAction action, Student student,
-        Long storeId, boolean dsaSynced) {
+                                          Long storeId, boolean dsaSynced) {
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
@@ -304,7 +456,7 @@ public class TagService {
     }
 
     private TagResponse handleOutingEnd(AttendAction action, Student student,
-        Long storeId, boolean dsaSynced) {
+                                        Long storeId, boolean dsaSynced) {
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
@@ -348,7 +500,7 @@ public class TagService {
         }
 
         if (seatUsageRepository.findByStudentIdAndStatus(
-            student.getId(), SeatUsageStatus.IN_USE).isPresent()) {
+                student.getId(), SeatUsageStatus.IN_USE).isPresent()) {
             return;
         }
 

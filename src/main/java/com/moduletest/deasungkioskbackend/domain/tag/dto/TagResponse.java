@@ -1,5 +1,6 @@
 package com.moduletest.deasungkioskbackend.domain.tag.dto;
 
+import com.moduletest.deasungkioskbackend.domain.meal.entity.MealType;
 import com.moduletest.deasungkioskbackend.domain.tag.entity.AttendAction;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
@@ -46,7 +47,10 @@ public record TagResponse(
     List<PendingAction> pendingActions,
 
     @Schema(description = "DSA 연동 여부", example = "true")
-    boolean dsaSynced
+    boolean dsaSynced,
+
+    @Schema(description = "급식 정보 (식사시간일 때만)")
+    MealInfo mealInfo
 ) {
 
     @Schema(description = "확인 대기 중인 액션")
@@ -59,6 +63,26 @@ public record TagResponse(
 
         @Schema(description = "DSA 신청코드", example = "REQ001")
         String regCd
+    ) {
+
+    }
+
+    @Schema(description = "급식 정보")
+    public record MealInfo(
+        @Schema(description = "식사 유형", example = "LUNCH")
+        MealType mealType,
+
+        @Schema(description = "식사 유형 한글명", example = "점심식사")
+        String mealLabel,
+
+        @Schema(description = "급식 신청 여부", example = "true")
+        boolean applied,
+
+        @Schema(description = "이미 태그 완료 여부", example = "false")
+        boolean alreadyTagged,
+
+        @Schema(description = "급식 안내 메시지", example = "확인되었습니다.")
+        String message
     ) {
 
     }

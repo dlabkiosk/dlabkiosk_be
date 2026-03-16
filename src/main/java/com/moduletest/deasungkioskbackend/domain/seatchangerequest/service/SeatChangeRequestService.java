@@ -42,9 +42,8 @@ public class SeatChangeRequestService {
     @Transactional
     public SeatChangeRequestResponse createRequest(SeatChangeRequestCreateRequest request,
                                                    Long storeId) {
-        Student student = studentResolverService.resolve(
-            request.identifier(), request.studentNumber(),
-            request.seatLabel(), request.phoneLast4(), storeId);
+        Student student = studentResolverService.resolveAuto(
+            request.identifier(), storeId);
 
         if (!student.getStore().getId().equals(storeId)) {
             throw new SeatChangeRequestException(ErrorCode.STUDENT_NOT_IN_THIS_STORE);

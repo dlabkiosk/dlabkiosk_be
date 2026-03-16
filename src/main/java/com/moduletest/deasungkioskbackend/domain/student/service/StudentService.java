@@ -101,13 +101,8 @@ public class StudentService {
         studentRepository.delete(student);
     }
 
-    public StudentKioskResponse searchStudentForKiosk(String identifier,
-                                                      String studentNumber,
-                                                      String seatLabel,
-                                                      String phoneLast4,
-                                                      Long storeId) {
-        Student student = studentResolverService.resolve(
-            identifier, studentNumber, seatLabel, phoneLast4, storeId);
+    public StudentKioskResponse searchStudentForKiosk(String identifier, Long storeId) {
+        Student student = studentResolverService.resolveAuto(identifier, storeId);
 
         SeatChangeRequest latestRequest = seatChangeRequestRepository
             .findAllByStudentIdWithDetails(student.getId())
