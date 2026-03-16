@@ -2,9 +2,11 @@ package com.moduletest.deasungkioskbackend.common.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
+import com.moduletest.deasungkioskbackend.domain.student.exception.MultipleStudentsException;
 import com.moduletest.deasungkioskbackend.domain.student.exception.StudentException;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -41,7 +43,7 @@ public class StudentResolverService {
             throw new StudentException(ErrorCode.STUDENT_NOT_FOUND_BY_PHONE_LAST4);
         }
         if (students.size() > 1) {
-            throw new StudentException(ErrorCode.MULTIPLE_STUDENTS_FOUND_BY_PHONE_LAST4);
+            throw new MultipleStudentsException(students);
         }
         return students.get(0);
     }
@@ -79,5 +81,41 @@ public class StudentResolverService {
             return resolveByPhoneLast4(phoneLast4, storeId);
         }
         throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
+    }
+
+    /**
+     * 값 하나로 학생을 자동 판별한다.
+     * 순서: rfidUid → seatLabel → phoneLast4. 전부 없으면 에러.
+     */
+    public Student resolveAuto(String value, Long storeId) {
+        if (value == null || value.isBlank()) {
+            throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
+        }
+        String trimmed = value.trim();
+
+        // 1. rfidUid로 조회
+        Optional<Student> byRfid = studentRepository.findByRfidUid(trimmed);
+        if (byRfid.isPresent()) {
+            return byRfid.get();
+        }
+
+        // 2. seatLabel로 조회
+        Optional<Student> bySeat = studentRepository.findBySeatLabelAndStoreId(
+            trimmed, storeId);
+        if (bySeat.isPresent()) {
+            return bySeat.get();
+        }
+
+        // 3. phoneLast4로 조회
+        List<Student> byPhone = studentRepository.findAllByPhoneLast4AndStoreId(
+            trimmed, storeId);
+        if (byPhone.size() == 1) {
+            return byPhone.get(0);
+        }
+        if (byPhone.size() > 1) {
+            throw new MultipleStudentsException(byPhone);
+        }
+
+        throw new StudentException(ErrorCode.STUDENT_NOT_FOUND);
     }
 }

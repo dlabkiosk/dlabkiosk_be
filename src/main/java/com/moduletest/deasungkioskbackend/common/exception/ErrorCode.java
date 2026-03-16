@@ -115,6 +115,10 @@ public enum ErrorCode {
     SEAT_NOT_IN_THIS_STORE("SCR005", "해당 지점의 좌석이 아닙니다", HttpStatus.BAD_REQUEST),
     DESIRED_SEAT_IS_CURRENT("SCR006", "현재 배정된 좌석과 동일한 좌석입니다", HttpStatus.BAD_REQUEST),
 
+    // Meal
+    NOT_MEAL_TIME("ML001", "현재 식사시간이 아닙니다", HttpStatus.BAD_REQUEST),
+    ALREADY_MEAL_TAGGED("ML002", "이미 급식 태그가 완료되었습니다", HttpStatus.CONFLICT),
+
     ;
 
 

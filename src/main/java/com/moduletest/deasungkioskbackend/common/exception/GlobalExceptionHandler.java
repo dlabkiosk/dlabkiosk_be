@@ -2,6 +2,7 @@ package com.moduletest.deasungkioskbackend.common.exception;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.dsa.exception.DsaApiException;
+import com.moduletest.deasungkioskbackend.domain.student.exception.MultipleStudentsException;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -65,6 +66,20 @@ public class GlobalExceptionHandler {
                         "INVALID_INPUT_VALUE",
                         "제약조건 위반: " + errors
                 ));
+    }
+
+    @ExceptionHandler(MultipleStudentsException.class)
+    public ResponseEntity<CommonResponse<Object>> handleMultipleStudents(
+            MultipleStudentsException ex) {
+
+        log.warn("Multiple students found by phone last 4 digits: {} candidates",
+                ex.getCandidates().size());
+
+        ErrorCode errorCode = ex.getErrorCode();
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(CommonResponse.error(errorCode, ex.getCandidates()));
     }
 
     @ExceptionHandler(BusinessException.class)
