@@ -17,6 +17,9 @@ public record StudentKioskResponse(
     @Schema(description = "학번", example = "2024-001")
     String studentNumber,
 
+    @Schema(description = "전화번호 뒷자리 4자리", example = "1234")
+    String phoneLast4,
+
     @Schema(description = "배정 좌석 라벨", example = "A-1")
     String assignedSeatLabel,
 
@@ -39,6 +42,7 @@ public record StudentKioskResponse(
             student.getId(),
             student.getName(),
             student.getStudentNumber(),
+            student.getPhoneLast4(),
             seatLabel,
             requestInfo
         );

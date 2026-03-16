@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.phonesubmission.repository;
 
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.entity.PhoneSubmission;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -28,8 +29,21 @@ public interface PhoneSubmissionRepository extends JpaRepository<PhoneSubmission
     List<PhoneSubmission> findAllToday(
         @Param("startOfDay") LocalDateTime startOfDay);
 
-    boolean existsByStudentIdAndSubmittedAtGreaterThanEqual(
-        Long studentId, LocalDateTime startOfDay);
+    @Query("SELECT CASE WHEN COUNT(ps) > 0 THEN true ELSE false END "
+        + "FROM PhoneSubmission ps "
+        + "WHERE ps.student.id = :studentId "
+        + "AND ps.startDate <= :endDate "
+        + "AND (ps.endDate IS NULL OR ps.endDate >= :startDate)")
+    boolean existsOverlapping(
+        @Param("studentId") Long studentId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT CASE WHEN COUNT(ps) > 0 THEN true ELSE false END "
+        + "FROM PhoneSubmission ps "
+        + "WHERE ps.student.id = :studentId "
+        + "AND ps.endDate IS NULL")
+    boolean existsActiveNoPhone(@Param("studentId") Long studentId);
 
     @Query("SELECT ps FROM PhoneSubmission ps "
         + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "

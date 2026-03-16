@@ -48,8 +48,8 @@ public class SeatLeaveService {
 
     @Transactional
     public SeatLeaveResponse startLeave(Long storeId, SeatLeaveStartRequest request) {
-        Student student = studentResolverService.resolveBySeatLabel(
-            request.seatLabel(), storeId);
+        Student student = studentResolverService.resolveByPhoneLast4(
+            request.phoneLast4(), storeId);
 
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
 
@@ -88,8 +88,8 @@ public class SeatLeaveService {
 
     @Transactional
     public SeatLeaveResponse endLeave(Long storeId, SeatLeaveEndRequest request) {
-        Student student = studentResolverService.resolveBySeatLabel(
-            request.seatLabel(), storeId);
+        Student student = studentResolverService.resolveByPhoneLast4(
+            request.phoneLast4(), storeId);
 
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
 

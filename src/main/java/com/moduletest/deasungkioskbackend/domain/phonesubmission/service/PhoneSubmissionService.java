@@ -5,6 +5,7 @@ import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionRequest;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionResponse;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.entity.PhoneSubmission;
+import com.moduletest.deasungkioskbackend.domain.phonesubmission.entity.PhoneSubmissionType;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.exception.PhoneSubmissionException;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.repository.PhoneSubmissionRepository;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
@@ -15,14 +16,14 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,28 +40,62 @@ public class PhoneSubmissionService {
     public PhoneSubmissionResponse submitPhoneNonPossession(PhoneSubmissionRequest request,
         Long storeId) {
 
-        Student student = studentResolverService.resolveBySeatLabel(
-            request.seatLabel(), storeId);
+        Student student = studentResolverService.resolveByPhoneLast4(
+            request.phoneLast4(), storeId);
 
-        LocalDateTime localDateTime = LocalDate.now().atStartOfDay();
+        LocalDate startDate;
+        LocalDate endDate;
 
-        boolean alreadySubmitted = phoneSubmissionRepository.existsByStudentIdAndSubmittedAtGreaterThanEqual(
-            student.getId(), localDateTime);
-
-        if (alreadySubmitted) {
-            throw new PhoneSubmissionException(ErrorCode.ALREADY_SUBMITTED_PHONE);
+        switch (request.submissionType()) {
+            case DAILY -> {
+                startDate = LocalDate.now();
+                endDate = LocalDate.now();
+            }
+            case PERIOD -> {
+                startDate = request.startDate();
+                endDate = request.endDate();
+                if (startDate == null || endDate == null) {
+                    throw new PhoneSubmissionException(ErrorCode.INVALID_PHONE_SUBMISSION_PERIOD);
+                }
+                if (startDate.isAfter(endDate)) {
+                    throw new PhoneSubmissionException(ErrorCode.INVALID_PHONE_SUBMISSION_PERIOD);
+                }
+            }
+            case NO_PHONE -> {
+                startDate = LocalDate.now();
+                endDate = null;
+            }
+            default -> throw new PhoneSubmissionException(ErrorCode.INVALID_INPUT_VALUE);
         }
+
+        checkDuplicateSubmission(student.getId(), request.submissionType(), startDate, endDate);
 
         PhoneSubmission submission = PhoneSubmission.builder()
             .student(student)
             .store(student.getStore())
             .submittedAt(LocalDateTime.now())
+            .submissionType(request.submissionType())
+            .startDate(startDate)
+            .endDate(endDate)
             .build();
 
         phoneSubmissionRepository.save(submission);
 
         return PhoneSubmissionResponse.fromEntity(submission);
+    }
 
+    private void checkDuplicateSubmission(Long studentId, PhoneSubmissionType type,
+                                          LocalDate startDate, LocalDate endDate) {
+        if (type == PhoneSubmissionType.NO_PHONE) {
+            if (phoneSubmissionRepository.existsActiveNoPhone(studentId)) {
+                throw new PhoneSubmissionException(ErrorCode.ALREADY_SUBMITTED_PHONE);
+            }
+        }
+
+        LocalDate checkEnd = endDate != null ? endDate : LocalDate.of(9999, 12, 31);
+        if (phoneSubmissionRepository.existsOverlapping(studentId, startDate, checkEnd)) {
+            throw new PhoneSubmissionException(ErrorCode.ALREADY_SUBMITTED_PHONE);
+        }
     }
 
 
@@ -91,7 +126,8 @@ public class PhoneSubmissionService {
             headerStyle.setFont(headerFont);
 
             Row header = sheet.createRow(0);
-            String[] columns = {"번호", "학생명", "학번", "배정좌석", "신청시간"};
+            String[] columns = {"번호", "학생명", "학번", "배정좌석", "신청유형",
+                "시작일", "종료일", "신청시간"};
             for (int i = 0; i < columns.length; i++) {
                 header.createCell(i).setCellValue(columns[i]);
                 header.getCell(i).setCellStyle(headerStyle);
@@ -108,7 +144,11 @@ public class PhoneSubmissionService {
                 row.createCell(3).setCellValue(
                     ps.getStudent().getAssignedSeat() != null
                         ? ps.getStudent().getAssignedSeat().getSeatLabel() : "");
-                row.createCell(4).setCellValue(ps.getSubmittedAt().format(dtf));
+                row.createCell(4).setCellValue(formatSubmissionType(ps.getSubmissionType()));
+                row.createCell(5).setCellValue(ps.getStartDate().toString());
+                row.createCell(6).setCellValue(
+                    ps.getEndDate() != null ? ps.getEndDate().toString() : "무기한");
+                row.createCell(7).setCellValue(ps.getSubmittedAt().format(dtf));
             }
 
             for (int i = 0; i < columns.length; i++) {
@@ -121,6 +161,14 @@ public class PhoneSubmissionService {
         } catch (IOException e) {
             throw new PhoneSubmissionException(ErrorCode.FILE_UPLOAD_FAILED);
         }
+    }
+
+    private String formatSubmissionType(PhoneSubmissionType type) {
+        return switch (type) {
+            case DAILY -> "당일";
+            case PERIOD -> "기간";
+            case NO_PHONE -> "미보유";
+        };
     }
 
     private List<PhoneSubmission> findSubmissionsByPeriod(Long storeId,

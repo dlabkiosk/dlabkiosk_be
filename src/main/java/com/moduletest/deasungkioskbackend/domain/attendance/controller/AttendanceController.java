@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "[키오스크] 출석", description = "QR 스캔을 통한 등원/하원 처리 (키오스크 로그인 필요)")
+@Tag(name = "[키오스크] 출석 (미사용)", description = "개별 등원/하원 API. 통합 태그 API(POST /kiosk/tag)로 대체되었습니다.")
 @RestController
 @RequestMapping("/api/v1/kiosk/attendance")
 @RequiredArgsConstructor

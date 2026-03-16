@@ -19,6 +19,10 @@ public record StudentUpdateRequest(
     @Size(max = 30, message = "학번은 30자를 초과할 수 없습니다.")
     String studentNumber,
 
+    @Schema(description = "전화번호 뒷자리 4자리", example = "1234")
+    @Size(max = 4, message = "전화번호 뒷자리는 4자를 초과할 수 없습니다.")
+    String phoneLast4,
+
     @Schema(description = "배정 좌석 ID (null이면 배정 해제)", example = "1")
     Long seatId
 ) { }
