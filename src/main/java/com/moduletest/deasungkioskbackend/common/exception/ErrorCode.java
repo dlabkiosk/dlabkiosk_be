@@ -90,10 +90,18 @@ public enum ErrorCode {
 
 
     // Phone Submission
-    ALREADY_SUBMITTED_PHONE("PS001", "오늘 이미 휴대폰 미소지 신청을 했습니다", HttpStatus.CONFLICT),
+    ALREADY_SUBMITTED_PHONE("PS001", "이미 해당 기간에 휴대폰 미소지 신청이 있습니다", HttpStatus.CONFLICT),
+    INVALID_PHONE_SUBMISSION_PERIOD("PS002", "시작일은 종료일보다 이전이어야 합니다", HttpStatus.BAD_REQUEST),
 
     // Seat Label
     STUDENT_NOT_FOUND_BY_SEAT_LABEL("SL004", "해당 좌석에 배정된 학생이 없습니다", HttpStatus.NOT_FOUND),
+
+    // Phone Last4
+    STUDENT_NOT_FOUND_BY_PHONE_LAST4("STU006", "해당 전화번호 뒷자리로 학생을 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND),
+    MULTIPLE_STUDENTS_FOUND_BY_PHONE_LAST4("STU007",
+        "동일한 전화번호 뒷자리를 가진 학생이 여러 명입니다. 학번으로 검색해주세요",
+        HttpStatus.CONFLICT),
 
     // Student Message
     STUDENT_MESSAGE_NOT_FOUND("SM001", "학생 메시지를 찾을 수 없습니다", HttpStatus.NOT_FOUND),

@@ -40,23 +40,28 @@ public class Student extends BaseTimeEntity {
     @Column(name = "student_number", unique = true, length = 30)
     private String studentNumber;
 
+    @Column(name = "phone_last4", length = 4)
+    private String phoneLast4;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_seat_id")
     private Seat assignedSeat;
 
     @Builder
     public Student(Store store, String name, String rfidUid,
-                   String studentNumber, Seat assignedSeat) {
+                   String studentNumber, String phoneLast4, Seat assignedSeat) {
         this.store = store;
         this.name = name;
         this.rfidUid = rfidUid;
         this.studentNumber = studentNumber;
+        this.phoneLast4 = phoneLast4;
         this.assignedSeat = assignedSeat;
     }
 
-    public void updateInfo(String name, String studentNumber) {
+    public void updateInfo(String name, String studentNumber, String phoneLast4) {
         this.name = name;
         this.studentNumber = studentNumber;
+        this.phoneLast4 = phoneLast4;
     }
 
     public void updateRfidUid(String rfidUid) {

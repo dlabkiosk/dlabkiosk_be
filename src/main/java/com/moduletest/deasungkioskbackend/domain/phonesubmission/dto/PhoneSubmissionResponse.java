@@ -1,7 +1,9 @@
 package com.moduletest.deasungkioskbackend.domain.phonesubmission.dto;
 
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.entity.PhoneSubmission;
+import com.moduletest.deasungkioskbackend.domain.phonesubmission.entity.PhoneSubmissionType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Schema(description = "휴대폰 미소지 응답")
@@ -16,6 +18,12 @@ public record PhoneSubmissionResponse(
     String studentNumber,
     @Schema(description = "배정 좌석", example = "A-1")
     String seatLabel,
+    @Schema(description = "신청 유형", example = "DAILY")
+    PhoneSubmissionType submissionType,
+    @Schema(description = "시작일")
+    LocalDate startDate,
+    @Schema(description = "종료일 (무기한이면 null)")
+    LocalDate endDate,
     @Schema(description = "신청 시간")
     LocalDateTime submittedAt
 ) {
@@ -28,6 +36,9 @@ public record PhoneSubmissionResponse(
             ps.getStudent().getStudentNumber(),
             ps.getStudent().getAssignedSeat() != null
                 ? ps.getStudent().getAssignedSeat().getSeatLabel() : null,
+            ps.getSubmissionType(),
+            ps.getStartDate(),
+            ps.getEndDate(),
             ps.getSubmittedAt()
         );
     }

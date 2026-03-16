@@ -4,6 +4,7 @@ import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.exception.StudentException;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,21 @@ public class StudentResolverService {
         return studentRepository.findBySeatLabelAndStoreId(seatLabel.trim(), storeId)
             .orElseThrow(() -> new StudentException(
                 ErrorCode.STUDENT_NOT_FOUND_BY_SEAT_LABEL));
+    }
+
+    public Student resolveByPhoneLast4(String phoneLast4, Long storeId) {
+        if (phoneLast4 == null || phoneLast4.isBlank()) {
+            throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
+        }
+        List<Student> students = studentRepository.findAllByPhoneLast4AndStoreId(
+            phoneLast4.trim(), storeId);
+        if (students.isEmpty()) {
+            throw new StudentException(ErrorCode.STUDENT_NOT_FOUND_BY_PHONE_LAST4);
+        }
+        if (students.size() > 1) {
+            throw new StudentException(ErrorCode.MULTIPLE_STUDENTS_FOUND_BY_PHONE_LAST4);
+        }
+        return students.get(0);
     }
 
     public Student resolveStudent(String identifier, String studentNumber) {

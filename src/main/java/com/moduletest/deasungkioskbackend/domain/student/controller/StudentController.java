@@ -34,8 +34,7 @@ public class StudentController {
     }
 
     @Operation(summary = "좌석번호로 학생 조회",
-        description = "좌석번호(라벨)를 입력하면 해당 좌석에 배정된 학생 정보를 반환한다. "
-            + "좌석이탈/휴대폰 미소지 신청 전 확인 화면용.")
+        description = "좌석번호(라벨)를 입력하면 해당 좌석에 배정된 학생 정보를 반환한다.")
     @GetMapping("/by-seat")
     public CommonResponse<StudentResponse> findStudentBySeatLabel(
             @RequestParam String seatLabel) {
@@ -43,5 +42,17 @@ public class StudentController {
             SecurityContextHolder.getContext().getAuthentication().getName());
         return CommonResponse.success(
             studentService.findBySeatLabel(seatLabel, storeId));
+    }
+
+    @Operation(summary = "전화번호 뒷자리로 학생 조회",
+        description = "전화번호 뒷자리 4자리를 입력하면 해당 학생 정보를 반환한다. "
+            + "좌석이탈/휴대폰 미소지 신청 전 확인 화면용.")
+    @GetMapping("/by-phone")
+    public CommonResponse<StudentResponse> findStudentByPhoneLast4(
+            @RequestParam String phoneLast4) {
+        Long storeId = Long.valueOf(
+            SecurityContextHolder.getContext().getAuthentication().getName());
+        return CommonResponse.success(
+            studentService.findByPhoneLast4(phoneLast4, storeId));
     }
 }

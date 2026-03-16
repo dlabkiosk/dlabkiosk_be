@@ -23,7 +23,9 @@ public class PhoneSubmissionController {
     private final PhoneSubmissionService phoneSubmissionService;
 
     @Operation(summary = "휴대폰 미소지 신청",
-        description = "좌석번호를 입력하여 휴대폰 미소지를 신청한다. 당일 중복 신청 시 거부된다.")
+        description = "전화번호 뒷자리로 학생을 식별하여 휴대폰 미소지를 신청한다. "
+            + "DAILY(당일), PERIOD(기간 설정), NO_PHONE(휴대폰 미보유) 유형을 선택할 수 있다. "
+            + "기간이 겹치는 중복 신청 시 거부된다.")
     @PostMapping
     public CommonResponse<PhoneSubmissionResponse> submitPhoneNonPossession(
         @Valid @RequestBody PhoneSubmissionRequest request) {

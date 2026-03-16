@@ -36,6 +36,12 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
         @Param("seatLabel") String seatLabel,
         @Param("storeId") Long storeId);
 
+    @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
+        + " WHERE s.phoneLast4 = :phoneLast4 AND s.store.id = :storeId")
+    List<Student> findAllByPhoneLast4AndStoreId(
+        @Param("phoneLast4") String phoneLast4,
+        @Param("storeId") Long storeId);
+
     boolean existsByStudentNumber(String studentNumber);
 
     boolean existsByAssignedSeatId(Long assignedSeatId);

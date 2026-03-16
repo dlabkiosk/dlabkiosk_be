@@ -69,6 +69,7 @@ public class StudentService {
             .name(request.name())
             .rfidUid(request.rfidUid())
             .studentNumber(request.studentNumber())
+            .phoneLast4(request.phoneLast4())
             .assignedSeat(assignedSeat)
             .build();
 
@@ -81,7 +82,7 @@ public class StudentService {
         Student student = studentRepository.findById(studentId)
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
 
-        student.updateInfo(request.name(), request.studentNumber());
+        student.updateInfo(request.name(), request.studentNumber(), request.phoneLast4());
 
         if (request.rfidUid() != null) {
             student.updateRfidUid(request.rfidUid());
@@ -122,6 +123,11 @@ public class StudentService {
 
     public StudentResponse findBySeatLabel(String seatLabel, Long storeId) {
         Student student = studentResolverService.resolveBySeatLabel(seatLabel, storeId);
+        return StudentResponse.fromEntity(student);
+    }
+
+    public StudentResponse findByPhoneLast4(String phoneLast4, Long storeId) {
+        Student student = studentResolverService.resolveByPhoneLast4(phoneLast4, storeId);
         return StudentResponse.fromEntity(student);
     }
 
