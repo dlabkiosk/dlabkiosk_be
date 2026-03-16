@@ -101,16 +101,13 @@ public class StudentService {
         studentRepository.delete(student);
     }
 
-    public StudentResponse searchStudent(String identifier, String studentNumber) {
-        Student student = studentResolverService.resolveStudent(
-            identifier, studentNumber);
-        return StudentResponse.fromEntity(student);
-    }
-
     public StudentKioskResponse searchStudentForKiosk(String identifier,
-                                                      String studentNumber) {
-        Student student = studentResolverService.resolveStudent(
-            identifier, studentNumber);
+                                                      String studentNumber,
+                                                      String seatLabel,
+                                                      String phoneLast4,
+                                                      Long storeId) {
+        Student student = studentResolverService.resolve(
+            identifier, studentNumber, seatLabel, phoneLast4, storeId);
 
         SeatChangeRequest latestRequest = seatChangeRequestRepository
             .findAllByStudentIdWithDetails(student.getId())
@@ -119,16 +116,6 @@ public class StudentService {
             .orElse(null);
 
         return StudentKioskResponse.of(student, latestRequest);
-    }
-
-    public StudentResponse findBySeatLabel(String seatLabel, Long storeId) {
-        Student student = studentResolverService.resolveBySeatLabel(seatLabel, storeId);
-        return StudentResponse.fromEntity(student);
-    }
-
-    public StudentResponse findByPhoneLast4(String phoneLast4, Long storeId) {
-        Student student = studentResolverService.resolveByPhoneLast4(phoneLast4, storeId);
-        return StudentResponse.fromEntity(student);
     }
 
     private Seat resolveSeat(Long seatId) {

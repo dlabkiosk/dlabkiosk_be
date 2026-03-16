@@ -56,14 +56,17 @@ public class SeatChangeRequestController {
 
     @Operation(summary = "좌석 변경 신청 취소",
         description = "PENDING 상태의 신청만 취소 가능하다. "
-            + "학생 식별(identifier/학번/전화번호) 중 하나 필수.")
+            + "카드/QR/학번/좌석번호/폰뒷자리 중 하나 필수.")
     @DeleteMapping("/{requestId}")
     public CommonResponse<Void> cancelRequest(
             @PathVariable Long requestId,
             @RequestParam(required = false) String identifier,
-            @RequestParam(required = false) String studentNumber) {
-        Student student = studentResolverService.resolveStudent(
-            identifier, studentNumber);
+            @RequestParam(required = false) String studentNumber,
+            @RequestParam(required = false) String seatLabel,
+            @RequestParam(required = false) String phoneLast4) {
+        Long storeId = getStoreIdFromToken();
+        Student student = studentResolverService.resolve(
+            identifier, studentNumber, seatLabel, phoneLast4, storeId);
         seatChangeRequestService.cancelRequest(requestId, student.getId());
         return CommonResponse.success(null);
     }

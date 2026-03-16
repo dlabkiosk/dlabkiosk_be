@@ -57,4 +57,27 @@ public class StudentResolverService {
         }
         throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
     }
+
+    /**
+     * 4가지 식별 방식 중 하나로 학생을 찾는다.
+     * 우선순위: identifier(카드/QR) → studentNumber(학번) → seatLabel(좌석번호) → phoneLast4(폰뒷자리)
+     */
+    public Student resolve(String identifier, String studentNumber,
+                           String seatLabel, String phoneLast4, Long storeId) {
+        if (identifier != null && !identifier.isBlank()) {
+            return resolveByIdentifier(identifier);
+        }
+        if (studentNumber != null && !studentNumber.isBlank()) {
+            return studentRepository.findByStudentNumber(studentNumber.trim())
+                .orElseThrow(() -> new StudentException(
+                    ErrorCode.STUDENT_NOT_FOUND_BY_STUDENT_NUMBER));
+        }
+        if (seatLabel != null && !seatLabel.isBlank()) {
+            return resolveBySeatLabel(seatLabel, storeId);
+        }
+        if (phoneLast4 != null && !phoneLast4.isBlank()) {
+            return resolveByPhoneLast4(phoneLast4, storeId);
+        }
+        throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
+    }
 }
