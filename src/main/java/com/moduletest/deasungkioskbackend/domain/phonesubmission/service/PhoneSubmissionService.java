@@ -40,8 +40,9 @@ public class PhoneSubmissionService {
     public PhoneSubmissionResponse submitPhoneNonPossession(PhoneSubmissionRequest request,
         Long storeId) {
 
-        Student student = studentResolverService.resolveByPhoneLast4(
-            request.phoneLast4(), storeId);
+        Student student = studentResolverService.resolve(
+            request.identifier(), request.studentNumber(),
+            request.seatLabel(), request.phoneLast4(), storeId);
 
         LocalDate startDate;
         LocalDate endDate;

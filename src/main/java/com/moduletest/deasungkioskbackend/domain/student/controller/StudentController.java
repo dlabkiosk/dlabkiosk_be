@@ -2,7 +2,6 @@ package com.moduletest.deasungkioskbackend.domain.student.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentKioskResponse;
-import com.moduletest.deasungkioskbackend.domain.student.dto.StudentResponse;
 import com.moduletest.deasungkioskbackend.domain.student.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,38 +20,19 @@ public class StudentController {
 
     private final StudentService studentService;
 
-    @Operation(summary = "학생 검색 (키오스크)",
-        description = "identifier(RFID UID 또는 QR UUID) 또는 학번으로 학생을 검색한다. "
+    @Operation(summary = "학생 검색",
+        description = "카드/QR/학번/좌석번호/폰뒷자리 중 하나로 학생을 검색한다. "
             + "좌석 변경 신청 정보가 있으면 함께 반환한다.")
     @GetMapping("/search")
     public CommonResponse<StudentKioskResponse> searchStudent(
             @RequestParam(required = false) String identifier,
-            @RequestParam(required = false) String studentNumber) {
+            @RequestParam(required = false) String studentNumber,
+            @RequestParam(required = false) String seatLabel,
+            @RequestParam(required = false) String phoneLast4) {
+        Long storeId = Long.valueOf(
+            SecurityContextHolder.getContext().getAuthentication().getName());
         StudentKioskResponse student = studentService.searchStudentForKiosk(
-            identifier, studentNumber);
+            identifier, studentNumber, seatLabel, phoneLast4, storeId);
         return CommonResponse.success(student);
-    }
-
-    @Operation(summary = "좌석번호로 학생 조회",
-        description = "좌석번호(라벨)를 입력하면 해당 좌석에 배정된 학생 정보를 반환한다.")
-    @GetMapping("/by-seat")
-    public CommonResponse<StudentResponse> findStudentBySeatLabel(
-            @RequestParam String seatLabel) {
-        Long storeId = Long.valueOf(
-            SecurityContextHolder.getContext().getAuthentication().getName());
-        return CommonResponse.success(
-            studentService.findBySeatLabel(seatLabel, storeId));
-    }
-
-    @Operation(summary = "전화번호 뒷자리로 학생 조회",
-        description = "전화번호 뒷자리 4자리를 입력하면 해당 학생 정보를 반환한다. "
-            + "좌석이탈/휴대폰 미소지 신청 전 확인 화면용.")
-    @GetMapping("/by-phone")
-    public CommonResponse<StudentResponse> findStudentByPhoneLast4(
-            @RequestParam String phoneLast4) {
-        Long storeId = Long.valueOf(
-            SecurityContextHolder.getContext().getAuthentication().getName());
-        return CommonResponse.success(
-            studentService.findByPhoneLast4(phoneLast4, storeId));
     }
 }

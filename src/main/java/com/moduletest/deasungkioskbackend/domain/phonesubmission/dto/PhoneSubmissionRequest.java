@@ -2,14 +2,21 @@ package com.moduletest.deasungkioskbackend.domain.phonesubmission.dto;
 
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.entity.PhoneSubmissionType;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 
-@Schema(description = "휴대폰 미소지 신청 요청. 전화번호 뒷자리로 학생을 식별한다.")
+@Schema(description = "휴대폰 미소지 신청 요청. 카드/QR/좌석번호/폰뒷자리 중 하나로 학생을 식별한다.")
 public record PhoneSubmissionRequest(
+    @Schema(description = "학생 식별값 (RFID UID 또는 QR UUID)", example = "A1B2C3D4")
+    String identifier,
+
+    @Schema(description = "학번", example = "20250101")
+    String studentNumber,
+
+    @Schema(description = "좌석번호", example = "A-1")
+    String seatLabel,
+
     @Schema(description = "전화번호 뒷자리 4자리", example = "1234")
-    @NotBlank(message = "전화번호 뒷자리는 필수입니다")
     String phoneLast4,
 
     @Schema(description = "신청 유형 (DAILY: 당일, PERIOD: 기간 설정, NO_PHONE: 휴대폰 미보유)",
