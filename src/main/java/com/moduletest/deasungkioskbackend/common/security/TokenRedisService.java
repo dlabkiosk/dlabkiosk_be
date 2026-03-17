@@ -27,7 +27,8 @@ public class TokenRedisService {
 
     public void saveKioskToken(Long storeId, String token, long expirationMillis) {
         String key = KIOSK_TOKEN_PREFIX + storeId;
-        redisTemplate.opsForValue().set(key, token, expirationMillis, TimeUnit.MILLISECONDS);
+        redisTemplate.opsForSet().add(key, token);
+        redisTemplate.expire(key, expirationMillis, TimeUnit.MILLISECONDS);
     }
 
     public boolean isAdminTokenValid(Long userId, String token) {
@@ -44,8 +45,7 @@ public class TokenRedisService {
 
     public boolean isKioskTokenValid(Long storeId, String token) {
         String key = KIOSK_TOKEN_PREFIX + storeId;
-        String stored = redisTemplate.opsForValue().get(key);
-        return token.equals(stored);
+        return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, token));
     }
 
     public void removeAdminTokens(Long userId) {
@@ -53,7 +53,12 @@ public class TokenRedisService {
         redisTemplate.delete(ADMIN_REFRESH_PREFIX + userId);
     }
 
-    public void removeKioskToken(Long storeId) {
+    public void removeKioskToken(Long storeId, String token) {
+        String key = KIOSK_TOKEN_PREFIX + storeId;
+        redisTemplate.opsForSet().remove(key, token);
+    }
+
+    public void removeAllKioskTokens(Long storeId) {
         redisTemplate.delete(KIOSK_TOKEN_PREFIX + storeId);
     }
 }

@@ -10,6 +10,8 @@ import com.moduletest.deasungkioskbackend.domain.kiosk.dto.KioskLoginResponse;
 import com.moduletest.deasungkioskbackend.domain.kiosk.service.KioskAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -51,15 +53,28 @@ public class KioskAuthController {
     }
 
     @Operation(summary = "키오스크 로그아웃",
-        description = "Redis에서 키오스크 토큰을 삭제하고 쿠키를 초기화한다.")
+        description = "Redis에서 해당 키오스크의 토큰만 삭제하고 쿠키를 초기화한다. 다른 키오스크의 세션에는 영향 없음.")
     @PostMapping("/logout")
-    public CommonResponse<Void> logout(HttpServletResponse response) {
+    public CommonResponse<Void> logout(HttpServletRequest request, HttpServletResponse response) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.isAuthenticated()) {
             Long storeId = Long.valueOf(authentication.getName());
-            kioskAuthService.logout(storeId);
+            String token = resolveTokenFromCookie(request);
+            kioskAuthService.logout(storeId, token);
         }
         clearAccessToken(response);
         return CommonResponse.success(null);
+    }
+
+    private String resolveTokenFromCookie(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("accessToken".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
     }
 }

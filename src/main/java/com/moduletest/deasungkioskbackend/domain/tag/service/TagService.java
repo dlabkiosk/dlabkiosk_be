@@ -20,6 +20,8 @@ import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsage;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsageStatus;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.service.SeatRedisService;
+import com.moduletest.deasungkioskbackend.domain.seatleave.entity.SeatLeave;
+import com.moduletest.deasungkioskbackend.domain.seatleave.repository.SeatLeaveRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
@@ -62,6 +64,7 @@ public class TagService {
     private final DsaAttendanceService dsaAttendanceService;
     private final DsaRequestService dsaRequestService;
     private final MealTagRepository mealTagRepository;
+    private final SeatLeaveRepository seatLeaveRepository;
 
     @Transactional
     public TagResponse processTag(TagRequest request, Long storeId) {
@@ -90,7 +93,16 @@ public class TagService {
             return withMealInfo(response, mealInfo);
         }
 
-        // 2. 미등원이면 → 등원 처리 우선 (+ 급식 정보 포함)
+        // 2. 좌석이탈 중이면 → 복귀 처리 (+ 급식 정보 포함)
+        Optional<SeatLeave> activeSeatLeave = seatLeaveRepository
+            .findActiveSeatLeaveByStudentToday(student.getId(), startOfDay);
+        if (activeSeatLeave.isPresent()) {
+            TagResponse response = handleSeatLeaveEnd(
+                activeSeatLeave.get(), student, storeId);
+            return withMealInfo(response, mealInfo);
+        }
+
+        // 3. 미등원이면 → 등원 처리 우선 (+ 급식 정보 포함)
         // TODO: 조퇴 후 재태그 시 조퇴→외출 변환 필요 (DSA 조퇴 수정 API 확정 후 구현)
         Optional<Attendance> checkedIn = attendanceRepository
             .findTodayAttendanceByStudentAndStatus(
@@ -491,6 +503,30 @@ public class TagService {
             .build();
     }
 
+    private TagResponse handleSeatLeaveEnd(SeatLeave seatLeave, Student student,
+                                              Long storeId) {
+        seatLeave.endLeave();
+
+        studyTimeRedisService.addSeatLeaveDeduction(
+            storeId, student.getId(),
+            seatLeave.getStartedAt(), seatLeave.getEndedAt());
+
+        seatRedisService.markSeatInUse(
+            storeId, seatLeave.getSeat().getId(),
+            student.getId(), student.getName());
+
+        return TagResponse.builder()
+            .processed(true)
+            .action(AttendAction.R)
+            .actionLabel("좌석 복귀")
+            .studentId(student.getId())
+            .studentName(student.getName())
+            .studentNumber(student.getStudentNumber())
+            .seatLabel(getSeatLabel(student))
+            .dsaSynced(true)
+            .build();
+    }
+
     // ── 좌석 처리 ──
 
     private void seatCheckIn(Student student, Long storeId) {
@@ -509,9 +545,18 @@ public class TagService {
             storeId, seatId, student.getId(), student.getName());
 
         if (!acquired) {
-            log.warn("[Tag] 배정 좌석 선점 실패 (studentId={}, seatId={})",
-                student.getId(), seatId);
-            return;
+            String existing = seatRedisService.getSeatStatus(storeId, seatId);
+            if (existing != null
+                    && existing.contains(":" + student.getId() + ":")) {
+                log.info("[Tag] stale Redis 데이터 정리 후 재선점 (studentId={}, seatId={})",
+                    student.getId(), seatId);
+                seatRedisService.markSeatInUse(
+                    storeId, seatId, student.getId(), student.getName());
+            } else {
+                log.warn("[Tag] 배정 좌석 선점 실패 (studentId={}, seatId={}, existing={})",
+                    student.getId(), seatId, existing);
+                return;
+            }
         }
 
         try {
