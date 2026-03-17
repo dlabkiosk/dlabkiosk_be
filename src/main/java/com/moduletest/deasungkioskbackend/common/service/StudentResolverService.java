@@ -96,7 +96,11 @@ public class StudentResolverService {
         // 1. rfidUid로 조회
         Optional<Student> byRfid = studentRepository.findByRfidUid(trimmed);
         if (byRfid.isPresent()) {
-            return byRfid.get();
+            Student student = byRfid.get();
+            if (!student.getStore().getId().equals(storeId)) {
+                throw new StudentException(ErrorCode.STUDENT_NOT_IN_STORE);
+            }
+            return student;
         }
 
         // 2. seatLabel로 조회
