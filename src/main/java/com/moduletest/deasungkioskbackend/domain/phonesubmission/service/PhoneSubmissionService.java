@@ -4,6 +4,7 @@ import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionRequest;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionResponse;
+import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.entity.PhoneSubmission;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.entity.PhoneSubmissionType;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.exception.PhoneSubmissionException;
@@ -99,6 +100,50 @@ public class PhoneSubmissionService {
     }
 
 
+    @Transactional
+    public PhoneSubmissionResponse updatePhoneSubmission(Long id,
+        PhoneSubmissionUpdateRequest request) {
+
+        PhoneSubmission submission = phoneSubmissionRepository.findById(id)
+            .orElseThrow(() -> new PhoneSubmissionException(ErrorCode.PHONE_SUBMISSION_NOT_FOUND));
+
+        LocalDate startDate;
+        LocalDate endDate;
+
+        switch (request.submissionType()) {
+            case DAILY -> {
+                startDate = submission.getStartDate();
+                endDate = submission.getStartDate();
+            }
+            case PERIOD -> {
+                startDate = request.startDate();
+                endDate = request.endDate();
+                if (startDate == null || endDate == null) {
+                    throw new PhoneSubmissionException(ErrorCode.INVALID_PHONE_SUBMISSION_PERIOD);
+                }
+                if (startDate.isAfter(endDate)) {
+                    throw new PhoneSubmissionException(ErrorCode.INVALID_PHONE_SUBMISSION_PERIOD);
+                }
+            }
+            case NO_PHONE -> {
+                startDate = submission.getStartDate();
+                endDate = null;
+            }
+            default -> throw new PhoneSubmissionException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        submission.updateSubmission(request.submissionType(), startDate, endDate, request.memo());
+
+        return PhoneSubmissionResponse.fromEntity(submission);
+    }
+
+    @Transactional
+    public void deletePhoneSubmission(Long id) {
+        PhoneSubmission submission = phoneSubmissionRepository.findById(id)
+            .orElseThrow(() -> new PhoneSubmissionException(ErrorCode.PHONE_SUBMISSION_NOT_FOUND));
+        phoneSubmissionRepository.delete(submission);
+    }
+
     public Page<PhoneSubmissionResponse> findAllByPeriod(Long storeId,
         LocalDate startDate, LocalDate endDate, Pageable pageable) {
         LocalDateTime start = startDate.atStartOfDay();
@@ -126,8 +171,8 @@ public class PhoneSubmissionService {
             headerStyle.setFont(headerFont);
 
             Row header = sheet.createRow(0);
-            String[] columns = {"번호", "학생명", "학번", "배정좌석", "신청유형",
-                "시작일", "종료일", "신청시간"};
+            String[] columns = {"번호", "학생명", "학번", "반", "배정좌석",
+                "휴대폰 뒷자리", "학부모 전화번호", "신청유형", "시작일", "종료일", "메모", "신청시간"};
             for (int i = 0; i < columns.length; i++) {
                 header.createCell(i).setCellValue(columns[i]);
                 header.getCell(i).setCellStyle(headerStyle);
@@ -141,14 +186,21 @@ public class PhoneSubmissionService {
                 row.createCell(2).setCellValue(
                     ps.getStudent().getStudentNumber() != null
                         ? ps.getStudent().getStudentNumber() : "");
-                row.createCell(3).setCellValue(
+                row.createCell(3).setCellValue("");
+                row.createCell(4).setCellValue(
                     ps.getStudent().getAssignedSeat() != null
                         ? ps.getStudent().getAssignedSeat().getSeatLabel() : "");
-                row.createCell(4).setCellValue(formatSubmissionType(ps.getSubmissionType()));
-                row.createCell(5).setCellValue(ps.getStartDate().toString());
-                row.createCell(6).setCellValue(
+                row.createCell(5).setCellValue(
+                    ps.getStudent().getPhoneLast4() != null
+                        ? ps.getStudent().getPhoneLast4() : "");
+                row.createCell(6).setCellValue("");
+                row.createCell(7).setCellValue(formatSubmissionType(ps.getSubmissionType()));
+                row.createCell(8).setCellValue(ps.getStartDate().toString());
+                row.createCell(9).setCellValue(
                     ps.getEndDate() != null ? ps.getEndDate().toString() : "무기한");
-                row.createCell(7).setCellValue(ps.getSubmittedAt().format(dtf));
+                row.createCell(10).setCellValue(
+                    ps.getMemo() != null ? ps.getMemo() : "");
+                row.createCell(11).setCellValue(ps.getSubmittedAt().format(dtf));
             }
 
             for (int i = 0; i < columns.length; i++) {

@@ -92,6 +92,7 @@ public enum ErrorCode {
     // Phone Submission
     ALREADY_SUBMITTED_PHONE("PS001", "이미 해당 기간에 휴대폰 미소지 신청이 있습니다", HttpStatus.CONFLICT),
     INVALID_PHONE_SUBMISSION_PERIOD("PS002", "시작일은 종료일보다 이전이어야 합니다", HttpStatus.BAD_REQUEST),
+    PHONE_SUBMISSION_NOT_FOUND("PS003", "해당 휴대폰 미소지 신청을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
 
     // Seat Label
     STUDENT_NOT_FOUND_BY_SEAT_LABEL("SL004", "해당 좌석에 배정된 학생이 없습니다", HttpStatus.NOT_FOUND),

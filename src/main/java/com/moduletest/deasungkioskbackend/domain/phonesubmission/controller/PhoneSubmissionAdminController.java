@@ -3,13 +3,15 @@ package com.moduletest.deasungkioskbackend.domain.phonesubmission.controller;
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionResponse;
+import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.service.PhoneSubmissionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springdoc.core.annotations.ParameterObject;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -17,7 +19,11 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,7 +39,8 @@ public class PhoneSubmissionAdminController {
     @Operation(summary = "휴대폰 미소지 현황 조회 (페이지네이션)",
         description = "기간별 미소지 현황을 조회한다. 날짜 미지정 시 당일 기준. "
             + "MANAGER: 자기 지점만. ADMIN: 전체 지점. "
-            + "페이지네이션: ?page=0&size=20&sort=submittedAt,desc")
+            + "페이지네이션: ?page=0&size=20&sort=submittedAt,desc. "
+            + "신청 유형 — DAILY: 당일, PERIOD: 기간 설정, NO_PHONE: 휴대폰 미보유(무기한).")
     @GetMapping
     public CommonResponse<Page<PhoneSubmissionResponse>> findAllPhoneSubmissions(
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -48,6 +55,27 @@ public class PhoneSubmissionAdminController {
         LocalDate end = endDate != null ? endDate : LocalDate.now();
         return CommonResponse.success(
             phoneSubmissionService.findAllByPeriod(storeId, start, end, pageable));
+    }
+
+    @Operation(summary = "휴대폰 미소지 수정",
+        description = "신청 유형, 기간, 메모를 수정한다. "
+            + "DAILY: startDate/endDate 무시 (기존 신청일 유지). "
+            + "PERIOD: startDate/endDate 필수. "
+            + "NO_PHONE: endDate 무시 (무기한).")
+    @PutMapping("/{id}")
+    public CommonResponse<PhoneSubmissionResponse> updatePhoneSubmission(
+        @PathVariable Long id,
+        @Valid @RequestBody PhoneSubmissionUpdateRequest request) {
+        return CommonResponse.success(
+            phoneSubmissionService.updatePhoneSubmission(id, request));
+    }
+
+    @Operation(summary = "휴대폰 미소지 삭제",
+        description = "신청 내역을 삭제한다.")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePhoneSubmission(@PathVariable Long id) {
+        phoneSubmissionService.deletePhoneSubmission(id);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "휴대폰 미소지 엑셀 다운로드",
