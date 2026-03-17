@@ -61,8 +61,8 @@ public class KioskAuthService {
         return KioskLoginResponse.fromEntity(store);
     }
 
-    public void logout(Long storeId) {
-        tokenRedisService.removeKioskToken(storeId);
+    public void logout(Long storeId, String token) {
+        tokenRedisService.removeKioskToken(storeId, token);
     }
 
     public record KioskLoginResult(String token, KioskLoginResponse storeInfo) { }

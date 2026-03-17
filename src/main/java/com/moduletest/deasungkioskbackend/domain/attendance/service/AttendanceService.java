@@ -139,9 +139,18 @@ public class AttendanceService {
             storeId, seatId, student.getId(), student.getName());
 
         if (!acquired) {
-            log.warn("[CheckIn] 배정 좌석 선점 실패 (studentId={}, seatId={}) — 등원은 정상 처리됨",
-                student.getId(), seatId);
-            return;
+            String existing = seatRedisService.getSeatStatus(storeId, seatId);
+            if (existing != null
+                    && existing.contains(":" + student.getId() + ":")) {
+                log.info("[CheckIn] stale Redis 데이터 정리 후 재선점 (studentId={}, seatId={})",
+                    student.getId(), seatId);
+                seatRedisService.markSeatInUse(
+                    storeId, seatId, student.getId(), student.getName());
+            } else {
+                log.warn("[CheckIn] 배정 좌석 선점 실패 (studentId={}, seatId={}, existing={}) — 등원은 정상 처리됨",
+                    student.getId(), seatId, existing);
+                return;
+            }
         }
 
         // DB 저장 (실패 시 Redis 롤백)

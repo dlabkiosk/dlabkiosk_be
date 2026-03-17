@@ -64,6 +64,12 @@ public class SeatRedisService {
     }
 
 
+    public String getSeatStatus(Long storeId, Long seatId) {
+        String key = buildKey(storeId);
+        String field = seatId.toString();
+        return (String) redisTemplate.opsForHash().get(key, field);
+    }
+
     private String buildKey(Long storeId) {
         return SEAT_STATUS_KEY_PREFIX + storeId;
     }
