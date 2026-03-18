@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.dashboard.dto;
 
 import com.moduletest.deasungkioskbackend.common.dsa.dto.DsaResponse;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.Builder;
@@ -13,6 +14,7 @@ public record DashboardAllResponse(
     SeatLeaveSummary seatLeaveSummary,
     DsaResponse studyRanking,
     List<PendingApprovalRecord> pendingApprovals,
+    List<SeatChangeRequestRecord> seatChangeRequests,
     List<NoticeSummaryRecord> notices
 ) {
 
@@ -56,6 +58,18 @@ public record DashboardAllResponse(
         String requestContent,
         String requesterName,
         LocalDateTime requestedAt
+    ) {
+    }
+
+    @Builder
+    public record SeatChangeRequestRecord(
+        Long id,
+        String studentName,
+        String currentSeatLabel,
+        String desiredSeat1Label,
+        String desiredSeat2Label,
+        String desiredSeat3Label,
+        LocalDate requestedAt
     ) {
     }
 
