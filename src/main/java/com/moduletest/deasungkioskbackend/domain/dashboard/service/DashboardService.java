@@ -130,7 +130,7 @@ public class DashboardService {
                 ? r.getDesiredSeat2().getSeatLabel() : null)
             .desiredSeat3Label(r.getDesiredSeat3() != null
                 ? r.getDesiredSeat3().getSeatLabel() : null)
-            .requestedAt(r.getCreatedAt().toLocalDate())
+            .requestedAt(r.getCreatedAt())
             .build();
     }
 

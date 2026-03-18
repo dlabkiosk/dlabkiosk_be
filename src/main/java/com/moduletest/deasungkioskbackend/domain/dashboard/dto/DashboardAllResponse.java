@@ -1,7 +1,6 @@
 package com.moduletest.deasungkioskbackend.domain.dashboard.dto;
 
 import com.moduletest.deasungkioskbackend.common.dsa.dto.DsaResponse;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.Builder;
@@ -69,7 +68,7 @@ public record DashboardAllResponse(
         String desiredSeat1Label,
         String desiredSeat2Label,
         String desiredSeat3Label,
-        LocalDate requestedAt
+        LocalDateTime requestedAt
     ) {
     }
 

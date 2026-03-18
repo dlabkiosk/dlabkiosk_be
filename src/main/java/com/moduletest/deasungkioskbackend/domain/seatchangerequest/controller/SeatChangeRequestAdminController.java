@@ -64,14 +64,16 @@ public class SeatChangeRequestAdminController {
     }
 
     @Operation(summary = "좌석 변경 승인",
-        description = "승인 시 학생의 배정 좌석이 변경된다. "
-            + "입실 중이면 Redis 좌석 상태도 이동된다. "
-            + "같은 좌석에 대한 다른 대기 신청은 자동 거절된다.")
+        description = "seatLabel(좌석 번호)로 배정할 좌석을 지정한다. "
+            + "해당 좌석이 학생의 신청 순위(1~3)에 포함되어 있어야 한다. "
+            + "승인된 순위보다 높은 순위가 남아있으면 PENDING 유지, 아니면 APPROVED 완료. "
+            + "입실 중이면 Redis 좌석 상태도 이동된다.")
     @PutMapping("/{requestId}/approve")
     public CommonResponse<SeatChangeRequestResponse> approveRequest(
-            @PathVariable Long requestId) {
+            @PathVariable Long requestId,
+            @RequestParam String seatLabel) {
         SeatChangeRequestResponse response =
-            seatChangeRequestService.approveRequest(requestId);
+            seatChangeRequestService.approveRequest(requestId, seatLabel);
         return CommonResponse.success(response);
     }
 
