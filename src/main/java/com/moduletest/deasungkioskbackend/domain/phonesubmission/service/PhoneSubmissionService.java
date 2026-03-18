@@ -2,6 +2,7 @@ package com.moduletest.deasungkioskbackend.domain.phonesubmission.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
+import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionPeriodResponse;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionRequest;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionResponse;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionUpdateRequest;
@@ -69,7 +70,11 @@ public class PhoneSubmissionService {
             default -> throw new PhoneSubmissionException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        checkDuplicateSubmission(student.getId(), request.submissionType(), startDate, endDate);
+        PhoneSubmission converted = handleDuplicateSubmission(
+            student.getId(), request.submissionType(), startDate, endDate);
+        if (converted != null) {
+            return PhoneSubmissionResponse.fromEntity(converted);
+        }
 
         PhoneSubmission submission = PhoneSubmission.builder()
             .student(student)
@@ -85,18 +90,32 @@ public class PhoneSubmissionService {
         return PhoneSubmissionResponse.fromEntity(submission);
     }
 
-    private void checkDuplicateSubmission(Long studentId, PhoneSubmissionType type,
-                                          LocalDate startDate, LocalDate endDate) {
+    private PhoneSubmission handleDuplicateSubmission(Long studentId, PhoneSubmissionType type,
+                                                      LocalDate startDate, LocalDate endDate) {
+        LocalDate checkEnd = endDate != null ? endDate : LocalDate.of(9999, 12, 31);
+
         if (type == PhoneSubmissionType.NO_PHONE) {
-            if (phoneSubmissionRepository.existsActiveNoPhone(studentId)) {
-                throw new PhoneSubmissionException(ErrorCode.ALREADY_SUBMITTED_PHONE);
+            List<PhoneSubmission> overlapping = phoneSubmissionRepository
+                .findOverlapping(studentId, startDate, checkEnd);
+            if (!overlapping.isEmpty()) {
+                // 최신 신청 건을 NO_PHONE으로 전환, 나머지 삭제
+                overlapping.sort((a, b) -> b.getSubmittedAt().compareTo(a.getSubmittedAt()));
+                PhoneSubmission latest = overlapping.get(0);
+                latest.updateSubmission(PhoneSubmissionType.NO_PHONE,
+                    startDate, null, latest.getMemo());
+                if (overlapping.size() > 1) {
+                    phoneSubmissionRepository.deleteAll(overlapping.subList(1, overlapping.size()));
+                }
+                return latest;
             }
+            return null;
         }
 
-        LocalDate checkEnd = endDate != null ? endDate : LocalDate.of(9999, 12, 31);
+        // DAILY, PERIOD는 기존대로 겹치면 차단
         if (phoneSubmissionRepository.existsOverlapping(studentId, startDate, checkEnd)) {
             throw new PhoneSubmissionException(ErrorCode.ALREADY_SUBMITTED_PHONE);
         }
+        return null;
     }
 
 
@@ -135,6 +154,17 @@ public class PhoneSubmissionService {
         submission.updateSubmission(request.submissionType(), startDate, endDate, request.memo());
 
         return PhoneSubmissionResponse.fromEntity(submission);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PhoneSubmissionPeriodResponse> findActivePeriodsForStudent(
+        String identifier, Long storeId) {
+        Student student = studentResolverService.resolveAuto(identifier, storeId);
+        return phoneSubmissionRepository
+            .findActiveByStudentId(student.getId(), LocalDate.now())
+            .stream()
+            .map(PhoneSubmissionPeriodResponse::fromEntity)
+            .toList();
     }
 
     @Transactional
