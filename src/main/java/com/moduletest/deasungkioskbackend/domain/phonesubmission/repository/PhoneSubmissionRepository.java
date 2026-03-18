@@ -46,6 +46,22 @@ public interface PhoneSubmissionRepository extends JpaRepository<PhoneSubmission
     boolean existsActiveNoPhone(@Param("studentId") Long studentId);
 
     @Query("SELECT ps FROM PhoneSubmission ps "
+        + "WHERE ps.student.id = :studentId "
+        + "AND (ps.endDate IS NULL OR ps.endDate >= :today)")
+    List<PhoneSubmission> findActiveByStudentId(
+        @Param("studentId") Long studentId,
+        @Param("today") LocalDate today);
+
+    @Query("SELECT ps FROM PhoneSubmission ps "
+        + "WHERE ps.student.id = :studentId "
+        + "AND ps.startDate <= :endDate "
+        + "AND (ps.endDate IS NULL OR ps.endDate >= :startDate)")
+    List<PhoneSubmission> findOverlapping(
+        @Param("studentId") Long studentId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT ps FROM PhoneSubmission ps "
         + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
         + "WHERE ps.store.id = :storeId "
         + "AND ps.submittedAt >= :startDate AND ps.submittedAt < :endDate "

@@ -101,7 +101,7 @@ public enum ErrorCode {
     STUDENT_NOT_FOUND_BY_PHONE_LAST4("STU006", "해당 전화번호 뒷자리로 학생을 찾을 수 없습니다",
         HttpStatus.NOT_FOUND),
     MULTIPLE_STUDENTS_FOUND_BY_PHONE_LAST4("STU007",
-        "동일한 전화번호 뒷자리를 가진 학생이 여러 명입니다. 학번으로 검색해주세요",
+        "동일한 전화번호 뒷자리를 가진 학생이 여러 명입니다. UUID으로 검색해주세요",
         HttpStatus.CONFLICT),
     STUDENT_NOT_IN_STORE("STU008", "해당 지점에 소속된 학생이 아닙니다", HttpStatus.FORBIDDEN),
 
