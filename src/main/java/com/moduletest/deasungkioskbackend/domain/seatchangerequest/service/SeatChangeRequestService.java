@@ -19,6 +19,7 @@ import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepos
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,11 +50,6 @@ public class SeatChangeRequestService {
             throw new SeatChangeRequestException(ErrorCode.STUDENT_NOT_IN_THIS_STORE);
         }
 
-        if (seatChangeRequestRepository.existsByStudentIdAndStatus(
-                student.getId(), SeatChangeRequestStatus.PENDING)) {
-            throw new SeatChangeRequestException(ErrorCode.ALREADY_PENDING_SEAT_CHANGE);
-        }
-
         Seat desiredSeat1 = findSeatInStore(request.desiredSeatId1(), storeId);
         Seat desiredSeat2 = request.desiredSeatId2() != null
             ? findSeatInStore(request.desiredSeatId2(), storeId) : null;
@@ -62,23 +58,46 @@ public class SeatChangeRequestService {
 
         validateNotCurrentSeat(student, desiredSeat1, desiredSeat2, desiredSeat3);
 
-        SeatChangeRequest seatChangeRequest = SeatChangeRequest.builder()
-            .student(student)
-            .store(student.getStore())
-            .currentSeat(student.getAssignedSeat())
-            .desiredSeat1(desiredSeat1)
-            .desiredSeat2(desiredSeat2)
-            .desiredSeat3(desiredSeat3)
-            .build();
+        Optional<SeatChangeRequest> existingRequest =
+            seatChangeRequestRepository.findByStudentIdAndStatusWithDetails(
+                student.getId(), SeatChangeRequestStatus.PENDING);
 
-        SeatChangeRequest saved = seatChangeRequestRepository.save(seatChangeRequest);
-        log.info("좌석 변경 신청: studentId={}, 1순위={}, 2순위={}, 3순위={}",
-            student.getId(),
-            desiredSeat1.getSeatLabel(),
-            desiredSeat2 != null ? desiredSeat2.getSeatLabel() : "없음",
-            desiredSeat3 != null ? desiredSeat3.getSeatLabel() : "없음");
+        SeatChangeRequest saved;
+        if (existingRequest.isPresent()) {
+            SeatChangeRequest existing = existingRequest.get();
+            existing.updateDesiredSeats(desiredSeat1, desiredSeat2, desiredSeat3);
+            saved = existing;
+            log.info("좌석 변경 신청 수정: studentId={}, 1순위={}, 2순위={}, 3순위={}",
+                student.getId(),
+                desiredSeat1.getSeatLabel(),
+                desiredSeat2 != null ? desiredSeat2.getSeatLabel() : "없음",
+                desiredSeat3 != null ? desiredSeat3.getSeatLabel() : "없음");
+        } else {
+            SeatChangeRequest seatChangeRequest = SeatChangeRequest.builder()
+                .student(student)
+                .store(student.getStore())
+                .currentSeat(student.getAssignedSeat())
+                .desiredSeat1(desiredSeat1)
+                .desiredSeat2(desiredSeat2)
+                .desiredSeat3(desiredSeat3)
+                .build();
+            saved = seatChangeRequestRepository.save(seatChangeRequest);
+            log.info("좌석 변경 신청: studentId={}, 1순위={}, 2순위={}, 3순위={}",
+                student.getId(),
+                desiredSeat1.getSeatLabel(),
+                desiredSeat2 != null ? desiredSeat2.getSeatLabel() : "없음",
+                desiredSeat3 != null ? desiredSeat3.getSeatLabel() : "없음");
+        }
 
         return SeatChangeRequestResponse.fromEntity(saved);
+    }
+
+    public SeatChangeRequestResponse findMyPendingRequest(String identifier, Long storeId) {
+        Student student = studentResolverService.resolveAuto(identifier, storeId);
+        return seatChangeRequestRepository
+            .findByStudentIdAndStatusWithDetails(student.getId(), SeatChangeRequestStatus.PENDING)
+            .map(SeatChangeRequestResponse::fromEntity)
+            .orElse(null);
     }
 
     public List<AvailableSeatResponse> findAvailableSeats(Long storeId) {
@@ -121,7 +140,7 @@ public class SeatChangeRequestService {
     }
 
     @Transactional
-    public SeatChangeRequestResponse approveRequest(Long requestId) {
+    public SeatChangeRequestResponse approveRequest(Long requestId, String seatLabel) {
         SeatChangeRequest request = seatChangeRequestRepository.findByIdWithDetails(requestId)
             .orElseThrow(() -> new SeatChangeRequestException(
                 ErrorCode.SEAT_CHANGE_REQUEST_NOT_FOUND));
@@ -130,22 +149,31 @@ public class SeatChangeRequestService {
             throw new SeatChangeRequestException(ErrorCode.SEAT_CHANGE_ALREADY_PROCESSED);
         }
 
-        Seat availableSeat = findFirstAvailableSeat(request);
+        int priority = getPriorityForSeatLabel(request, seatLabel);
+        if (priority == 0) {
+            throw new SeatChangeRequestException(ErrorCode.SEAT_NOT_IN_REQUEST);
+        }
+
+        Seat approvedSeat = getSeatByPriority(request, priority);
 
         Student student = studentRepository.findByIdForUpdate(request.getStudent().getId())
             .orElseThrow(() -> new SeatChangeRequestException(ErrorCode.STUDENT_NOT_FOUND));
 
         Seat oldSeat = student.getAssignedSeat();
+        student.assignSeat(approvedSeat);
+        handleRedisOnSeatChange(student, oldSeat, approvedSeat);
 
-        student.assignSeat(availableSeat);
-        request.approve(availableSeat);
-
-        handleRedisOnSeatChange(student, oldSeat, availableSeat);
-
-        log.info("좌석 변경 승인: requestId={}, studentId={}, {} -> {}",
-            requestId, student.getId(),
-            oldSeat != null ? oldSeat.getSeatLabel() : "없음",
-            availableSeat.getSeatLabel());
+        if (request.hasRemainingPriorities(priority)) {
+            request.clearPrioritiesAtAndBelow(priority, approvedSeat);
+            log.info("좌석 변경 부분 승인: requestId={}, studentId={}, {}순위 {} 배정, 상위 순위 대기 유지",
+                requestId, student.getId(), priority, approvedSeat.getSeatLabel());
+        } else {
+            request.approve(approvedSeat);
+            log.info("좌석 변경 승인: requestId={}, studentId={}, {} -> {}",
+                requestId, student.getId(),
+                oldSeat != null ? oldSeat.getSeatLabel() : "없음",
+                approvedSeat.getSeatLabel());
+        }
 
         return SeatChangeRequestResponse.fromEntity(request);
     }
@@ -233,7 +261,8 @@ public class SeatChangeRequestService {
     }
 
     private int getPriorityForSeat(SeatChangeRequest request, Long seatId) {
-        if (request.getDesiredSeat1().getId().equals(seatId)) {
+        if (request.getDesiredSeat1() != null
+                && request.getDesiredSeat1().getId().equals(seatId)) {
             return 1;
         }
         if (request.getDesiredSeat2() != null
@@ -245,6 +274,31 @@ public class SeatChangeRequestService {
             return 3;
         }
         return 0;
+    }
+
+    private int getPriorityForSeatLabel(SeatChangeRequest request, String seatLabel) {
+        if (request.getDesiredSeat1() != null
+                && request.getDesiredSeat1().getSeatLabel().equals(seatLabel)) {
+            return 1;
+        }
+        if (request.getDesiredSeat2() != null
+                && request.getDesiredSeat2().getSeatLabel().equals(seatLabel)) {
+            return 2;
+        }
+        if (request.getDesiredSeat3() != null
+                && request.getDesiredSeat3().getSeatLabel().equals(seatLabel)) {
+            return 3;
+        }
+        return 0;
+    }
+
+    private Seat getSeatByPriority(SeatChangeRequest request, int priority) {
+        return switch (priority) {
+            case 1 -> request.getDesiredSeat1();
+            case 2 -> request.getDesiredSeat2();
+            case 3 -> request.getDesiredSeat3();
+            default -> throw new SeatChangeRequestException(ErrorCode.SEAT_NOT_IN_REQUEST);
+        };
     }
 
     private Seat findSeatInStore(Long seatId, Long storeId) {
@@ -272,15 +326,6 @@ public class SeatChangeRequestService {
                 throw new SeatChangeRequestException(ErrorCode.DESIRED_SEAT_IS_CURRENT);
             }
         }
-    }
-
-    private Seat findFirstAvailableSeat(SeatChangeRequest request) {
-        for (Seat seat : request.getDesiredSeatsInOrder()) {
-            if (!studentRepository.existsByAssignedSeatId(seat.getId())) {
-                return seat;
-            }
-        }
-        throw new SeatChangeRequestException(ErrorCode.DESIRED_SEAT_ALREADY_ASSIGNED);
     }
 
     private void handleRedisOnSeatChange(Student student, Seat oldSeat, Seat newSeat) {

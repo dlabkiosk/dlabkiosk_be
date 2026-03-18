@@ -57,6 +57,19 @@ public interface SeatChangeRequestRepository extends JpaRepository<SeatChangeReq
     boolean existsByStudentIdAndStatus(Long studentId, SeatChangeRequestStatus status);
 
     @Query("SELECT r FROM SeatChangeRequest r"
+        + " JOIN FETCH r.student"
+        + " JOIN FETCH r.store"
+        + " LEFT JOIN FETCH r.currentSeat"
+        + " JOIN FETCH r.desiredSeat1"
+        + " LEFT JOIN FETCH r.desiredSeat2"
+        + " LEFT JOIN FETCH r.desiredSeat3"
+        + " LEFT JOIN FETCH r.approvedSeat"
+        + " WHERE r.student.id = :studentId AND r.status = :status")
+    Optional<SeatChangeRequest> findByStudentIdAndStatusWithDetails(
+        @Param("studentId") Long studentId,
+        @Param("status") SeatChangeRequestStatus status);
+
+    @Query("SELECT r FROM SeatChangeRequest r"
         + " LEFT JOIN FETCH r.currentSeat"
         + " JOIN FETCH r.desiredSeat1"
         + " LEFT JOIN FETCH r.desiredSeat2"

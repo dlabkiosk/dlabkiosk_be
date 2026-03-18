@@ -31,15 +31,27 @@ public class SeatChangeRequestController {
     private final SeatChangeRequestService seatChangeRequestService;
     private final StudentResolverService studentResolverService;
 
-    @Operation(summary = "좌석 변경 신청",
+    @Operation(summary = "좌석 변경 신청/수정",
         description = "학생 식별(identifier/학번/전화번호) + 희망 좌석 1~3순위로 좌석 변경을 신청한다. "
-            + "1순위 필수, 2~3순위 선택. 이미 대기 중인 신청이 있으면 거부된다.")
+            + "1순위 필수, 2~3순위 선택. 이미 대기 중인 신청이 있으면 희망 순위를 수정한다.")
     @PostMapping
     public CommonResponse<SeatChangeRequestResponse> createRequest(
             @Valid @RequestBody SeatChangeRequestCreateRequest request) {
         Long storeId = getStoreIdFromToken();
         SeatChangeRequestResponse response =
             seatChangeRequestService.createRequest(request, storeId);
+        return CommonResponse.success(response);
+    }
+
+    @Operation(summary = "내 좌석 변경 신청 조회",
+        description = "현재 대기(PENDING) 중인 내 좌석 변경 신청을 조회한다. "
+            + "신청 내역이 없으면 data=null을 반환한다.")
+    @GetMapping("/my")
+    public CommonResponse<SeatChangeRequestResponse> findMyPendingRequest(
+            @RequestParam String identifier) {
+        Long storeId = getStoreIdFromToken();
+        SeatChangeRequestResponse response =
+            seatChangeRequestService.findMyPendingRequest(identifier, storeId);
         return CommonResponse.success(response);
     }
 

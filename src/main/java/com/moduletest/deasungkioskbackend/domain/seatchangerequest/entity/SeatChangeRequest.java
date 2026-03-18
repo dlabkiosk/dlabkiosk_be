@@ -46,7 +46,7 @@ public class SeatChangeRequest extends BaseTimeEntity {
     private Seat currentSeat;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "desired_seat_id_1", nullable = false)
+    @JoinColumn(name = "desired_seat_id_1")
     private Seat desiredSeat1;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -86,9 +86,32 @@ public class SeatChangeRequest extends BaseTimeEntity {
         this.processedAt = LocalDateTime.now();
     }
 
+    public void clearPrioritiesAtAndBelow(int approvedPriority, Seat newCurrentSeat) {
+        this.currentSeat = newCurrentSeat;
+        if (approvedPriority <= 1) {
+            this.desiredSeat1 = null;
+        }
+        if (approvedPriority <= 2) {
+            this.desiredSeat2 = null;
+        }
+        if (approvedPriority <= 3) {
+            this.desiredSeat3 = null;
+        }
+    }
+
+    public boolean hasRemainingPriorities(int approvedPriority) {
+        return approvedPriority > 1 && this.desiredSeat1 != null;
+    }
+
     public void reject() {
         this.status = SeatChangeRequestStatus.REJECTED;
         this.processedAt = LocalDateTime.now();
+    }
+
+    public void updateDesiredSeats(Seat desiredSeat1, Seat desiredSeat2, Seat desiredSeat3) {
+        this.desiredSeat1 = desiredSeat1;
+        this.desiredSeat2 = desiredSeat2;
+        this.desiredSeat3 = desiredSeat3;
     }
 
     public List<Seat> getDesiredSeatsInOrder() {
