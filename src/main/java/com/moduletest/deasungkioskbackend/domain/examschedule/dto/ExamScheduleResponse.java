@@ -17,6 +17,8 @@ public record ExamScheduleResponse(
     String examName,
     @Schema(description = "시험일", example = "2026-04-15")
     LocalDate examDate,
+    @Schema(description = "활성 여부", example = "true")
+    boolean active,
     @Schema(description = "생성일시")
     LocalDateTime createdAt,
     @Schema(description = "수정일시")
@@ -30,6 +32,7 @@ public record ExamScheduleResponse(
             examSchedule.getStore().getStoreName(),
             examSchedule.getExamName(),
             examSchedule.getExamDate(),
+            examSchedule.isActive(),
             examSchedule.getCreatedAt(),
             examSchedule.getUpdatedAt()
         );

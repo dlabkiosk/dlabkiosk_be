@@ -21,13 +21,13 @@ public class ExamScheduleController {
     private final ExamScheduleService examScheduleService;
 
     @Operation(summary = "지점 시험 일정 조회",
-        description = "해당 지점의 시험 일정을 시험일 오름차순으로 조회한다.")
+        description = "해당 지점의 활성화된 시험 일정을 시험일 오름차순으로 조회한다.")
     @GetMapping
     public CommonResponse<List<ExamScheduleResponse>> findExamSchedulesByStore() {
         Long storeId = Long.valueOf(
             SecurityContextHolder.getContext().getAuthentication().getName());
         List<ExamScheduleResponse> examSchedules =
-            examScheduleService.findAllExamSchedulesByStoreId(storeId);
+            examScheduleService.findActiveExamSchedulesByStoreId(storeId);
         return CommonResponse.success(examSchedules);
     }
 }

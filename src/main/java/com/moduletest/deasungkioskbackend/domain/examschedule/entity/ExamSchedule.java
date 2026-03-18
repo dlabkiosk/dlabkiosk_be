@@ -37,15 +37,23 @@ public class ExamSchedule extends BaseTimeEntity {
     @Column(nullable = false)
     private LocalDate examDate;
 
+    @Column(name = "is_active", nullable = false)
+    private boolean active;
+
     @Builder
     public ExamSchedule(Store store, String examName, LocalDate examDate) {
         this.store = store;
         this.examName = examName;
         this.examDate = examDate;
+        this.active = true;
     }
 
     public void updateInfo(String examName, LocalDate examDate) {
         this.examName = examName;
         this.examDate = examDate;
+    }
+
+    public void toggleActive() {
+        this.active = !this.active;
     }
 }
