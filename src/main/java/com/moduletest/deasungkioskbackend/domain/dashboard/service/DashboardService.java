@@ -7,9 +7,13 @@ import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllRespo
 import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.AttendanceSummary;
 import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.DailyOperationSummary;
 import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.NoticeSummaryRecord;
+import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.SeatChangeRequestRecord;
 import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.SeatLeaveSummary;
 import com.moduletest.deasungkioskbackend.domain.notice.repository.NoticeRepository;
 import com.moduletest.deasungkioskbackend.domain.outing.repository.OutingRepository;
+import com.moduletest.deasungkioskbackend.domain.seatchangerequest.entity.SeatChangeRequest;
+import com.moduletest.deasungkioskbackend.domain.seatchangerequest.entity.SeatChangeRequestStatus;
+import com.moduletest.deasungkioskbackend.domain.seatchangerequest.repository.SeatChangeRequestRepository;
 import com.moduletest.deasungkioskbackend.domain.seatleave.repository.SeatLeaveRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
@@ -39,6 +43,7 @@ public class DashboardService {
     private final OutingRepository outingRepository;
     private final SeatLeaveRepository seatLeaveRepository;
     private final NoticeRepository noticeRepository;
+    private final SeatChangeRequestRepository seatChangeRequestRepository;
 
     public DashboardAllResponse getAll(Long storeId) {
         Store store = findStore(storeId);
@@ -54,6 +59,7 @@ public class DashboardService {
             .seatLeaveSummary(buildSeatLeaveSummary(storeId, startOfDay))
             .studyRanking(callDsaSafe("/kiosk/getLastWeekStudyTimeList", store))
             .pendingApprovals(null) // TODO: DSA 3.16 출결 사유신청 대기 연동 후 구현
+            .seatChangeRequests(buildSeatChangeRequests(storeId))
             .notices(buildNotices(storeId))
             .build();
     }
@@ -103,6 +109,29 @@ public class DashboardService {
                 .createdAt(n.getCreatedAt())
                 .build())
             .toList();
+    }
+
+    private List<SeatChangeRequestRecord> buildSeatChangeRequests(Long storeId) {
+        return seatChangeRequestRepository
+            .findAllByStoreIdAndStatusWithStudent(storeId, SeatChangeRequestStatus.PENDING)
+            .stream()
+            .map(this::toSeatChangeRecord)
+            .toList();
+    }
+
+    private SeatChangeRequestRecord toSeatChangeRecord(SeatChangeRequest r) {
+        return SeatChangeRequestRecord.builder()
+            .id(r.getId())
+            .studentName(r.getStudent().getName())
+            .currentSeatLabel(r.getCurrentSeat() != null
+                ? r.getCurrentSeat().getSeatLabel() : null)
+            .desiredSeat1Label(r.getDesiredSeat1().getSeatLabel())
+            .desiredSeat2Label(r.getDesiredSeat2() != null
+                ? r.getDesiredSeat2().getSeatLabel() : null)
+            .desiredSeat3Label(r.getDesiredSeat3() != null
+                ? r.getDesiredSeat3().getSeatLabel() : null)
+            .requestedAt(r.getCreatedAt().toLocalDate())
+            .build();
     }
 
     private DsaResponse callDsaSafe(String path, Store store) {
