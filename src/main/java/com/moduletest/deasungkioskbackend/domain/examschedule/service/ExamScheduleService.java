@@ -37,6 +37,13 @@ public class ExamScheduleService {
             .toList();
     }
 
+    public List<ExamScheduleResponse> findActiveExamSchedulesByStoreId(Long storeId) {
+        return examScheduleRepository.findAllActiveByStoreIdWithStore(storeId)
+            .stream()
+            .map(ExamScheduleResponse::fromEntity)
+            .toList();
+    }
+
     public ExamScheduleResponse findExamScheduleById(Long examScheduleId) {
         ExamSchedule examSchedule = examScheduleRepository.findByIdWithStore(examScheduleId)
             .orElseThrow(() -> new ExamScheduleException(ErrorCode.EXAM_SCHEDULE_NOT_FOUND));
@@ -74,5 +81,13 @@ public class ExamScheduleService {
         ExamSchedule examSchedule = examScheduleRepository.findById(examScheduleId)
             .orElseThrow(() -> new ExamScheduleException(ErrorCode.EXAM_SCHEDULE_NOT_FOUND));
         examScheduleRepository.delete(examSchedule);
+    }
+
+    @Transactional
+    public ExamScheduleResponse toggleActive(Long examScheduleId) {
+        ExamSchedule examSchedule = examScheduleRepository.findByIdWithStore(examScheduleId)
+            .orElseThrow(() -> new ExamScheduleException(ErrorCode.EXAM_SCHEDULE_NOT_FOUND));
+        examSchedule.toggleActive();
+        return ExamScheduleResponse.fromEntity(examSchedule);
     }
 }

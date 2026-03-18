@@ -13,6 +13,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -79,5 +80,14 @@ public class ExamScheduleAdminController {
     public CommonResponse<Void> deleteExamSchedule(@PathVariable Long examScheduleId) {
         examScheduleService.deleteExamSchedule(examScheduleId);
         return CommonResponse.success(null);
+    }
+
+    @Operation(summary = "시험 일정 활성화/비활성화 토글",
+        description = "시험 일정의 활성 상태를 토글한다. 비활성화된 일정은 키오스크에 표시되지 않는다.")
+    @PatchMapping("/{examScheduleId}/toggle-active")
+    public CommonResponse<ExamScheduleResponse> toggleActive(
+            @PathVariable Long examScheduleId) {
+        ExamScheduleResponse response = examScheduleService.toggleActive(examScheduleId);
+        return CommonResponse.success(response);
     }
 }
