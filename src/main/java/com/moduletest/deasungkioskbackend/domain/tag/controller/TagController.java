@@ -48,7 +48,8 @@ public class TagController {
 
     @Operation(summary = "급식 태그 확인",
         description = "식사시간에 급식 태그를 확인한다. "
-            + "신청 내역이 없으면 안내 메시지, 있으면 태그 완료 처리.")
+            + "신청 내역이 없으면 안내 메시지, 있으면 태그 완료 처리. "
+            + "[주의] DSA 급식 신청 조회(3.30) 아직 미연동 — 현재 DSA 인증정보 없으면 전부 신청한 것으로 처리됨.")
     @PostMapping("/meal-confirm")
     public CommonResponse<TagResponse> confirmMealTag(
         @RequestParam @NotBlank String identifier) {

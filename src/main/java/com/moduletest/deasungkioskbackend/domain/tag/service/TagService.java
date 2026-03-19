@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.tag.service;
 
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAttendanceService;
+import com.moduletest.deasungkioskbackend.common.dsa.service.DsaMealService;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaRequestService;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaRequestService.ApprovedRequest;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
@@ -62,6 +63,7 @@ public class TagService {
     private final StudyTimeRedisService studyTimeRedisService;
     private final StudentMessageRepository studentMessageRepository;
     private final DsaAttendanceService dsaAttendanceService;
+    private final DsaMealService dsaMealService;
     private final DsaRequestService dsaRequestService;
     private final MealTagRepository mealTagRepository;
     private final SeatLeaveRepository seatLeaveRepository;
@@ -80,7 +82,7 @@ public class TagService {
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
 
         MealType mealType = MealType.fromCurrentTime(LocalTime.now());
-        MealInfo mealInfo = buildMealInfo(mealType, student, today);
+        MealInfo mealInfo = buildMealInfo(mealType, student, store, today);
 
         // 1. 외출 중이면 → 복귀 처리 우선 (+ 급식 정보 포함)
         Optional<Outing> activeOuting = outingRepository
@@ -204,6 +206,9 @@ public class TagService {
         Student student = studentResolverService.resolveAuto(value, storeId);
         validateStudentStore(student, storeId);
 
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new KioskException(ErrorCode.STORE_NOT_FOUND));
+
         MealType mealType = MealType.fromCurrentTime(LocalTime.now());
         if (mealType == null) {
             throw new AttendanceException(ErrorCode.NOT_MEAL_TIME);
@@ -216,8 +221,8 @@ public class TagService {
             throw new AttendanceException(ErrorCode.ALREADY_MEAL_TAGGED);
         }
 
-        // TODO: DSA 급식 신청 조회 API 확정 후 연동. 현재는 전부 신청한 것으로 처리
-        boolean applied = true;
+        boolean applied = dsaMealService.isMealApplied(
+            student.getRfidUid(), mealType, store);
 
         if (!applied) {
             return TagResponse.builder()
@@ -253,7 +258,8 @@ public class TagService {
 
     // ── 급식 헬퍼 ──
 
-    private MealInfo buildMealInfo(MealType mealType, Student student, LocalDate today) {
+    private MealInfo buildMealInfo(MealType mealType, Student student,
+                                   Store store, LocalDate today) {
         if (mealType == null) {
             return null;
         }
@@ -266,8 +272,8 @@ public class TagService {
                 mealType.getLabel() + " 태그 완료");
         }
 
-        // TODO: DSA 급식 신청 조회 API 확정 후 연동. 현재는 전부 신청한 것으로 처리
-        boolean applied = true;
+        boolean applied = dsaMealService.isMealApplied(
+            student.getRfidUid(), mealType, store);
 
         if (!applied) {
             return new MealInfo(mealType, mealType.getLabel(), false, false,

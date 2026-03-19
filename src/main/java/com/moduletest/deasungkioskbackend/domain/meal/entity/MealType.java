@@ -3,21 +3,27 @@ package com.moduletest.deasungkioskbackend.domain.meal.entity;
 import java.time.LocalTime;
 
 public enum MealType {
-    LUNCH("점심식사", LocalTime.of(12, 10), LocalTime.of(13, 10)),
-    DINNER("저녁식사", LocalTime.of(18, 0), LocalTime.of(19, 0));
+    LUNCH("점심식사", "L", LocalTime.of(12, 10), LocalTime.of(13, 10)),
+    DINNER("저녁식사", "D", LocalTime.of(18, 0), LocalTime.of(19, 0));
 
     private final String label;
+    private final String dsaMealGb;
     private final LocalTime startTime;
     private final LocalTime endTime;
 
-    MealType(String label, LocalTime startTime, LocalTime endTime) {
+    MealType(String label, String dsaMealGb, LocalTime startTime, LocalTime endTime) {
         this.label = label;
+        this.dsaMealGb = dsaMealGb;
         this.startTime = startTime;
         this.endTime = endTime;
     }
 
     public String getLabel() {
         return label;
+    }
+
+    public String getDsaMealGb() {
+        return dsaMealGb;
     }
 
     public static MealType fromCurrentTime(LocalTime now) {
