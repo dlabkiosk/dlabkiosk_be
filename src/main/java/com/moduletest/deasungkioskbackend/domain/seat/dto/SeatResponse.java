@@ -19,7 +19,11 @@ public record SeatResponse(
     @Schema(description = "Y 좌표 (픽셀)", example = "100")
     Integer yPos,
     @Schema(description = "활성 여부", example = "true")
-    Boolean active
+    Boolean active,
+    @Schema(description = "구역 코드", example = "111")
+    String areaCd,
+    @Schema(description = "구역명", example = "A구역")
+    String areaNm
 
 ) {
 
@@ -31,7 +35,9 @@ public record SeatResponse(
             seat.getSeatType().name(),
             seat.getXPos(),
             seat.getYPos(),
-            seat.isActive()
+            seat.isActive(),
+            seat.getAreaCd(),
+            seat.getAreaNm()
         );
     }
 
