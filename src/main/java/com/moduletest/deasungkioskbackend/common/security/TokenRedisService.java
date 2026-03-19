@@ -17,12 +17,14 @@ public class TokenRedisService {
 
     public void saveAdminAccessToken(Long userId, String token, long expirationMillis) {
         String key = ADMIN_TOKEN_PREFIX + userId;
-        redisTemplate.opsForValue().set(key, token, expirationMillis, TimeUnit.MILLISECONDS);
+        redisTemplate.opsForSet().add(key, token);
+        redisTemplate.expire(key, expirationMillis, TimeUnit.MILLISECONDS);
     }
 
     public void saveAdminRefreshToken(Long userId, String token, long expirationMillis) {
         String key = ADMIN_REFRESH_PREFIX + userId;
-        redisTemplate.opsForValue().set(key, token, expirationMillis, TimeUnit.MILLISECONDS);
+        redisTemplate.opsForSet().add(key, token);
+        redisTemplate.expire(key, expirationMillis, TimeUnit.MILLISECONDS);
     }
 
     public void saveKioskToken(Long storeId, String token, long expirationMillis) {
@@ -33,14 +35,12 @@ public class TokenRedisService {
 
     public boolean isAdminTokenValid(Long userId, String token) {
         String key = ADMIN_TOKEN_PREFIX + userId;
-        String stored = redisTemplate.opsForValue().get(key);
-        return token.equals(stored);
+        return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, token));
     }
 
     public boolean isRefreshTokenValid(Long userId, String token) {
         String key = ADMIN_REFRESH_PREFIX + userId;
-        String stored = redisTemplate.opsForValue().get(key);
-        return token.equals(stored);
+        return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, token));
     }
 
     public boolean isKioskTokenValid(Long storeId, String token) {
@@ -48,7 +48,15 @@ public class TokenRedisService {
         return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, token));
     }
 
-    public void removeAdminTokens(Long userId) {
+    public void removeAdminToken(Long userId, String token) {
+        redisTemplate.opsForSet().remove(ADMIN_TOKEN_PREFIX + userId, token);
+    }
+
+    public void removeAdminRefreshToken(Long userId, String refreshToken) {
+        redisTemplate.opsForSet().remove(ADMIN_REFRESH_PREFIX + userId, refreshToken);
+    }
+
+    public void removeAllAdminTokens(Long userId) {
         redisTemplate.delete(ADMIN_TOKEN_PREFIX + userId);
         redisTemplate.delete(ADMIN_REFRESH_PREFIX + userId);
     }
