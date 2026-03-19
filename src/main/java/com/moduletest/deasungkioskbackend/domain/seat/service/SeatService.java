@@ -1,6 +1,8 @@
 package com.moduletest.deasungkioskbackend.domain.seat.service;
 
+import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAreaService;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
@@ -12,7 +14,7 @@ import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -29,70 +31,60 @@ public class SeatService {
     private final SeatRepository seatRepository;
     private final StoreRepository storeRepository;
     private final SeatRedisService seatRedisService;
+    private final DsaAreaService dsaAreaService;
 
 
-    public List<SeatStatusResponse> findSeatStatusByStoreId(Long storeId) {
-        List<Seat> seats = seatRepository.findAllByStoreIdWithStore(storeId);
+    public List<SeatStatusResponse> findSeatStatusByArea(Long storeId, String areaCd) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
+
+        List<SeatStatusResponse> dsaSeats = dsaAreaService.findSeatStatusByArea(areaCd, store);
+
+        // 우리 Redis에서 AWAY 상태인 좌석의 seatLabel 수집
         Map<Object, Object> redisStatus = seatRedisService.getSeatStatusMap(storeId);
+        List<Seat> seats = seatRepository.findAllByStoreIdWithStore(storeId);
 
-        List<SeatStatusResponse> result = new ArrayList<>();
-
+        Map<String, Boolean> awaySeatLabels = new HashMap<>();
         for (Seat seat : seats) {
-            if (!seat.isActive()) {
-                continue;
-            }
-
             String status = (String) redisStatus.get(seat.getId().toString());
-            boolean available = status == null;
-            boolean outing = false;
-            boolean away = false;
-            Long studentId = null;
-            String studentName = null;
-
-            if (status != null && status.startsWith("IN_USE:")) {
-                String[] parts = status.split(":", 3);
-                studentId = Long.valueOf(parts[1]);
-                studentName = parts[2];
-            } else if (status != null && status.startsWith("OUTING:")) {
-                String[] parts = status.split(":", 3);
-                studentId = Long.valueOf(parts[1]);
-                studentName = parts[2];
-                outing = true;
-            } else if (status != null && status.startsWith("AWAY:")) {
-                String[] parts = status.split(":", 3);
-                studentId = Long.valueOf(parts[1]);
-                studentName = parts[2];
-                away = true;
+            if (status != null && status.startsWith("AWAY:")) {
+                awaySeatLabels.put(seat.getSeatLabel(), true);
             }
-
-            result.add(new SeatStatusResponse(
-                seat.getId(),
-                seat.getSeatLabel(),
-                seat.getSeatType().name(),
-                seat.getXPos(),
-                seat.getYPos(),
-                available,
-                outing,
-                away,
-                studentId,
-                studentName
-            ));
         }
-        return result;
+
+        // DSA 좌석에 AWAY 상태 덮어씌우기
+        return dsaSeats.stream()
+            .map(s -> {
+                boolean away = awaySeatLabels.containsKey(s.seatNm());
+                if (away) {
+                    return new SeatStatusResponse(
+                        s.seatCd(), s.seatNm(), s.xPos(), s.yPos(),
+                        s.seatGn(), "A", true);
+                }
+                return s;
+            })
+            .toList();
     }
 
 
+    public List<AreaResponse> findAreasByStoreId(Long storeId) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
+        return dsaAreaService.findAreas(store);
+    }
+
     // ===== 관리자 API =====
 
-    public List<SeatResponse> findAllSeats(Long storeId) {
+    public List<SeatResponse> findAllSeats(Long storeId, String areaCd) {
+        List<Seat> seats;
         if (storeId != null) {
-            return seatRepository.findAllByStoreIdWithStore(storeId)
-                .stream()
-                .map(SeatResponse::fromEntity)
-                .toList();
+            seats = seatRepository.findAllByStoreIdWithStore(storeId);
+        } else {
+            seats = seatRepository.findAllWithStore();
         }
-        return seatRepository.findAllWithStore()
-            .stream()
+
+        return seats.stream()
+            .filter(seat -> areaCd == null || areaCd.equals(seat.getAreaCd()))
             .map(SeatResponse::fromEntity)
             .toList();
     }
