@@ -17,14 +17,11 @@ import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageReposi
 import com.moduletest.deasungkioskbackend.domain.seat.service.SeatRedisService;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
-import com.moduletest.deasungkioskbackend.domain.studentmessage.entity.StudentMessage;
-import com.moduletest.deasungkioskbackend.domain.studentmessage.repository.StudentMessageRepository;
 import com.moduletest.deasungkioskbackend.domain.studytime.service.StudyTimeRedisService;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,7 +38,6 @@ public class AttendanceService {
     private final StudentResolverService studentResolverService;
     private final SeatUsageRepository seatUsageRepository;
     private final SeatRedisService seatRedisService;
-    private final StudentMessageRepository studentMessageRepository;
     private final StudyTimeRedisService studyTimeRedisService;
 
     @Transactional
@@ -78,14 +74,7 @@ public class AttendanceService {
         // 배정된 좌석이 있으면 자동 입실
         seatCheckIn(student, storeId);
 
-        // 활성 학생 메시지 조회
-        List<String> messages = studentMessageRepository
-            .findAllActiveByStudentId(student.getId())
-            .stream()
-            .map(StudentMessage::getContent)
-            .toList();
-
-        return AttendanceResponse.fromEntityWithMessages(savedAttendance, messages);
+        return AttendanceResponse.fromEntity(savedAttendance);
     }
 
     @Transactional
@@ -128,7 +117,7 @@ public class AttendanceService {
 
         // 이미 좌석 사용 중이면 스킵
         if (seatUsageRepository.findByStudentIdAndStatus(
-                student.getId(), SeatUsageStatus.IN_USE).isPresent()) {
+            student.getId(), SeatUsageStatus.IN_USE).isPresent()) {
             return;
         }
 
@@ -141,13 +130,14 @@ public class AttendanceService {
         if (!acquired) {
             String existing = seatRedisService.getSeatStatus(storeId, seatId);
             if (existing != null
-                    && existing.contains(":" + student.getId() + ":")) {
+                && existing.contains(":" + student.getId() + ":")) {
                 log.info("[CheckIn] stale Redis 데이터 정리 후 재선점 (studentId={}, seatId={})",
                     student.getId(), seatId);
                 seatRedisService.markSeatInUse(
                     storeId, seatId, student.getId(), student.getName());
             } else {
-                log.warn("[CheckIn] 배정 좌석 선점 실패 (studentId={}, seatId={}, existing={}) — 등원은 정상 처리됨",
+                log.warn(
+                    "[CheckIn] 배정 좌석 선점 실패 (studentId={}, seatId={}, existing={}) — 등원은 정상 처리됨",
                     student.getId(), seatId, existing);
                 return;
             }

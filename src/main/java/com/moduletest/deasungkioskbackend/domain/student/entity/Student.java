@@ -47,15 +47,20 @@ public class Student extends BaseTimeEntity {
     @JoinColumn(name = "assigned_seat_id")
     private Seat assignedSeat;
 
+    @Column(name = "is_dsa_synced", nullable = false)
+    private boolean dsaSynced;
+
     @Builder
     public Student(Store store, String name, String rfidUid,
-                   String studentNumber, String phoneLast4, Seat assignedSeat) {
+                   String studentNumber, String phoneLast4, Seat assignedSeat,
+                   boolean dsaSynced) {
         this.store = store;
         this.name = name;
         this.rfidUid = rfidUid;
         this.studentNumber = studentNumber;
         this.phoneLast4 = phoneLast4;
         this.assignedSeat = assignedSeat;
+        this.dsaSynced = dsaSynced;
     }
 
     public void updateInfo(String name, String studentNumber, String phoneLast4) {

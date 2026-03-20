@@ -40,9 +40,6 @@ public record TagResponse(
     @Schema(description = "순공시간 분 (하원/조퇴 시)", example = "480")
     Long studyTimeMinutes,
 
-    @Schema(description = "학생 공지 메시지 (등원/지각 시)")
-    List<String> messages,
-
     @Schema(description = "확인 필요한 액션 목록 (processed=false 시)")
     List<PendingAction> pendingActions,
 
