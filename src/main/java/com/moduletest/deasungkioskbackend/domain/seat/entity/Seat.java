@@ -81,4 +81,18 @@ public class Seat extends BaseTimeEntity {
         this.areaCd = areaCd;
         this.areaNm = areaNm;
     }
+
+    public void syncFromDsa(String seatLabel, int xPos, int yPos,
+                            String areaCd, String areaNm) {
+        this.seatLabel = seatLabel;
+        this.xPos = xPos;
+        this.yPos = yPos;
+        this.areaCd = areaCd;
+        this.areaNm = areaNm;
+        this.active = true;
+    }
+
+    public void deactivate() {
+        this.active = false;
+    }
 }

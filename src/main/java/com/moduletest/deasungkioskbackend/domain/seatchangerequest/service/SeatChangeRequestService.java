@@ -25,10 +25,11 @@ import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepositor
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -120,9 +121,9 @@ public class SeatChangeRequestService {
         List<Seat> allSeats = seatRepository.findAllByStoreIdWithStore(storeId);
 
         Map<String, Seat> seatLabelMap = allSeats.stream()
-            .filter(Seat::isActive)
             .collect(Collectors.toMap(Seat::getSeatLabel, s -> s, (a, b) -> a));
 
+        Set<String> dsaSeatLabels = new HashSet<>();
         List<AreaAvailableSeatResponse> result = new ArrayList<>();
 
         for (AreaResponse area : areas) {
@@ -131,9 +132,7 @@ public class SeatChangeRequestService {
 
             List<AreaAvailableSeatResponse.SeatInfo> seatInfos = new ArrayList<>();
             for (SeatStatusResponse dsaSeat : dsaSeats) {
-                if (!"Y".equals(dsaSeat.seatGn())) {
-                    continue;
-                }
+                dsaSeatLabels.add(dsaSeat.seatNm());
 
                 Seat seat = seatLabelMap.get(dsaSeat.seatNm());
                 if (seat == null) {
@@ -150,8 +149,9 @@ public class SeatChangeRequestService {
                     seatLabelMap.put(seat.getSeatLabel(), seat);
                     log.info("DSA 좌석 자동 생성: seatLabel={}, areaCd={}",
                         seat.getSeatLabel(), area.areaCd());
-                } else if (!area.areaCd().equals(seat.getAreaCd())) {
-                    seat.updateArea(area.areaCd(), area.areaNm());
+                } else {
+                    seat.syncFromDsa(dsaSeat.seatNm(), dsaSeat.xPos(), dsaSeat.yPos(),
+                        area.areaCd(), area.areaNm());
                 }
 
                 seatInfos.add(AreaAvailableSeatResponse.SeatInfo.of(seat, dsaSeat));
@@ -159,6 +159,14 @@ public class SeatChangeRequestService {
 
             result.add(new AreaAvailableSeatResponse(
                 area.areaCd(), area.areaNm(), seatInfos));
+        }
+
+        // DSA에 없는 좌석 비활성화
+        for (Seat seat : allSeats) {
+            if (seat.isActive() && !dsaSeatLabels.contains(seat.getSeatLabel())) {
+                seat.deactivate();
+                log.info("DSA에 없는 좌석 비활성화: seatLabel={}", seat.getSeatLabel());
+            }
         }
 
         return result;
