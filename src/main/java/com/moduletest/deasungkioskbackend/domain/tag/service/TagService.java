@@ -27,6 +27,8 @@ import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
+import com.moduletest.deasungkioskbackend.domain.studentmessage.entity.StudentMessage;
+import com.moduletest.deasungkioskbackend.domain.studentmessage.repository.StudentMessageRepository;
 import com.moduletest.deasungkioskbackend.domain.studytime.service.StudyTimeRedisService;
 import com.moduletest.deasungkioskbackend.domain.tag.dto.TagConfirmRequest;
 import com.moduletest.deasungkioskbackend.domain.tag.dto.TagRequest;
@@ -59,6 +61,7 @@ public class TagService {
     private final SeatUsageRepository seatUsageRepository;
     private final SeatRedisService seatRedisService;
     private final StudyTimeRedisService studyTimeRedisService;
+    private final StudentMessageRepository studentMessageRepository;
     private final DsaAttendanceService dsaAttendanceService;
     private final DsaMealService dsaMealService;
     private final DsaRequestService dsaRequestService;
@@ -296,6 +299,7 @@ public class TagService {
             .checkInAt(response.checkInAt())
             .checkOutAt(response.checkOutAt())
             .studyTimeMinutes(response.studyTimeMinutes())
+            .messages(response.messages())
             .pendingActions(response.pendingActions())
             .dsaSynced(response.dsaSynced())
             .mealInfo(mealInfo)
@@ -352,6 +356,12 @@ public class TagService {
 
         seatCheckIn(student, storeId);
 
+        List<String> messages = studentMessageRepository
+            .findAllActiveByStudentId(student.getId())
+            .stream()
+            .map(StudentMessage::getContent)
+            .toList();
+
         return TagResponse.builder()
             .processed(true)
             .action(action)
@@ -361,6 +371,7 @@ public class TagService {
             .studentNumber(student.getStudentNumber())
             .seatLabel(getSeatLabel(student))
             .checkInAt(attendance.getCheckInAt())
+            .messages(messages.isEmpty() ? null : messages)
             .dsaSynced(dsaSynced)
             .build();
     }
