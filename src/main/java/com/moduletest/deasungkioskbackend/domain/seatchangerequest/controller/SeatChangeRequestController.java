@@ -2,6 +2,7 @@ package com.moduletest.deasungkioskbackend.domain.seatchangerequest.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
+import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.AreaAvailableSeatResponse;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.AvailableSeatResponse;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.SeatChangeRequestCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.SeatChangeRequestResponse;
@@ -53,6 +54,16 @@ public class SeatChangeRequestController {
         SeatChangeRequestResponse response =
             seatChangeRequestService.findMyPendingRequest(identifier, storeId);
         return CommonResponse.success(response);
+    }
+
+    @Operation(summary = "구역별 좌석 목록",
+        description = "현재 지점의 전체 활성 좌석을 구역별로 그룹핑하여 조회한다.")
+    @GetMapping("/seats-by-area")
+    public CommonResponse<List<AreaAvailableSeatResponse>> findAvailableSeatsByArea() {
+        Long storeId = getStoreIdFromToken();
+        List<AreaAvailableSeatResponse> seats =
+            seatChangeRequestService.findAvailableSeatsByArea(storeId);
+        return CommonResponse.success(seats);
     }
 
     @Operation(summary = "신청 가능한 좌석 목록",
