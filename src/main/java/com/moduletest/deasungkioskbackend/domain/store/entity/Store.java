@@ -50,10 +50,13 @@ public class Store extends BaseTimeEntity {
     @Column(name = "dsa_secret_id", length = 200)
     private String dsaSecretId;
 
+    @Column(name = "is_dsa_synced", nullable = false)
+    private boolean dsaSynced;
+
     @Builder
     public Store(String storeName, String storeCode, String address, String phone,
                  boolean active, String kioskPin, String dsaAcadCd, String dsaClientId,
-                 String dsaSecretId) {
+                 String dsaSecretId, boolean dsaSynced) {
         this.storeName = storeName;
         this.storeCode = storeCode;
         this.address = address;
@@ -63,6 +66,7 @@ public class Store extends BaseTimeEntity {
         this.dsaAcadCd = dsaAcadCd;
         this.dsaClientId = dsaClientId;
         this.dsaSecretId = dsaSecretId;
+        this.dsaSynced = dsaSynced;
     }
 
     public void updateInfo(String storeName, String address, String phone, boolean active) {

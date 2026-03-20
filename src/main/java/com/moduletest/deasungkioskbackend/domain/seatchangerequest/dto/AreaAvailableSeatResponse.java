@@ -21,14 +21,14 @@ public record AreaAvailableSeatResponse(
     @Schema(description = "좌석 정보")
     public record SeatInfo(
 
-        @Schema(description = "좌석 ID (우리 DB)", example = "5")
+        @Schema(description = "좌석 ID", example = "5")
         Long seatId,
 
         @Schema(description = "DSA 좌석 코드", example = "1122")
         String seatCd,
 
-        @Schema(description = "좌석명", example = "A-1")
-        String seatNm,
+        @Schema(description = "좌석 라벨", example = "A-1")
+        String seatLabel,
 
         @Schema(description = "X 좌표", example = "1")
         int xPos,

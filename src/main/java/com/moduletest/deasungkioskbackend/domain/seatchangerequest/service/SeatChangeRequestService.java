@@ -132,42 +132,55 @@ public class SeatChangeRequestService {
 
             List<AreaAvailableSeatResponse.SeatInfo> seatInfos = new ArrayList<>();
             for (SeatStatusResponse dsaSeat : dsaSeats) {
-                dsaSeatLabels.add(dsaSeat.seatNm());
+                boolean saveToDB = dsaSeat.seatNm() != null
+                    && !dsaSeat.seatNm().isEmpty();
 
-                Seat seat = seatLabelMap.get(dsaSeat.seatNm());
-                if (seat == null) {
-                    seat = seatRepository.save(Seat.builder()
-                        .store(store)
-                        .seatLabel(dsaSeat.seatNm())
-                        .seatType(SeatType.INDIVIDUAL)
-                        .xPos(dsaSeat.xPos())
-                        .yPos(dsaSeat.yPos())
-                        .active(true)
-                        .areaCd(area.areaCd())
-                        .areaNm(area.areaNm())
-                        .build());
-                    seatLabelMap.put(seat.getSeatLabel(), seat);
-                    log.info("DSA 좌석 자동 생성: seatLabel={}, areaCd={}",
-                        seat.getSeatLabel(), area.areaCd());
+                if (saveToDB) {
+                    dsaSeatLabels.add(dsaSeat.seatNm());
+
+                    Seat seat = seatLabelMap.get(dsaSeat.seatNm());
+                    if (seat == null) {
+                        seat = seatRepository.save(Seat.builder()
+                            .store(store)
+                            .seatLabel(dsaSeat.seatNm())
+                            .seatType(SeatType.INDIVIDUAL)
+                            .xPos(dsaSeat.xPos())
+                            .yPos(dsaSeat.yPos())
+                            .active(true)
+                            .areaCd(area.areaCd())
+                            .areaNm(area.areaNm())
+                            .seatCd(dsaSeat.seatCd())
+                            .seatGn(dsaSeat.seatGn())
+                            .dsaSynced(true)
+                            .build());
+                        seatLabelMap.put(seat.getSeatLabel(), seat);
+                        log.info("DSA 좌석 자동 생성: seatLabel={}, areaCd={}",
+                            seat.getSeatLabel(), area.areaCd());
+                    } else {
+                        seat.syncFromDsa(dsaSeat.seatNm(), dsaSeat.seatCd(),
+                            dsaSeat.xPos(), dsaSeat.yPos(),
+                            area.areaCd(), area.areaNm(), dsaSeat.seatGn());
+                    }
+
+                    seatInfos.add(AreaAvailableSeatResponse.SeatInfo.of(seat, dsaSeat));
                 } else {
-                    seat.syncFromDsa(dsaSeat.seatNm(), dsaSeat.xPos(), dsaSeat.yPos(),
-                        area.areaCd(), area.areaNm());
+                    seatInfos.add(new AreaAvailableSeatResponse.SeatInfo(
+                        null, dsaSeat.seatCd(), dsaSeat.seatNm(),
+                        dsaSeat.xPos(), dsaSeat.yPos(), dsaSeat.seatGn()));
                 }
-
-                seatInfos.add(AreaAvailableSeatResponse.SeatInfo.of(seat, dsaSeat));
             }
 
             result.add(new AreaAvailableSeatResponse(
                 area.areaCd(), area.areaNm(), seatInfos));
         }
 
-        // DSA에 없는 좌석 비활성화
-        for (Seat seat : allSeats) {
-            if (seat.isActive() && !dsaSeatLabels.contains(seat.getSeatLabel())) {
-                seat.deactivate();
-                log.info("DSA에 없는 좌석 비활성화: seatLabel={}", seat.getSeatLabel());
-            }
-        }
+        // TODO: DSA에 없는 좌석 비활성화 — DSA 연동 안정화 후 활성화
+        // for (Seat seat : allSeats) {
+        //     if (seat.isActive() && !dsaSeatLabels.contains(seat.getSeatLabel())) {
+        //         seat.deactivate();
+        //         log.info("DSA에 없는 좌석 비활성화: seatLabel={}", seat.getSeatLabel());
+        //     }
+        // }
 
         return result;
     }
