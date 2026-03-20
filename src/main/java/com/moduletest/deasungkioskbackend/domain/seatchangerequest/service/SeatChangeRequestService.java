@@ -1,11 +1,16 @@
 package com.moduletest.deasungkioskbackend.domain.seatchangerequest.service;
 
+import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAreaService;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
+import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
+import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
+import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatType;
 import com.moduletest.deasungkioskbackend.domain.seat.exception.SeatException;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.service.SeatRedisService;
+import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.AreaAvailableSeatResponse;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.AvailableSeatResponse;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.SeatChangeRequestCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.SeatChangeRequestResponse;
@@ -14,9 +19,13 @@ import com.moduletest.deasungkioskbackend.domain.seatchangerequest.entity.SeatCh
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.entity.SeatChangeRequestStatus;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.exception.SeatChangeRequestException;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.repository.SeatChangeRequestRepository;
+import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
+import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
+import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +48,8 @@ public class SeatChangeRequestService {
     private final StudentRepository studentRepository;
     private final StudentResolverService studentResolverService;
     private final SeatRedisService seatRedisService;
+    private final DsaAreaService dsaAreaService;
+    private final StoreRepository storeRepository;
 
     @Transactional
     public SeatChangeRequestResponse createRequest(SeatChangeRequestCreateRequest request,
@@ -98,6 +109,59 @@ public class SeatChangeRequestService {
             .findByStudentIdAndStatusWithDetails(student.getId(), SeatChangeRequestStatus.PENDING)
             .map(SeatChangeRequestResponse::fromEntity)
             .orElse(null);
+    }
+
+    @Transactional
+    public List<AreaAvailableSeatResponse> findAvailableSeatsByArea(Long storeId) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
+
+        List<AreaResponse> areas = dsaAreaService.findAreas(store);
+        List<Seat> allSeats = seatRepository.findAllByStoreIdWithStore(storeId);
+
+        Map<String, Seat> seatLabelMap = allSeats.stream()
+            .filter(Seat::isActive)
+            .collect(Collectors.toMap(Seat::getSeatLabel, s -> s, (a, b) -> a));
+
+        List<AreaAvailableSeatResponse> result = new ArrayList<>();
+
+        for (AreaResponse area : areas) {
+            List<SeatStatusResponse> dsaSeats =
+                dsaAreaService.findSeatStatusByArea(area.areaCd(), store);
+
+            List<AreaAvailableSeatResponse.SeatInfo> seatInfos = new ArrayList<>();
+            for (SeatStatusResponse dsaSeat : dsaSeats) {
+                if (!"Y".equals(dsaSeat.seatGn())) {
+                    continue;
+                }
+
+                Seat seat = seatLabelMap.get(dsaSeat.seatNm());
+                if (seat == null) {
+                    seat = seatRepository.save(Seat.builder()
+                        .store(store)
+                        .seatLabel(dsaSeat.seatNm())
+                        .seatType(SeatType.INDIVIDUAL)
+                        .xPos(dsaSeat.xPos())
+                        .yPos(dsaSeat.yPos())
+                        .active(true)
+                        .areaCd(area.areaCd())
+                        .areaNm(area.areaNm())
+                        .build());
+                    seatLabelMap.put(seat.getSeatLabel(), seat);
+                    log.info("DSA 좌석 자동 생성: seatLabel={}, areaCd={}",
+                        seat.getSeatLabel(), area.areaCd());
+                } else if (!area.areaCd().equals(seat.getAreaCd())) {
+                    seat.updateArea(area.areaCd(), area.areaNm());
+                }
+
+                seatInfos.add(AreaAvailableSeatResponse.SeatInfo.of(seat, dsaSeat));
+            }
+
+            result.add(new AreaAvailableSeatResponse(
+                area.areaCd(), area.areaNm(), seatInfos));
+        }
+
+        return result;
     }
 
     public List<AvailableSeatResponse> findAvailableSeats(Long storeId) {

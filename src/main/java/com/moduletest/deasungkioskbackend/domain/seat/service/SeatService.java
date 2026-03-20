@@ -34,6 +34,7 @@ public class SeatService {
     private final DsaAreaService dsaAreaService;
 
 
+    @Transactional
     public List<SeatStatusResponse> findSeatStatusByArea(Long storeId, String areaCd) {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
@@ -44,11 +45,22 @@ public class SeatService {
         Map<Object, Object> redisStatus = seatRedisService.getSeatStatusMap(storeId);
         List<Seat> seats = seatRepository.findAllByStoreIdWithStore(storeId);
 
+        Map<String, Seat> seatLabelMap = new HashMap<>();
         Map<String, Boolean> awaySeatLabels = new HashMap<>();
         for (Seat seat : seats) {
+            seatLabelMap.put(seat.getSeatLabel(), seat);
             String status = (String) redisStatus.get(seat.getId().toString());
             if (status != null && status.startsWith("AWAY:")) {
                 awaySeatLabels.put(seat.getSeatLabel(), true);
+            }
+        }
+
+        // DSA 좌석의 구역 정보를 우리 DB 좌석에 반영
+        String areaNm = findAreaName(store, areaCd);
+        for (SeatStatusResponse dsaSeat : dsaSeats) {
+            Seat seat = seatLabelMap.get(dsaSeat.seatNm());
+            if (seat != null && !areaCd.equals(seat.getAreaCd())) {
+                seat.updateArea(areaCd, areaNm);
             }
         }
 
@@ -64,6 +76,14 @@ public class SeatService {
                 return s;
             })
             .toList();
+    }
+
+    private String findAreaName(Store store, String areaCd) {
+        return dsaAreaService.findAreas(store).stream()
+            .filter(a -> areaCd.equals(a.areaCd()))
+            .map(AreaResponse::areaNm)
+            .findFirst()
+            .orElse(null);
     }
 
 
