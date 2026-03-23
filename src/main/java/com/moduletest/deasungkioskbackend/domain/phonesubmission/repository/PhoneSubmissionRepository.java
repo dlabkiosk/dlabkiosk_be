@@ -63,6 +63,16 @@ public interface PhoneSubmissionRepository extends JpaRepository<PhoneSubmission
 
     @Query("SELECT ps FROM PhoneSubmission ps "
         + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
+        + "WHERE ps.student.id = :studentId "
+        + "AND ps.submittedAt >= :startDate AND ps.submittedAt < :endDate "
+        + "ORDER BY ps.submittedAt DESC")
+    List<PhoneSubmission> findAllByStudentIdAndPeriod(
+        @Param("studentId") Long studentId,
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT ps FROM PhoneSubmission ps "
+        + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
         + "WHERE ps.store.id = :storeId "
         + "AND ps.submittedAt >= :startDate AND ps.submittedAt < :endDate "
         + "ORDER BY ps.submittedAt DESC")

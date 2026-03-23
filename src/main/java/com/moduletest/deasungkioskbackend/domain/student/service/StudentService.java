@@ -2,11 +2,15 @@ package com.moduletest.deasungkioskbackend.domain.student.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
+import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionResponse;
+import com.moduletest.deasungkioskbackend.domain.phonesubmission.repository.PhoneSubmissionRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
 import com.moduletest.deasungkioskbackend.domain.seat.exception.SeatException;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatRepository;
-import com.moduletest.deasungkioskbackend.domain.seatchangerequest.entity.SeatChangeRequest;
+import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.SeatChangeRequestResponse;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.repository.SeatChangeRequestRepository;
+import com.moduletest.deasungkioskbackend.domain.seatleave.dto.SeatLeaveResponse;
+import com.moduletest.deasungkioskbackend.domain.seatleave.repository.SeatLeaveRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
@@ -17,6 +21,8 @@ import com.moduletest.deasungkioskbackend.domain.student.dto.StudentUpdateReques
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.exception.StudentException;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,6 +38,8 @@ public class StudentService {
     private final SeatRepository seatRepository;
     private final StudentResolverService studentResolverService;
     private final SeatChangeRequestRepository seatChangeRequestRepository;
+    private final PhoneSubmissionRepository phoneSubmissionRepository;
+    private final SeatLeaveRepository seatLeaveRepository;
 
     public List<StudentResponse> findAllStudents(Long storeId) {
         if (storeId != null) {
@@ -103,14 +111,35 @@ public class StudentService {
 
     public StudentKioskResponse searchStudentForKiosk(String identifier, Long storeId) {
         Student student = studentResolverService.resolveAuto(identifier, storeId);
+        Long studentId = student.getId();
 
-        SeatChangeRequest latestRequest = seatChangeRequestRepository
-            .findAllByStudentIdWithDetails(student.getId())
+        LocalDate today = LocalDate.now();
+        LocalDateTime monthStart = today.withDayOfMonth(1).atStartOfDay();
+        LocalDateTime monthEnd = today.plusMonths(1).withDayOfMonth(1).atStartOfDay();
+
+        List<PhoneSubmissionResponse> phoneSubmissions = phoneSubmissionRepository
+            .findAllByStudentIdAndPeriod(studentId, monthStart, monthEnd)
             .stream()
-            .findFirst()
-            .orElse(null);
+            .map(PhoneSubmissionResponse::fromEntity)
+            .toList();
 
-        return StudentKioskResponse.of(student, latestRequest);
+        List<SeatChangeRequestResponse> seatChangeRequests = seatChangeRequestRepository
+            .findAllByStudentIdWithDetails(studentId)
+            .stream()
+            .filter(r -> r.getCreatedAt() != null
+                && !r.getCreatedAt().isBefore(monthStart)
+                && r.getCreatedAt().isBefore(monthEnd))
+            .map(SeatChangeRequestResponse::fromEntity)
+            .toList();
+
+        List<SeatLeaveResponse> seatLeaves = seatLeaveRepository
+            .findAllByStudentIdAndPeriod(studentId, monthStart, monthEnd)
+            .stream()
+            .map(SeatLeaveResponse::fromEntity)
+            .toList();
+
+        return StudentKioskResponse.of(student,
+            phoneSubmissions, seatChangeRequests, seatLeaves);
     }
 
     private Seat resolveSeat(Long seatId) {
