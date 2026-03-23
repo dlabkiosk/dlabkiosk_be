@@ -49,18 +49,20 @@ public class SeatAdminController {
             + "**좌석 상태(state)**: S(등원), D(외출), N(미출석), B(공석), A(좌석이탈)")
     @GetMapping("/status")
     public CommonResponse<List<SeatStatusResponse>> findSeatStatus(
+        @RequestParam(required = false) Long storeId,
         @RequestParam String areaCd) {
-        Long storeId = SecurityUtil.resolveStoreId(null);
-        List<SeatStatusResponse> seats = seatService.findSeatStatusByArea(storeId, areaCd);
+        Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(storeId);
+        List<SeatStatusResponse> seats = seatService.findSeatStatusByArea(resolvedStoreId, areaCd);
         return CommonResponse.success(seats);
     }
 
     @Operation(summary = "구역(강의실) 목록 조회",
         description = "지점의 구역 목록을 조회한다. 좌석 현황 조회 전 구역 선택에 사용.")
     @GetMapping("/areas")
-    public CommonResponse<List<AreaResponse>> findAreas() {
-        Long storeId = SecurityUtil.resolveStoreId(null);
-        List<AreaResponse> areas = seatService.findAreasByStoreId(storeId);
+    public CommonResponse<List<AreaResponse>> findAreas(
+        @RequestParam(required = false) Long storeId) {
+        Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(storeId);
+        List<AreaResponse> areas = seatService.findAreasByStoreId(resolvedStoreId);
         return CommonResponse.success(areas);
     }
 
