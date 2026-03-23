@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.studentmessage.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.StudentMessageCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.StudentMessageResponse;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.StudentMessageUpdateRequest;
@@ -30,38 +31,46 @@ public class StudentMessageAdminController {
     private final StudentMessageService studentMessageService;
 
     @Operation(summary = "학생별 메시지 목록 조회",
-        description = "특정 학생에게 등록된 메시지를 전체 조회한다.")
+        description = "특정 학생에게 등록된 메시지를 전체 조회한다. "
+            + "MANAGER는 자기 지점 학생만 조회 가능.")
     @GetMapping
     public CommonResponse<List<StudentMessageResponse>> findAllMessages(
         @RequestParam Long studentId) {
+        Long storeId = SecurityUtil.resolveStoreId(null);
         return CommonResponse.success(
-            studentMessageService.findAllByStudentId(studentId));
+            studentMessageService.findAllByStudentId(studentId, storeId));
     }
 
     @Operation(summary = "학생별 메시지 등록",
         description = "특정 학생에게 공지 메시지를 등록한다. "
-            + "태깅 시 해당 학생에게 노출된다.")
+            + "태깅 시 해당 학생에게 노출된다. "
+            + "MANAGER는 자기 지점 학생에게만 등록 가능.")
     @PostMapping
     public CommonResponse<StudentMessageResponse> createMessage(
         @Valid @RequestBody StudentMessageCreateRequest request) {
+        Long storeId = SecurityUtil.resolveStoreId(null);
         return CommonResponse.success(
-            studentMessageService.createMessage(request));
+            studentMessageService.createMessage(request, storeId));
     }
 
     @Operation(summary = "학생별 메시지 수정",
-        description = "메시지 내용 및 활성 여부를 수정한다.")
+        description = "메시지 내용 및 활성 여부를 수정한다. "
+            + "MANAGER는 자기 지점 메시지만 수정 가능.")
     @PutMapping("/{id}")
     public CommonResponse<StudentMessageResponse> updateMessage(
         @PathVariable Long id,
         @Valid @RequestBody StudentMessageUpdateRequest request) {
+        Long storeId = SecurityUtil.resolveStoreId(null);
         return CommonResponse.success(
-            studentMessageService.updateMessage(id, request));
+            studentMessageService.updateMessage(id, request, storeId));
     }
 
-    @Operation(summary = "학생별 메시지 삭제")
+    @Operation(summary = "학생별 메시지 삭제",
+        description = "MANAGER는 자기 지점 메시지만 삭제 가능.")
     @DeleteMapping("/{id}")
     public CommonResponse<Void> deleteMessage(@PathVariable Long id) {
-        studentMessageService.deleteMessage(id);
+        Long storeId = SecurityUtil.resolveStoreId(null);
+        studentMessageService.deleteMessage(id, storeId);
         return CommonResponse.success(null);
     }
 }

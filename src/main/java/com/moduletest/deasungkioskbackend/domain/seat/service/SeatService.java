@@ -55,12 +55,12 @@ public class SeatService {
             }
         }
 
-        // DSA 좌석의 구역 정보를 우리 DB 좌석에 반영
-        String areaNm = findAreaName(store, areaCd);
+        // DSA 좌석 정보를 우리 DB 좌석에 동기화 (areaCd/areaNm은 건드리지 않음)
         for (SeatStatusResponse dsaSeat : dsaSeats) {
             Seat seat = seatLabelMap.get(dsaSeat.seatNm());
-            if (seat != null && !areaCd.equals(seat.getAreaCd())) {
-                seat.updateArea(areaCd, areaNm);
+            if (seat != null) {
+                seat.syncDsaSeatInfo(dsaSeat.seatCd(),
+                    dsaSeat.xPos(), dsaSeat.yPos(), dsaSeat.seatGn());
             }
         }
 
@@ -77,15 +77,6 @@ public class SeatService {
             })
             .toList();
     }
-
-    private String findAreaName(Store store, String areaCd) {
-        return dsaAreaService.findAreas(store).stream()
-            .filter(a -> areaCd.equals(a.areaCd()))
-            .map(AreaResponse::areaNm)
-            .findFirst()
-            .orElse(null);
-    }
-
 
     public List<AreaResponse> findAreasByStoreId(Long storeId) {
         Store store = storeRepository.findById(storeId)

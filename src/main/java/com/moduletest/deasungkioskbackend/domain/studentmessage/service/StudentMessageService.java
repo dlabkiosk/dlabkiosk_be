@@ -1,5 +1,6 @@
 package com.moduletest.deasungkioskbackend.domain.studentmessage.service;
 
+import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.exception.StudentException;
@@ -23,7 +24,10 @@ public class StudentMessageService {
     private final StudentMessageRepository studentMessageRepository;
     private final StudentRepository studentRepository;
 
-    public List<StudentMessageResponse> findAllByStudentId(Long studentId) {
+    public List<StudentMessageResponse> findAllByStudentId(Long studentId, Long storeId) {
+        if (storeId != null) {
+            validateStudentBelongsToStore(studentId, storeId);
+        }
         return studentMessageRepository.findAllByStudentId(studentId)
             .stream()
             .map(StudentMessageResponse::fromEntity)
@@ -38,9 +42,14 @@ public class StudentMessageService {
     }
 
     @Transactional
-    public StudentMessageResponse createMessage(StudentMessageCreateRequest request) {
+    public StudentMessageResponse createMessage(StudentMessageCreateRequest request,
+        Long storeId) {
         Student student = studentRepository.findByIdWithStore(request.studentId())
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
+
+        if (storeId != null && !student.getStore().getId().equals(storeId)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
 
         StudentMessage message = StudentMessage.builder()
             .student(student)
@@ -54,20 +63,37 @@ public class StudentMessageService {
 
     @Transactional
     public StudentMessageResponse updateMessage(Long id,
-        StudentMessageUpdateRequest request) {
+        StudentMessageUpdateRequest request, Long storeId) {
         StudentMessage message = studentMessageRepository.findByIdWithDetails(id)
             .orElseThrow(() -> new StudentMessageException(
                 ErrorCode.STUDENT_MESSAGE_NOT_FOUND));
+
+        if (storeId != null && !message.getStore().getId().equals(storeId)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
 
         message.updateInfo(request.content(), request.active());
         return StudentMessageResponse.fromEntity(message);
     }
 
     @Transactional
-    public void deleteMessage(Long id) {
-        StudentMessage message = studentMessageRepository.findById(id)
+    public void deleteMessage(Long id, Long storeId) {
+        StudentMessage message = studentMessageRepository.findByIdWithDetails(id)
             .orElseThrow(() -> new StudentMessageException(
                 ErrorCode.STUDENT_MESSAGE_NOT_FOUND));
+
+        if (storeId != null && !message.getStore().getId().equals(storeId)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
+
         studentMessageRepository.delete(message);
+    }
+
+    private void validateStudentBelongsToStore(Long studentId, Long storeId) {
+        Student student = studentRepository.findByIdWithStore(studentId)
+            .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
+        if (!student.getStore().getId().equals(storeId)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
     }
 }
