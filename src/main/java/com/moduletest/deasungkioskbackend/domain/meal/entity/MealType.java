@@ -26,6 +26,14 @@ public enum MealType {
         return dsaMealGb;
     }
 
+    public LocalTime getStartTime() {
+        return startTime;
+    }
+
+    public LocalTime getEndTime() {
+        return endTime;
+    }
+
     public static MealType fromCurrentTime(LocalTime now) {
         for (MealType type : values()) {
             if (!now.isBefore(type.startTime) && !now.isAfter(type.endTime)) {

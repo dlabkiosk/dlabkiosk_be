@@ -406,7 +406,11 @@ public class TagService {
             attendance.getCheckInAt(), checkOutTime).toMinutes();
         long deductionMinutes = studyTimeRedisService.getTotalDeduction(
             storeId, student.getId());
-        long studyTimeMinutes = Math.max(totalMinutes - deductionMinutes, 0);
+        long mealDeduction = calculateMealDeduction(
+            student.getId(), attendance.getCheckInAt().toLocalTime(),
+            checkOutTime.toLocalTime(), today);
+        long studyTimeMinutes = Math.max(
+            totalMinutes - deductionMinutes - mealDeduction, 0);
 
         return TagResponse.builder()
             .processed(true)
@@ -531,6 +535,29 @@ public class TagService {
             .seatLabel(getSeatLabel(student))
             .dsaSynced(true)
             .build();
+    }
+
+    // ── 급식 차감 계산 ──
+
+    private long calculateMealDeduction(Long studentId, LocalTime checkInTime,
+                                         LocalTime checkOutTime, LocalDate today) {
+        List<MealTag> mealTags = mealTagRepository.findAllByStudentIdAndMealDate(
+            studentId, today);
+
+        long totalDeduction = 0;
+        for (MealTag tag : mealTags) {
+            MealType type = tag.getMealType();
+            LocalTime mealStart = type.getStartTime();
+            LocalTime mealEnd = type.getEndTime();
+
+            LocalTime overlapStart = checkInTime.isAfter(mealStart) ? checkInTime : mealStart;
+            LocalTime overlapEnd = checkOutTime.isBefore(mealEnd) ? checkOutTime : mealEnd;
+
+            if (overlapStart.isBefore(overlapEnd)) {
+                totalDeduction += Duration.between(overlapStart, overlapEnd).toMinutes();
+            }
+        }
+        return totalDeduction;
     }
 
     // ── 좌석 처리 ──
