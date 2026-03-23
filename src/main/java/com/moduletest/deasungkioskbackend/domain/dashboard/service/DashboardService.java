@@ -8,7 +8,10 @@ import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllRespo
 import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.DailyOperationSummary;
 import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.NoticeSummaryRecord;
 import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.SeatChangeRequestRecord;
+import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.MealTagSummary;
 import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.SeatLeaveSummary;
+import com.moduletest.deasungkioskbackend.domain.meal.entity.MealType;
+import com.moduletest.deasungkioskbackend.domain.meal.repository.MealTagRepository;
 import com.moduletest.deasungkioskbackend.domain.notice.repository.NoticeRepository;
 import com.moduletest.deasungkioskbackend.domain.outing.repository.OutingRepository;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.entity.SeatChangeRequest;
@@ -44,6 +47,7 @@ public class DashboardService {
     private final SeatLeaveRepository seatLeaveRepository;
     private final NoticeRepository noticeRepository;
     private final SeatChangeRequestRepository seatChangeRequestRepository;
+    private final MealTagRepository mealTagRepository;
 
     public DashboardAllResponse getAll(Long storeId) {
         Store store = findStore(storeId);
@@ -54,7 +58,7 @@ public class DashboardService {
 
         return DashboardAllResponse.builder()
             .dailyOperation(buildDailyOperation(storeId, todayAttendance))
-            .mealTags(null)
+            .mealTagSummary(buildMealTagSummary(storeId))
             .attendanceSummary(buildAttendanceSummary(todayAttendance, storeId, startOfDay))
             .seatLeaveSummary(buildSeatLeaveSummary(storeId, startOfDay))
             .studyRanking(callDsaSafe("/kiosk/getLastWeekStudyTimeList", store))
@@ -109,6 +113,19 @@ public class DashboardService {
                 .createdAt(n.getCreatedAt())
                 .build())
             .toList();
+    }
+
+    private MealTagSummary buildMealTagSummary(Long storeId) {
+        LocalDate today = LocalDate.now();
+        long lunchCount = mealTagRepository.countByStoreIdAndMealDateAndMealType(
+            storeId, today, MealType.LUNCH);
+        long dinnerCount = mealTagRepository.countByStoreIdAndMealDateAndMealType(
+            storeId, today, MealType.DINNER);
+
+        return MealTagSummary.builder()
+            .lunchCount(lunchCount)
+            .dinnerCount(dinnerCount)
+            .build();
     }
 
     private List<SeatChangeRequestRecord> buildSeatChangeRequests(Long storeId) {
