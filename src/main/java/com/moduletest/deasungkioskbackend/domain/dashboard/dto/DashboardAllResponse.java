@@ -3,12 +3,13 @@ package com.moduletest.deasungkioskbackend.domain.dashboard.dto;
 import com.moduletest.deasungkioskbackend.common.dsa.dto.DsaResponse;
 import java.time.LocalDateTime;
 import java.util.List;
+
 import lombok.Builder;
 
 @Builder
 public record DashboardAllResponse(
     DailyOperationSummary dailyOperation,
-    List<MealTagRecord> mealTags,
+    MealTagSummary mealTagSummary,
     AttendanceSummary attendanceSummary,
     SeatLeaveSummary seatLeaveSummary,
     DsaResponse studyRanking,
@@ -26,10 +27,9 @@ public record DashboardAllResponse(
     }
 
     @Builder
-    public record MealTagRecord(
-        String name,
-        String mealType,
-        LocalDateTime taggedAt
+    public record MealTagSummary(
+        long lunchCount,
+        long dinnerCount
     ) {
     }
 
