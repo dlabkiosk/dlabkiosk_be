@@ -45,19 +45,23 @@ public class SeatService {
 
         List<SeatStatusResponse> dsaSeats = dsaAreaService.findSeatStatusByArea(areaCd, store);
 
-        // 우리 Redis에서 AWAY 상태인 좌석의 seatLabel → studentName 수집
+        // Redis에서 좌석별 상태 + 학생명 수집
         Map<Object, Object> redisStatus = seatRedisService.getSeatStatusMap(storeId);
         List<Seat> seats = seatRepository.findAllByStoreIdWithStore(storeId);
 
         Map<String, Seat> seatLabelMap = new HashMap<>();
-        Map<String, String> awayStudentNames = new HashMap<>();
+        Map<String, String> seatLabelToStudentName = new HashMap<>();
+        Map<String, Boolean> awaySeatLabels = new HashMap<>();
         for (Seat seat : seats) {
             seatLabelMap.put(seat.getSeatLabel(), seat);
             String status = (String) redisStatus.get(seat.getId().toString());
-            if (status != null && status.startsWith("AWAY:")) {
+            if (status != null && !status.equals("AVAILABLE")) {
                 String[] parts = status.split(":");
                 String studentName = parts.length >= 3 ? parts[2] : null;
-                awayStudentNames.put(seat.getSeatLabel(), studentName);
+                seatLabelToStudentName.put(seat.getSeatLabel(), studentName);
+                if (status.startsWith("AWAY:")) {
+                    awaySeatLabels.put(seat.getSeatLabel(), true);
+                }
             }
         }
 
@@ -79,17 +83,23 @@ public class SeatService {
             }
         }
 
-        // DSA 좌석에 AWAY 상태 + 학생명 + 이탈사유 덮어씌우기
+        // DSA 좌석에 Redis 학생명 + AWAY 사유 덮어씌우기
         return dsaSeats.stream()
             .map(s -> {
-                String studentName = awayStudentNames.get(s.seatNm());
-                if (studentName != null) {
+                String studentName = seatLabelToStudentName.get(s.seatNm());
+                boolean away = awaySeatLabels.containsKey(s.seatNm());
+                if (away) {
                     Seat seat = seatLabelMap.get(s.seatNm());
                     String reasonName = seat != null
                         ? seatIdToReasonName.get(seat.getId()) : null;
                     return new SeatStatusResponse(
                         s.seatCd(), s.seatNm(), s.xPos(), s.yPos(),
                         s.seatGn(), "A", true, studentName, reasonName);
+                }
+                if (studentName != null) {
+                    return new SeatStatusResponse(
+                        s.seatCd(), s.seatNm(), s.xPos(), s.yPos(),
+                        s.seatGn(), s.state(), false, studentName, null);
                 }
                 return s;
             })
