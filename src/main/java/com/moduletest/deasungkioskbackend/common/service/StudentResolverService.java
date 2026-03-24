@@ -84,10 +84,28 @@ public class StudentResolverService {
     }
 
     /**
-     * 값 하나로 학생을 자동 판별한다.
-     * 순서: rfidUid → seatLabel → phoneLast4. 전부 없으면 에러.
+     * inputMethod가 지정되면 해당 방식으로만 조회한다.
+     * null이면 자동 판별 (rfidUid → seatLabel → phoneLast4).
      */
+    public Student resolveAuto(String value, Long storeId, InputMethod inputMethod) {
+        if (value == null || value.isBlank()) {
+            throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
+        }
+        if (inputMethod != null) {
+            return switch (inputMethod) {
+                case RFID -> resolveByIdentifier(value.trim());
+                case SEAT_LABEL -> resolveBySeatLabel(value.trim(), storeId);
+                case PHONE_LAST4 -> resolveByPhoneLast4(value.trim(), storeId);
+            };
+        }
+        return resolveAutoInternal(value, storeId);
+    }
+
     public Student resolveAuto(String value, Long storeId) {
+        return resolveAutoInternal(value, storeId);
+    }
+
+    private Student resolveAutoInternal(String value, Long storeId) {
         if (value == null || value.isBlank()) {
             throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
         }

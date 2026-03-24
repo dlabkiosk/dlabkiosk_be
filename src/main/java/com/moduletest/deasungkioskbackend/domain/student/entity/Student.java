@@ -63,16 +63,6 @@ public class Student extends BaseTimeEntity {
         this.dsaSynced = dsaSynced;
     }
 
-    public void updateInfo(String name, String studentNumber, String phoneLast4) {
-        this.name = name;
-        this.studentNumber = studentNumber;
-        this.phoneLast4 = phoneLast4;
-    }
-
-    public void updateRfidUid(String rfidUid) {
-        this.rfidUid = rfidUid;
-    }
-
     public void assignSeat(Seat seat) {
         this.assignedSeat = seat;
     }

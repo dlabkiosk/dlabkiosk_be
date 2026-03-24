@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.phonesubmission.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionPeriodResponse;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionRequest;
@@ -43,7 +44,7 @@ public class PhoneSubmissionService {
         Long storeId) {
 
         Student student = studentResolverService.resolveAuto(
-            request.identifier(), storeId);
+            request.identifier(), storeId, request.inputMethod());
 
         LocalDate startDate;
         LocalDate endDate;
@@ -158,8 +159,9 @@ public class PhoneSubmissionService {
 
     @Transactional(readOnly = true)
     public List<PhoneSubmissionPeriodResponse> findActivePeriodsForStudent(
-        String identifier, Long storeId) {
-        Student student = studentResolverService.resolveAuto(identifier, storeId);
+        String identifier, Long storeId, InputMethod inputMethod) {
+        Student student = studentResolverService.resolveAuto(
+            identifier, storeId, inputMethod);
         return phoneSubmissionRepository
             .findActiveByStudentId(student.getId(), LocalDate.now())
             .stream()

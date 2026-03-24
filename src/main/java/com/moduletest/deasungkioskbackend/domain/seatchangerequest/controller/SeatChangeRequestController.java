@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.seatchangerequest.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.AreaAvailableSeatResponse;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.AvailableSeatResponse;
@@ -34,7 +35,12 @@ public class SeatChangeRequestController {
 
     @Operation(summary = "좌석 변경 신청/수정",
         description = "학생 식별(identifier/학번/전화번호) + 희망 좌석 1~3순위로 좌석 변경을 신청한다. "
-            + "1순위 필수, 2~3순위 선택. 이미 대기 중인 신청이 있으면 희망 순위를 수정한다.")
+            + "1순위 필수, 2~3순위 선택. 이미 대기 중인 신청이 있으면 희망 순위를 수정한다.\n\n"
+            + "inputMethod 입력 방식:\n"
+            + "- RFID: 카드/QR 태깅으로 학생 식별\n"
+            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
+            + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
+            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
     @PostMapping
     public CommonResponse<SeatChangeRequestResponse> createRequest(
             @Valid @RequestBody SeatChangeRequestCreateRequest request) {
@@ -46,13 +52,20 @@ public class SeatChangeRequestController {
 
     @Operation(summary = "내 좌석 변경 신청 조회",
         description = "현재 대기(PENDING) 중인 내 좌석 변경 신청을 조회한다. "
-            + "신청 내역이 없으면 data=null을 반환한다.")
+            + "신청 내역이 없으면 data=null을 반환한다.\n\n"
+            + "inputMethod 입력 방식:\n"
+            + "- RFID: 카드/QR 태깅으로 학생 식별\n"
+            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
+            + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
+            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
     @GetMapping("/my")
     public CommonResponse<SeatChangeRequestResponse> findMyPendingRequest(
-            @RequestParam String identifier) {
+            @RequestParam String identifier,
+            @RequestParam(required = false) InputMethod inputMethod) {
         Long storeId = getStoreIdFromToken();
         SeatChangeRequestResponse response =
-            seatChangeRequestService.findMyPendingRequest(identifier, storeId);
+            seatChangeRequestService.findMyPendingRequest(
+                identifier, storeId, inputMethod);
         return CommonResponse.success(response);
     }
 
@@ -79,13 +92,20 @@ public class SeatChangeRequestController {
 
     @Operation(summary = "좌석 변경 신청 취소",
         description = "PENDING 상태의 신청만 취소 가능하다. "
-            + "카드/QR/좌석번호/폰뒷자리 중 하나 필수.")
+            + "카드/QR/좌석번호/폰뒷자리 중 하나 필수.\n\n"
+            + "inputMethod 입력 방식:\n"
+            + "- RFID: 카드/QR 태깅으로 학생 식별\n"
+            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
+            + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
+            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
     @DeleteMapping("/{requestId}")
     public CommonResponse<Void> cancelRequest(
             @PathVariable Long requestId,
-            @RequestParam String identifier) {
+            @RequestParam String identifier,
+            @RequestParam(required = false) InputMethod inputMethod) {
         Long storeId = getStoreIdFromToken();
-        Student student = studentResolverService.resolveAuto(identifier, storeId);
+        Student student = studentResolverService.resolveAuto(
+            identifier, storeId, inputMethod);
         seatChangeRequestService.cancelRequest(requestId, student.getId());
         return CommonResponse.success(null);
     }
