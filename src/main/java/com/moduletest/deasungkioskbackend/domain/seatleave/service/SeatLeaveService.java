@@ -1,7 +1,6 @@
 package com.moduletest.deasungkioskbackend.domain.seatleave.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
-import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsage;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsageStatus;
