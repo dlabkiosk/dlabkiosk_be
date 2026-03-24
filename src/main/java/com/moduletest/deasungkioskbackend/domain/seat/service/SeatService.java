@@ -16,6 +16,8 @@ import com.moduletest.deasungkioskbackend.domain.seatleave.repository.SeatLeaveR
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
+import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
+import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +37,7 @@ public class SeatService {
     private final StoreRepository storeRepository;
     private final SeatRedisService seatRedisService;
     private final SeatLeaveRepository seatLeaveRepository;
+    private final StudentRepository studentRepository;
     private final DsaAreaService dsaAreaService;
 
 
@@ -45,23 +48,28 @@ public class SeatService {
 
         List<SeatStatusResponse> dsaSeats = dsaAreaService.findSeatStatusByArea(areaCd, store);
 
-        // Redis에서 좌석별 상태 + 학생명 수집
+        // 우리 DB에서 seatCd → 학생명 매핑 (Student.assignedSeat 기준)
+        List<Student> students = studentRepository.findAllByStoreIdWithStore(storeId);
+        Map<String, String> seatCdToStudentName = new HashMap<>();
+        for (Student student : students) {
+            if (student.getAssignedSeat() != null
+                && student.getAssignedSeat().getSeatCd() != null) {
+                seatCdToStudentName.put(
+                    student.getAssignedSeat().getSeatCd(), student.getName());
+            }
+        }
+
+        // Redis에서 AWAY 상태인 좌석의 seatLabel 수집
         Map<Object, Object> redisStatus = seatRedisService.getSeatStatusMap(storeId);
         List<Seat> seats = seatRepository.findAllByStoreIdWithStore(storeId);
 
         Map<String, Seat> seatLabelMap = new HashMap<>();
-        Map<String, String> seatLabelToStudentName = new HashMap<>();
         Map<String, Boolean> awaySeatLabels = new HashMap<>();
         for (Seat seat : seats) {
             seatLabelMap.put(seat.getSeatLabel(), seat);
             String status = (String) redisStatus.get(seat.getId().toString());
-            if (status != null && !status.equals("AVAILABLE")) {
-                String[] parts = status.split(":");
-                String studentName = parts.length >= 3 ? parts[2] : null;
-                seatLabelToStudentName.put(seat.getSeatLabel(), studentName);
-                if (status.startsWith("AWAY:")) {
-                    awaySeatLabels.put(seat.getSeatLabel(), true);
-                }
+            if (status != null && status.startsWith("AWAY:")) {
+                awaySeatLabels.put(seat.getSeatLabel(), true);
             }
         }
 
@@ -83,10 +91,10 @@ public class SeatService {
             }
         }
 
-        // DSA 좌석에 Redis 학생명 + AWAY 사유 덮어씌우기
+        // DSA 좌석에 학생명 + AWAY 상태/사유 덮어씌우기
         return dsaSeats.stream()
             .map(s -> {
-                String studentName = seatLabelToStudentName.get(s.seatNm());
+                String studentName = seatCdToStudentName.get(s.seatCd());
                 boolean away = awaySeatLabels.containsKey(s.seatNm());
                 if (away) {
                     Seat seat = seatLabelMap.get(s.seatNm());
@@ -96,12 +104,9 @@ public class SeatService {
                         s.seatCd(), s.seatNm(), s.xPos(), s.yPos(),
                         s.seatGn(), "A", true, studentName, reasonName);
                 }
-                if (studentName != null) {
-                    return new SeatStatusResponse(
-                        s.seatCd(), s.seatNm(), s.xPos(), s.yPos(),
-                        s.seatGn(), s.state(), false, studentName, null);
-                }
-                return s;
+                return new SeatStatusResponse(
+                    s.seatCd(), s.seatNm(), s.xPos(), s.yPos(),
+                    s.seatGn(), s.state(), false, studentName, null);
             })
             .toList();
     }
