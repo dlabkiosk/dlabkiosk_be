@@ -67,11 +67,7 @@ public class StoreService {
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
         store.updateInfo(request.storeName(), request.address(), request.phone(), request.active());
-
-        if (request.kioskPin() != null) {
-            store.updateKioskPin(request.kioskPin());
-        }
-
+        store.updateKioskPin(request.kioskPin());
         store.updateDsaCredentials(
             request.dsaAcadCd(), request.dsaClientId(), request.dsaSecretId());
 

@@ -69,21 +69,37 @@ public class Store extends BaseTimeEntity {
         this.dsaSynced = dsaSynced;
     }
 
-    public void updateInfo(String storeName, String address, String phone, boolean active) {
-        this.storeName = storeName;
-        this.address = address;
-        this.phone = phone;
-        this.active = active;
+    public void updateInfo(String storeName, String address, String phone, Boolean active) {
+        if (storeName != null && !storeName.isBlank()) {
+            this.storeName = storeName;
+        }
+        if (address != null && !address.isBlank()) {
+            this.address = address;
+        }
+        if (phone != null && !phone.isBlank()) {
+            this.phone = phone;
+        }
+        if (active != null) {
+            this.active = active;
+        }
     }
 
     public void updateKioskPin(String kioskPin) {
-        this.kioskPin = kioskPin;
+        if (kioskPin != null && !kioskPin.isBlank()) {
+            this.kioskPin = kioskPin;
+        }
     }
 
     public void updateDsaCredentials(String dsaAcadCd, String dsaClientId, String dsaSecretId) {
-        this.dsaAcadCd = dsaAcadCd;
-        this.dsaClientId = dsaClientId;
-        this.dsaSecretId = dsaSecretId;
+        if (dsaAcadCd != null && !dsaAcadCd.isBlank()) {
+            this.dsaAcadCd = dsaAcadCd;
+        }
+        if (dsaClientId != null && !dsaClientId.isBlank()) {
+            this.dsaClientId = dsaClientId;
+        }
+        if (dsaSecretId != null && !dsaSecretId.isBlank()) {
+            this.dsaSecretId = dsaSecretId;
+        }
     }
 
     public boolean hasDsaCredentials() {
