@@ -119,7 +119,8 @@ public final class DsaAreaService {
                 String state = stateMap.getOrDefault(seatCd, "B");
 
                 result.add(new SeatStatusResponse(
-                    seatCd, seatNm, xPos, yPos, seatGn, state, false));
+                    seatCd, seatNm, xPos, yPos, seatGn, state, false,
+                    null, null));
             }
 
             log.info("DSA 좌석 조회 완료: {}건. areaCd: {}, storeId: {}",
