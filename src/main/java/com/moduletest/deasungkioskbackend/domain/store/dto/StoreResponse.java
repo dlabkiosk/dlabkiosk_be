@@ -18,6 +18,14 @@ public record StoreResponse(
     String phone,
     @Schema(description = "활성화 여부", example = "true")
     boolean active,
+    @Schema(description = "키오스크 PIN", example = "1234")
+    String kioskPin,
+    @Schema(description = "DSA 학원 고유코드", example = "ACAD001")
+    String dsaAcadCd,
+    @Schema(description = "DSA 키오스크 ID", example = "kiosk_client_01")
+    String dsaClientId,
+    @Schema(description = "DSA 시크릿 키", example = "secret_key_01")
+    String dsaSecretId,
     @Schema(description = "DSA 연동 여부", example = "true")
     boolean dsaConnected,
     @Schema(description = "생성일시")
@@ -37,6 +45,10 @@ public record StoreResponse(
             store.getAddress(),
             store.getPhone(),
             store.isActive(),
+            store.getKioskPin(),
+            store.getDsaAcadCd(),
+            store.getDsaClientId(),
+            store.getDsaSecretId(),
             dsaConnected,
             store.getCreatedAt(),
             store.getUpdatedAt()
