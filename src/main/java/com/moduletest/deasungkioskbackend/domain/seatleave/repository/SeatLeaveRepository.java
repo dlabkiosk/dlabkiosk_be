@@ -101,6 +101,13 @@ public interface SeatLeaveRepository extends JpaRepository<SeatLeave, Long> {
         @Param("storeId") Long storeId,
         @Param("startOfDay") LocalDateTime startOfDay);
 
+    @Query("SELECT sl FROM SeatLeave sl "
+        + "JOIN FETCH sl.student JOIN FETCH sl.seat JOIN FETCH sl.store "
+        + "WHERE sl.startedAt >= :startOfDay "
+        + "AND sl.endedAt IS NULL")
+    List<SeatLeave> findAllActive(
+        @Param("startOfDay") LocalDateTime startOfDay);
+
     @Query("SELECT COUNT(sl) FROM SeatLeave sl "
         + "WHERE sl.store.id = :storeId "
         + "AND sl.startedAt >= :startOfDay")
