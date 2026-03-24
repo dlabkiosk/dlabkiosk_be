@@ -2,6 +2,7 @@ package com.moduletest.deasungkioskbackend.domain.seatchangerequest.service;
 
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAreaService;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
@@ -56,7 +57,7 @@ public class SeatChangeRequestService {
     public SeatChangeRequestResponse createRequest(SeatChangeRequestCreateRequest request,
                                                    Long storeId) {
         Student student = studentResolverService.resolveAuto(
-            request.identifier(), storeId);
+            request.identifier(), storeId, request.inputMethod());
 
         if (!student.getStore().getId().equals(storeId)) {
             throw new SeatChangeRequestException(ErrorCode.STUDENT_NOT_IN_THIS_STORE);
@@ -104,8 +105,10 @@ public class SeatChangeRequestService {
         return SeatChangeRequestResponse.fromEntity(saved);
     }
 
-    public SeatChangeRequestResponse findMyPendingRequest(String identifier, Long storeId) {
-        Student student = studentResolverService.resolveAuto(identifier, storeId);
+    public SeatChangeRequestResponse findMyPendingRequest(String identifier, Long storeId,
+                                                          InputMethod inputMethod) {
+        Student student = studentResolverService.resolveAuto(
+            identifier, storeId, inputMethod);
         return seatChangeRequestRepository
             .findByStudentIdAndStatusWithDetails(student.getId(), SeatChangeRequestStatus.PENDING)
             .map(SeatChangeRequestResponse::fromEntity)

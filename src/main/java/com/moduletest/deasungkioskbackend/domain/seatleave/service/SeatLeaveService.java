@@ -49,7 +49,7 @@ public class SeatLeaveService {
     @Transactional
     public SeatLeaveResponse startLeave(Long storeId, SeatLeaveStartRequest request) {
         Student student = studentResolverService.resolveAuto(
-            request.identifier(), storeId);
+            request.identifier(), storeId, request.inputMethod());
 
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
 
@@ -89,7 +89,7 @@ public class SeatLeaveService {
     @Transactional
     public SeatLeaveResponse endLeave(Long storeId, SeatLeaveEndRequest request) {
         Student student = studentResolverService.resolveAuto(
-            request.identifier(), storeId);
+            request.identifier(), storeId, request.inputMethod());
 
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
 

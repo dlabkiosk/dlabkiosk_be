@@ -4,7 +4,6 @@ import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentResponse;
-import com.moduletest.deasungkioskbackend.domain.student.dto.StudentUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.student.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,7 +17,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -58,15 +56,6 @@ public class StudentAdminController {
         @Valid @RequestBody StudentCreateRequest request) {
         Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(storeId);
         StudentResponse student = studentService.createStudent(request, resolvedStoreId);
-        return CommonResponse.success(student);
-    }
-
-    @Operation(summary = "학생 정보 수정", description = "학생 정보를 수정한다. 소속 지점은 변경되지 않는다.")
-    @PutMapping("/{studentId}")
-    public CommonResponse<StudentResponse> updateStudent(
-        @PathVariable Long studentId,
-        @Valid @RequestBody StudentUpdateRequest request) {
-        StudentResponse student = studentService.updateStudent(studentId, request);
         return CommonResponse.success(student);
     }
 

@@ -5,6 +5,7 @@ import com.moduletest.deasungkioskbackend.common.dsa.service.DsaMealService;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaRequestService;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaRequestService.ApprovedRequest;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.attendance.entity.Attendance;
 import com.moduletest.deasungkioskbackend.domain.attendance.entity.AttendanceStatus;
@@ -70,7 +71,8 @@ public class TagService {
 
     @Transactional
     public TagResponse processTag(TagRequest request, Long storeId) {
-        Student student = studentResolverService.resolveAuto(request.identifier(), storeId);
+        Student student = studentResolverService.resolveAuto(
+            request.identifier(), storeId, request.inputMethod());
         validateStudentStore(student, storeId);
         studentRepository.findByIdForUpdate(student.getId());
 
@@ -184,7 +186,8 @@ public class TagService {
 
     @Transactional
     public TagResponse confirmTag(TagConfirmRequest request, Long storeId) {
-        Student student = studentResolverService.resolveAuto(request.identifier(), storeId);
+        Student student = studentResolverService.resolveAuto(
+            request.identifier(), storeId, request.inputMethod());
         validateStudentStore(student, storeId);
         studentRepository.findByIdForUpdate(student.getId());
 
@@ -202,8 +205,9 @@ public class TagService {
     }
 
     @Transactional
-    public TagResponse confirmMealTag(String value, Long storeId) {
-        Student student = studentResolverService.resolveAuto(value, storeId);
+    public TagResponse confirmMealTag(String value, Long storeId,
+                                      InputMethod inputMethod) {
+        Student student = studentResolverService.resolveAuto(value, storeId, inputMethod);
         validateStudentStore(student, storeId);
 
         Store store = storeRepository.findById(storeId)

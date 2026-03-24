@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.student.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentKioskResponse;
 import com.moduletest.deasungkioskbackend.domain.student.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,14 +23,20 @@ public class StudentController {
 
     @Operation(summary = "학생 검색",
         description = "카드/QR/좌석번호/폰뒷자리 중 하나로 학생을 검색한다. "
-            + "좌석 변경 신청 정보가 있으면 함께 반환한다.")
+            + "좌석 변경 신청 정보가 있으면 함께 반환한다.\n\n"
+            + "inputMethod 입력 방식:\n"
+            + "- RFID: 카드/QR 태깅으로 학생 식별\n"
+            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
+            + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
+            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
     @GetMapping("/search")
     public CommonResponse<StudentKioskResponse> searchStudent(
-            @RequestParam String identifier) {
+            @RequestParam String identifier,
+            @RequestParam(required = false) InputMethod inputMethod) {
         Long storeId = Long.valueOf(
             SecurityContextHolder.getContext().getAuthentication().getName());
         StudentKioskResponse student = studentService.searchStudentForKiosk(
-            identifier, storeId);
+            identifier, storeId, inputMethod);
         return CommonResponse.success(student);
     }
 }

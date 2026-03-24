@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.student.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionResponse;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.repository.PhoneSubmissionRepository;
@@ -17,7 +18,6 @@ import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepositor
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentKioskResponse;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentResponse;
-import com.moduletest.deasungkioskbackend.domain.student.dto.StudentUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.exception.StudentException;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
@@ -86,31 +86,16 @@ public class StudentService {
     }
 
     @Transactional
-    public StudentResponse updateStudent(Long studentId, StudentUpdateRequest request) {
-        Student student = studentRepository.findById(studentId)
-            .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
-
-        student.updateInfo(request.name(), request.studentNumber(), request.phoneLast4());
-
-        if (request.rfidUid() != null) {
-            student.updateRfidUid(request.rfidUid());
-        }
-
-        Seat assignedSeat = resolveSeat(request.seatId());
-        student.assignSeat(assignedSeat);
-
-        return StudentResponse.fromEntity(student);
-    }
-
-    @Transactional
     public void deleteStudent(Long studentId) {
         Student student = studentRepository.findById(studentId)
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
         studentRepository.delete(student);
     }
 
-    public StudentKioskResponse searchStudentForKiosk(String identifier, Long storeId) {
-        Student student = studentResolverService.resolveAuto(identifier, storeId);
+    public StudentKioskResponse searchStudentForKiosk(String identifier, Long storeId,
+                                                      InputMethod inputMethod) {
+        Student student = studentResolverService.resolveAuto(
+            identifier, storeId, inputMethod);
         Long studentId = student.getId();
 
         LocalDate today = LocalDate.now();
