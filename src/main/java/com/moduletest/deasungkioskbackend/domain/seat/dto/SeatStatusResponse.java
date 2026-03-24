@@ -17,7 +17,11 @@ public record SeatStatusResponse(
     @Schema(description = "좌석 상태\n- S: 등원\n- D: 외출\n- N: 미출석\n- B: 공석\n- A: 좌석이탈", example = "S")
     String state,
     @Schema(description = "좌석이탈 여부 (우리 시스템 기준)", example = "false")
-    boolean away
+    boolean away,
+    @Schema(description = "배정 학생명 (좌석이탈 시)", example = "홍길동")
+    String studentName,
+    @Schema(description = "이탈 사유명 (좌석이탈 시)", example = "화장실")
+    String leaveReasonName
 ) {
 
 }

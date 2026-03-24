@@ -11,9 +11,12 @@ import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatType;
 import com.moduletest.deasungkioskbackend.domain.seat.exception.SeatException;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatRepository;
+import com.moduletest.deasungkioskbackend.domain.seatleave.entity.SeatLeave;
+import com.moduletest.deasungkioskbackend.domain.seatleave.repository.SeatLeaveRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,7 @@ public class SeatService {
     private final SeatRepository seatRepository;
     private final StoreRepository storeRepository;
     private final SeatRedisService seatRedisService;
+    private final SeatLeaveRepository seatLeaveRepository;
     private final DsaAreaService dsaAreaService;
 
 
@@ -41,18 +45,29 @@ public class SeatService {
 
         List<SeatStatusResponse> dsaSeats = dsaAreaService.findSeatStatusByArea(areaCd, store);
 
-        // 우리 Redis에서 AWAY 상태인 좌석의 seatLabel 수집
+        // 우리 Redis에서 AWAY 상태인 좌석의 seatLabel → studentName 수집
         Map<Object, Object> redisStatus = seatRedisService.getSeatStatusMap(storeId);
         List<Seat> seats = seatRepository.findAllByStoreIdWithStore(storeId);
 
         Map<String, Seat> seatLabelMap = new HashMap<>();
-        Map<String, Boolean> awaySeatLabels = new HashMap<>();
+        Map<String, String> awayStudentNames = new HashMap<>();
         for (Seat seat : seats) {
             seatLabelMap.put(seat.getSeatLabel(), seat);
             String status = (String) redisStatus.get(seat.getId().toString());
             if (status != null && status.startsWith("AWAY:")) {
-                awaySeatLabels.put(seat.getSeatLabel(), true);
+                String[] parts = status.split(":");
+                String studentName = parts.length >= 3 ? parts[2] : null;
+                awayStudentNames.put(seat.getSeatLabel(), studentName);
             }
+        }
+
+        // 활성 이탈 건에서 좌석ID → 사유명 매핑
+        List<SeatLeave> activeLeaves = seatLeaveRepository.findActiveByStoreId(
+            storeId, LocalDate.now().atStartOfDay());
+        Map<Long, String> seatIdToReasonName = new HashMap<>();
+        for (SeatLeave leave : activeLeaves) {
+            seatIdToReasonName.put(leave.getSeat().getId(),
+                leave.getReason().getReasonName());
         }
 
         // DSA 좌석 정보를 우리 DB 좌석에 동기화 (areaCd/areaNm은 건드리지 않음)
@@ -64,14 +79,17 @@ public class SeatService {
             }
         }
 
-        // DSA 좌석에 AWAY 상태 덮어씌우기
+        // DSA 좌석에 AWAY 상태 + 학생명 + 이탈사유 덮어씌우기
         return dsaSeats.stream()
             .map(s -> {
-                boolean away = awaySeatLabels.containsKey(s.seatNm());
-                if (away) {
+                String studentName = awayStudentNames.get(s.seatNm());
+                if (studentName != null) {
+                    Seat seat = seatLabelMap.get(s.seatNm());
+                    String reasonName = seat != null
+                        ? seatIdToReasonName.get(seat.getId()) : null;
                     return new SeatStatusResponse(
                         s.seatCd(), s.seatNm(), s.xPos(), s.yPos(),
-                        s.seatGn(), "A", true);
+                        s.seatGn(), "A", true, studentName, reasonName);
                 }
                 return s;
             })
