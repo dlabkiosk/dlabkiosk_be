@@ -49,15 +49,36 @@ public class Seat extends BaseTimeEntity {
     @Column(name = "is_active", nullable = false)
     private boolean active;
 
+    @Column(name = "area_cd", length = 50)
+    private String areaCd;
+
+    @Column(name = "area_nm", length = 100)
+    private String areaNm;
+
+    @Column(name = "seat_cd", length = 50)
+    private String seatCd;
+
+    @Column(name = "seat_gn", length = 5)
+    private String seatGn;
+
+    @Column(name = "is_dsa_synced", nullable = false)
+    private boolean dsaSynced;
+
     @Builder
     public Seat(Store store, String seatLabel, SeatType seatType, int xPos, int yPos,
-        boolean active) {
+        boolean active, String areaCd, String areaNm, String seatCd, String seatGn,
+        boolean dsaSynced) {
         this.store = store;
         this.seatLabel = seatLabel;
         this.seatType = seatType;
         this.xPos = xPos;
         this.yPos = yPos;
         this.active = active;
+        this.areaCd = areaCd;
+        this.areaNm = areaNm;
+        this.seatCd = seatCd;
+        this.seatGn = seatGn;
+        this.dsaSynced = dsaSynced;
     }
 
     public void updateInfo(String seatLabel, SeatType seatType, int xPos, int yPos,
@@ -67,5 +88,35 @@ public class Seat extends BaseTimeEntity {
         this.xPos = xPos;
         this.yPos = yPos;
         this.active = active;
+    }
+
+    public void updateArea(String areaCd, String areaNm) {
+        this.areaCd = areaCd;
+        this.areaNm = areaNm;
+    }
+
+    public void syncFromDsa(String seatLabel, String seatCd, int xPos, int yPos,
+                            String areaCd, String areaNm, String seatGn) {
+        this.seatLabel = seatLabel;
+        this.seatCd = seatCd;
+        this.xPos = xPos;
+        this.yPos = yPos;
+        this.areaCd = areaCd;
+        this.areaNm = areaNm;
+        this.seatGn = seatGn;
+        this.active = true;
+        this.dsaSynced = true;
+    }
+
+    public void syncDsaSeatInfo(String seatCd, int xPos, int yPos, String seatGn) {
+        this.seatCd = seatCd;
+        this.xPos = xPos;
+        this.yPos = yPos;
+        this.seatGn = seatGn;
+        this.dsaSynced = true;
+    }
+
+    public void deactivate() {
+        this.active = false;
     }
 }

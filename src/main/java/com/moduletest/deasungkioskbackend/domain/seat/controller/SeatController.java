@@ -1,23 +1,20 @@
 package com.moduletest.deasungkioskbackend.domain.seat.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
-import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatCheckInRequest;
+import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.service.SeatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "[키오스크] 좌석", description = "좌석 현황 조회 및 입퇴실 (키오스크 로그인 필요)")
+@Tag(name = "[키오스크] 좌석", description = "좌석 현황 조회 (키오스크 로그인 필요)")
 @RestController
 @RequestMapping("/api/v1/kiosk/seats")
 @RequiredArgsConstructor
@@ -25,33 +22,27 @@ public class SeatController {
 
     private final SeatService seatService;
 
-    @Operation(summary = "좌석 현황 조회",
-        description = "로그인한 지점의 전체 좌석 현황을 조회한다. "
-            + "화면 진입 시 1회 호출. 입실 실패 시 최신 현황 재조회.")
+    @Operation(summary = "구역별 좌석 현황 조회",
+        description = "DSA에서 구역별 좌석 레이아웃과 상태를 조회한다. "
+            + "areaCd 필수. 구역 목록은 /areas에서 먼저 조회.\n\n"
+            + "**좌석 구분(seatGn)**: Y(사용 좌석), N(미사용 좌석), E(통로)\n\n"
+            + "**좌석 상태(state)**: S(등원), D(외출), N(미출석), B(공석), A(좌석이탈)\n\n"
+            + "[참고] 키오스크 프론트에서는 좌석 상태(state)를 노출하지 않음. 레이아웃 표시 용도로만 사용.")
     @GetMapping
-    public CommonResponse<List<SeatStatusResponse>> findSeatStatus() {
+    public CommonResponse<List<SeatStatusResponse>> findSeatStatus(
+        @RequestParam String areaCd) {
         Long storeId = getStoreIdFromToken();
-        List<SeatStatusResponse> seats = seatService.findSeatStatusByStoreId(storeId);
+        List<SeatStatusResponse> seats = seatService.findSeatStatusByArea(storeId, areaCd);
         return CommonResponse.success(seats);
     }
 
-    @Operation(summary = "좌석 입실",
-        description = "QR/RFID로 배정된 좌석에 자동 입실한다. "
-            + "identifier에 QR UUID 또는 RFID UID를 전송.")
-    @PostMapping("/check-in")
-    public CommonResponse<Void> seatCheckIn(
-        @Valid @RequestBody SeatCheckInRequest request) {
+    @Operation(summary = "구역(강의실) 목록 조회",
+        description = "로그인한 지점의 구역 목록을 조회한다. 좌석 현황 조회 전 구역 선택에 사용.")
+    @GetMapping("/areas")
+    public CommonResponse<List<AreaResponse>> findAreas() {
         Long storeId = getStoreIdFromToken();
-        seatService.seatCheckIn(request, storeId);
-        return CommonResponse.success(null);
-    }
-
-    @Operation(summary = "좌석 퇴실",
-        description = "좌석에서 퇴실한다. 사용 중이 아닌 좌석이면 거부된다.")
-    @PostMapping("/{seatId}/check-out")
-    public CommonResponse<Void> seatCheckOut(@PathVariable Long seatId) {
-        seatService.seatCheckOut(seatId);
-        return CommonResponse.success(null);
+        List<AreaResponse> areas = seatService.findAreasByStoreId(storeId);
+        return CommonResponse.success(areas);
     }
 
     private Long getStoreIdFromToken() {

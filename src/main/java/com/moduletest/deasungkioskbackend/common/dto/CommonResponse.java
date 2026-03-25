@@ -28,6 +28,11 @@ public class CommonResponse<T> {
         return new CommonResponse<>(false, null, new ErrorDetail(code, message));
     }
 
+    public static <T> CommonResponse<T> error(ErrorCode errorCode, T data) {
+        return new CommonResponse<>(false, data,
+                new ErrorDetail(errorCode.getCode(), errorCode.getMessage()));
+    }
+
     @Getter
     @AllArgsConstructor
     public static class ErrorDetail {

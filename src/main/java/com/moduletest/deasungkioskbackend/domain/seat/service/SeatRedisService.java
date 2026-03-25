@@ -64,15 +64,22 @@ public class SeatRedisService {
     }
 
 
+    public String getSeatStatus(Long storeId, Long seatId) {
+        String key = buildKey(storeId);
+        String field = seatId.toString();
+        return (String) redisTemplate.opsForHash().get(key, field);
+    }
+
     private String buildKey(Long storeId) {
         return SEAT_STATUS_KEY_PREFIX + storeId;
     }
 
 
     public void markSeatAway(Long storeId, Long seatId, Long studentId, String studentName) {
-        String key = "seat:" + storeId;
+        String key = buildKey(storeId);
+        String field = seatId.toString();
         String value = "AWAY:" + studentId + ":" + studentName;
-        redisTemplate.opsForHash().put(key, String.valueOf(seatId), value);
+        redisTemplate.opsForHash().put(key, field, value);
     }
 
 

@@ -13,15 +13,16 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.EnumMap;
 import java.util.Map;
-import org.springframework.stereotype.Service;
 
-@Service
 public final class QrCodeService {
 
     private static final int QR_SIZE = 300;
     private static final String QR_FORMAT = "PNG";
 
-    public byte[] generateQrCodePng(String qrUuid) {
+    private QrCodeService() {
+    }
+
+    public static byte[] generateQrCodePng(String content) {
         try {
             Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
             hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M);
@@ -30,7 +31,7 @@ public final class QrCodeService {
 
             QRCodeWriter writer = new QRCodeWriter();
             BitMatrix bitMatrix = writer.encode(
-                qrUuid, BarcodeFormat.QR_CODE, QR_SIZE, QR_SIZE, hints
+                content, BarcodeFormat.QR_CODE, QR_SIZE, QR_SIZE, hints
             );
 
             try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {

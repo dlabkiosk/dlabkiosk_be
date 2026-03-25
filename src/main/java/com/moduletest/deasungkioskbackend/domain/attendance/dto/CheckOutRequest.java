@@ -1,18 +1,18 @@
 package com.moduletest.deasungkioskbackend.domain.attendance.dto;
 
+import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "하원(체크아웃) 요청 — identifier, 학번, 전화번호 중 하나 필수")
+@Schema(description = "하원(체크아웃) 요청 — identifier 또는 학번 중 하나 필수")
 public record CheckOutRequest(
-    @Schema(description = "학생 식별값 (QR UUID 또는 RFID UID)",
-        example = "550e8400-e29b-41d4-a716-446655440000")
+    @Schema(description = "학생 식별값 (RFID UID 또는 QR UUID)",
+        example = "A1B2C3D4")
     String identifier,
 
-    @Schema(description = "학번. 학번으로 인식 시 이 값만 전송.",
-        example = "2024-001")
-    String studentNumber,
+    @Schema(description = "입력 방식\n- RFID: 카드/QR\n- SEAT_LABEL: 좌석번호\n- PHONE_LAST4: 전화번호 뒷자리")
+    InputMethod inputMethod,
 
-    @Schema(description = "전화번호. 전화번호로 인식 시 이 값만 전송.",
-        example = "010-1234-5678")
-    String phone
+    @Schema(description = "학번",
+        example = "2024-001")
+    String studentNumber
 ) { }

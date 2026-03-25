@@ -103,7 +103,12 @@ public class AuthService {
         return AdminUserResponse.fromEntity(adminUser);
     }
 
-    public void logout(Long userId) {
-        tokenRedisService.removeAdminTokens(userId);
+    public void logout(Long userId, String accessToken, String refreshToken) {
+        if (accessToken != null) {
+            tokenRedisService.removeAdminToken(userId, accessToken);
+        }
+        if (refreshToken != null) {
+            tokenRedisService.removeAdminRefreshToken(userId, refreshToken);
+        }
     }
 }

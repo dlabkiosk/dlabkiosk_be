@@ -34,49 +34,33 @@ public class Student extends BaseTimeEntity {
     @Column(nullable = false, length = 50)
     private String name;
 
-    @Column(nullable = false, length = 20)
-    private String phone;
-
-    @Column(name = "qr_uuid", nullable = false, unique = true, length = 36)
-    private String qrUuid;
-
-    @Column(nullable = false, length = 20)
-    private String grade;
-
-    @Column(name = "rfid_uid", unique = true, length = 50)
+    @Column(name = "rfid_uid", nullable = false, unique = true, length = 50)
     private String rfidUid;
 
     @Column(name = "student_number", unique = true, length = 30)
     private String studentNumber;
 
+    @Column(name = "phone_last4", length = 4)
+    private String phoneLast4;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_seat_id")
     private Seat assignedSeat;
 
+    @Column(name = "is_dsa_synced", nullable = false)
+    private boolean dsaSynced;
+
     @Builder
-    public Student(Store store, String name, String phone, String qrUuid,
-                   String grade, String rfidUid, String studentNumber, Seat assignedSeat) {
+    public Student(Store store, String name, String rfidUid,
+                   String studentNumber, String phoneLast4, Seat assignedSeat,
+                   boolean dsaSynced) {
         this.store = store;
         this.name = name;
-        this.phone = phone;
-        this.qrUuid = qrUuid;
-        this.grade = grade;
         this.rfidUid = rfidUid;
         this.studentNumber = studentNumber;
+        this.phoneLast4 = phoneLast4;
         this.assignedSeat = assignedSeat;
-    }
-
-    public void updateInfo(String name, String phone, String grade,
-                           Store store, String studentNumber) {
-        this.name = name;
-        this.phone = phone;
-        this.grade = grade;
-        this.store = store;
-        this.studentNumber = studentNumber;
-    }
-
-    public void updateRfidUid(String rfidUid) {
-        this.rfidUid = rfidUid;
+        this.dsaSynced = dsaSynced;
     }
 
     public void assignSeat(Seat seat) {

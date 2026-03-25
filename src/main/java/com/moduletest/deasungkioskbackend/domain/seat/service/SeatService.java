@@ -1,27 +1,25 @@
 package com.moduletest.deasungkioskbackend.domain.seat.service;
 
+import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAreaService;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
-import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
-import com.moduletest.deasungkioskbackend.domain.kiosk.exception.KioskException;
-import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatCheckInRequest;
+import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatType;
-import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsage;
-import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsageStatus;
 import com.moduletest.deasungkioskbackend.domain.seat.exception.SeatException;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatRepository;
-import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageRepository;
+import com.moduletest.deasungkioskbackend.domain.seatleave.entity.SeatLeave;
+import com.moduletest.deasungkioskbackend.domain.seatleave.repository.SeatLeaveRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
+import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -36,136 +34,101 @@ import org.springframework.transaction.annotation.Transactional;
 public class SeatService {
 
     private final SeatRepository seatRepository;
-    private final SeatUsageRepository seatUsageRepository;
     private final StoreRepository storeRepository;
-    private final StudentRepository studentRepository;
-    private final StudentResolverService studentResolverService;
     private final SeatRedisService seatRedisService;
+    private final SeatLeaveRepository seatLeaveRepository;
+    private final StudentRepository studentRepository;
+    private final DsaAreaService dsaAreaService;
 
 
-    public List<SeatStatusResponse> findSeatStatusByStoreId(Long storeId) {
-        List<Seat> seats = seatRepository.findAllByStoreIdWithStore(storeId);
+    @Transactional
+    public List<SeatStatusResponse> findSeatStatusByArea(Long storeId, String areaCd) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
+
+        List<SeatStatusResponse> dsaSeats = dsaAreaService.findSeatStatusByArea(areaCd, store);
+
+        // 우리 DB에서 seatCd → 학생명 매핑 (Student.assignedSeat 기준)
+        List<Student> students = studentRepository.findAllByStoreIdWithStore(storeId);
+        Map<String, String> seatCdToStudentName = new HashMap<>();
+        for (Student student : students) {
+            if (student.getAssignedSeat() != null
+                && student.getAssignedSeat().getSeatCd() != null) {
+                seatCdToStudentName.put(
+                    student.getAssignedSeat().getSeatCd(), student.getName());
+            }
+        }
+
+        // Redis에서 AWAY 상태인 좌석의 seatLabel 수집
         Map<Object, Object> redisStatus = seatRedisService.getSeatStatusMap(storeId);
+        List<Seat> seats = seatRepository.findAllByStoreIdWithStore(storeId);
 
-        List<SeatStatusResponse> result = new ArrayList<>();
-
+        Map<String, Seat> seatLabelMap = new HashMap<>();
+        Map<String, Boolean> awaySeatLabels = new HashMap<>();
         for (Seat seat : seats) {
-            if (!seat.isActive()) {
-                continue;
-            }
-
+            seatLabelMap.put(seat.getSeatLabel(), seat);
             String status = (String) redisStatus.get(seat.getId().toString());
-            boolean available = status == null;
-            boolean outing = false;
-            Long studentId = null;
-            String studentName = null;
-
-            if (status != null && status.startsWith("IN_USE:")) {
-                String[] parts = status.split(":", 3);
-                studentId = Long.valueOf(parts[1]);
-                studentName = parts[2];
-            } else if (status != null && status.startsWith("OUTING:")) {
-                String[] parts = status.split(":", 3);
-                studentId = Long.valueOf(parts[1]);
-                studentName = parts[2];
-                outing = true;
-            } else if (status != null && status.startsWith("AWAY:")) {  // 여기 추가
-                String[] parts = status.split(":", 3);
-                studentId = Long.valueOf(parts[1]);
-                studentName = parts[2];
+            if (status != null && status.startsWith("AWAY:")) {
+                awaySeatLabels.put(seat.getSeatLabel(), true);
             }
-
-            result.add(new SeatStatusResponse(
-                seat.getId(),
-                seat.getSeatLabel(),
-                seat.getSeatType().name(),
-                seat.getXPos(),
-                seat.getYPos(),
-                available,
-                outing,
-                studentId,
-                studentName
-            ));
         }
-        return result;
+
+        // 활성 이탈 건에서 좌석ID → 사유명 매핑
+        List<SeatLeave> activeLeaves = seatLeaveRepository.findActiveByStoreId(
+            storeId, LocalDate.now().atStartOfDay());
+        Map<Long, String> seatIdToReasonName = new HashMap<>();
+        for (SeatLeave leave : activeLeaves) {
+            seatIdToReasonName.put(leave.getSeat().getId(),
+                leave.getReason().getReasonName());
+        }
+
+        // DSA 좌석 정보를 우리 DB 좌석에 동기화 (areaCd/areaNm은 건드리지 않음)
+        for (SeatStatusResponse dsaSeat : dsaSeats) {
+            Seat seat = seatLabelMap.get(dsaSeat.seatNm());
+            if (seat != null) {
+                seat.syncDsaSeatInfo(dsaSeat.seatCd(),
+                    dsaSeat.xPos(), dsaSeat.yPos(), dsaSeat.seatGn());
+            }
+        }
+
+        // DSA 좌석에 학생명 + AWAY 상태/사유 덮어씌우기
+        return dsaSeats.stream()
+            .map(s -> {
+                String studentName = seatCdToStudentName.get(s.seatCd());
+                boolean away = awaySeatLabels.containsKey(s.seatNm());
+                if (away) {
+                    Seat seat = seatLabelMap.get(s.seatNm());
+                    String reasonName = seat != null
+                        ? seatIdToReasonName.get(seat.getId()) : null;
+                    return new SeatStatusResponse(
+                        s.seatCd(), s.seatNm(), s.xPos(), s.yPos(),
+                        s.seatGn(), "A", true, studentName, reasonName);
+                }
+                return new SeatStatusResponse(
+                    s.seatCd(), s.seatNm(), s.xPos(), s.yPos(),
+                    s.seatGn(), s.state(), false, studentName, null);
+            })
+            .toList();
     }
 
-
-    @Transactional
-    public void seatCheckIn(SeatCheckInRequest request, Long storeId) {
-        Student student = studentResolverService.resolveByIdentifier(request.identifier());
-
-        if (!student.getStore().getId().equals(storeId)) {
-            throw new KioskException(ErrorCode.STUDENT_NOT_IN_THIS_STORE);
-        }
-
-        Seat seat = student.getAssignedSeat();
-        if (seat == null) {
-            throw new SeatException(ErrorCode.NO_ASSIGNED_SEAT);
-        }
-
-        // 이미 좌석 사용 중인 학생인지 확인
-        seatUsageRepository.findByStudentIdAndStatus(student.getId(), SeatUsageStatus.IN_USE)
-            .ifPresent(usage -> {
-                throw new SeatException(ErrorCode.STUDENT_ALREADY_HAS_SEAT);
-            });
-
-        Long seatId = seat.getId();
-
-        // Redis HSETNX로 원자적 선점
-        boolean acquired = seatRedisService.tryOccupySeat(
-            storeId, seatId, student.getId(), student.getName());
-
-        if (!acquired) {
-            throw new SeatException(ErrorCode.SEAT_ALREADY_IN_USE);
-        }
-
-        // DB 저장 (실패 시 Redis 롤백)
-        try {
-            SeatUsage seatUsage = SeatUsage.builder()
-                .seat(seat)
-                .student(student)
-                .store(seat.getStore())
-                .startedAt(LocalDateTime.now())
-                .build();
-            seatUsageRepository.save(seatUsage);
-        } catch (Exception e) {
-            seatRedisService.releaseSeat(storeId, seatId);
-            throw e;
-        }
-
-    }
-
-
-    @Transactional
-    public void seatCheckOut(Long seatId) {
-        Seat seat = seatRepository.findById(seatId)
-            .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_FOUND));
-
-        SeatUsage seatUsage = seatUsageRepository
-            .findBySeatIdAndStatus(seatId, SeatUsageStatus.IN_USE)
-            .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_IN_USE));
-
-        seatUsage.endUsage(LocalDateTime.now());
-
-        try {
-            seatRedisService.releaseSeat(seat.getStore().getId(), seatId);
-        } catch (Exception e) {
-            log.warn("[SeatCheckOut] Redis 좌석 해제 실패 (seatId={}) — DB는 퇴실 처리됨", seatId, e);
-        }
+    public List<AreaResponse> findAreasByStoreId(Long storeId) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
+        return dsaAreaService.findAreas(store);
     }
 
     // ===== 관리자 API =====
 
-    public List<SeatResponse> findAllSeats(Long storeId) {
+    public List<SeatResponse> findAllSeats(Long storeId, String areaCd) {
+        List<Seat> seats;
         if (storeId != null) {
-            return seatRepository.findAllByStoreIdWithStore(storeId)
-                .stream()
-                .map(SeatResponse::fromEntity)
-                .toList();
+            seats = seatRepository.findAllByStoreIdWithStore(storeId);
+        } else {
+            seats = seatRepository.findAllWithStore();
         }
-        return seatRepository.findAllWithStore()
-            .stream()
+
+        return seats.stream()
+            .filter(seat -> areaCd == null || areaCd.equals(seat.getAreaCd()))
             .map(SeatResponse::fromEntity)
             .toList();
     }
@@ -177,8 +140,8 @@ public class SeatService {
     }
 
     @Transactional
-    public SeatResponse createSeat(SeatCreateRequest request) {
-        Store store = storeRepository.findById(request.storeId())
+    public SeatResponse createSeat(SeatCreateRequest request, Long storeId) {
+        Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
         Seat seat = Seat.builder()

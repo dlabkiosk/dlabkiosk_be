@@ -1,0 +1,3 @@
+ALTER TABLE seats
+    ADD COLUMN area_cd VARCHAR(50) NULL COMMENT 'DSA 구역 코드',
+    ADD COLUMN area_nm VARCHAR(100) NULL COMMENT 'DSA 구역명';

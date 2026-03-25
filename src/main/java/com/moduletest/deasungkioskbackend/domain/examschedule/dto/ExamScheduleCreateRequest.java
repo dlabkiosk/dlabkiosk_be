@@ -8,10 +8,6 @@ import java.time.LocalDate;
 
 @Schema(description = "시험 일정 생성 요청")
 public record ExamScheduleCreateRequest(
-    @Schema(description = "지점 ID", example = "1")
-    @NotNull(message = "지점 ID는 필수입니다")
-    Long storeId,
-
     @Schema(description = "시험명", example = "2학기 중간고사")
     @NotBlank(message = "시험명은 필수입니다")
     @Size(max = 100, message = "시험명은 100자를 초과할 수 없습니다")
@@ -20,6 +16,4 @@ public record ExamScheduleCreateRequest(
     @Schema(description = "시험일 (YYYY-MM-DD)", example = "2026-04-15")
     @NotNull(message = "시험일은 필수입니다")
     LocalDate examDate
-) {
-
-}
+) { }

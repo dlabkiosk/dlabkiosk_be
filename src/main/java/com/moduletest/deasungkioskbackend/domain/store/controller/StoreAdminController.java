@@ -41,10 +41,12 @@ public class StoreAdminController {
         return CommonResponse.success(stores);
     }
 
-    @Operation(summary = "지점 단건 조회", description = "지점 ID로 단건 조회한다.")
+    @Operation(summary = "지점 단건 조회",
+        description = "지점 ID로 단건 조회한다. MANAGER는 자기 지점만 조회 가능.")
     @GetMapping("/{storeId}")
     public CommonResponse<StoreResponse> findStoreById(@PathVariable Long storeId) {
-        StoreResponse store = storeService.findStoreById(storeId);
+        Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(storeId);
+        StoreResponse store = storeService.findStoreById(resolvedStoreId);
         return CommonResponse.success(store);
     }
 

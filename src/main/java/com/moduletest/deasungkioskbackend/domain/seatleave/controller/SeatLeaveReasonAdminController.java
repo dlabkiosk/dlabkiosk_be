@@ -30,20 +30,23 @@ public class SeatLeaveReasonAdminController {
     private final SeatLeaveReasonService seatLeaveReasonService;
 
     @Operation(summary = "이탈 사유 목록 조회",
-        description = "지점별 이탈 사유를 조회한다. storeId 필수.")
+        description = "MANAGER: 자기 지점 이탈 사유 조회. ADMIN: 전체 지점 이탈 사유 조회.")
     @GetMapping
-    public CommonResponse<List<SeatLeaveReasonResponse>> findAllReasons(
-        @RequestParam Long storeId) {
-        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
+    public CommonResponse<List<SeatLeaveReasonResponse>> findAllReasons() {
+        Long storeId = SecurityUtil.resolveStoreId(null);
         return CommonResponse.success(
-            seatLeaveReasonService.findAllByStoreId(resolvedStoreId));
+            seatLeaveReasonService.findAllByStoreId(storeId));
     }
 
-    @Operation(summary = "이탈 사유 등록")
+    @Operation(summary = "이탈 사유 등록",
+        description = "MANAGER: 자기 지점에 자동 등록. ADMIN: storeId 필수 — 등록할 지점 지정.")
     @PostMapping
     public CommonResponse<SeatLeaveReasonResponse> createReason(
+        @RequestParam(required = false) Long storeId,
         @Valid @RequestBody SeatLeaveReasonCreateRequest request) {
-        return CommonResponse.success(seatLeaveReasonService.createReason(request));
+        Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(storeId);
+        return CommonResponse.success(
+            seatLeaveReasonService.createReason(request, resolvedStoreId));
     }
 
     @Operation(summary = "이탈 사유 수정")

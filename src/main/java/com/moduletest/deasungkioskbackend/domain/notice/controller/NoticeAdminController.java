@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-
 @Tag(name = "[관리자] 공지사항", description = "공지사항 CRUD (JWT 인증 필요)")
 @RestController
 @RequestMapping("/api/v1/admin/notices")
@@ -31,14 +30,13 @@ public class NoticeAdminController {
     private final NoticeService noticeService;
 
     @Operation(summary = "공지사항 목록 조회",
-        description = "전체 또는 지점별 공지사항을 조회한다. storeId 미입력 시 전체 조회.")
+        description = "MANAGER: 자기 지점 공지만 조회. ADMIN: 전체 공지 조회.")
     @GetMapping
-    public CommonResponse<List<NoticeResponse>> findAllNotices(
-        @RequestParam(required = false) Long storeId) {
-        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
+    public CommonResponse<List<NoticeResponse>> findAllNotices() {
+        Long storeId = SecurityUtil.resolveStoreId(null);
         List<NoticeResponse> notices;
-        if (resolvedStoreId != null) {
-            notices = noticeService.findAllNoticesByStoreId(resolvedStoreId);
+        if (storeId != null) {
+            notices = noticeService.findAllNoticesByStoreId(storeId);
         } else {
             notices = noticeService.findAllNotices();
         }
@@ -52,11 +50,14 @@ public class NoticeAdminController {
         return CommonResponse.success(notice);
     }
 
-    @Operation(summary = "공지사항 등록", description = "새 공지사항을 등록한다.")
+    @Operation(summary = "공지사항 등록",
+        description = "MANAGER: 자기 지점에 자동 등록. ADMIN: storeId 필수 — 등록할 지점 지정.")
     @PostMapping
     public CommonResponse<NoticeResponse> createNotice(
+        @RequestParam(required = false) Long storeId,
         @Valid @RequestBody NoticeCreateRequest request) {
-        NoticeResponse notice = noticeService.createNotice(request);
+        Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(storeId);
+        NoticeResponse notice = noticeService.createNotice(request, resolvedStoreId);
         return CommonResponse.success(notice);
     }
 

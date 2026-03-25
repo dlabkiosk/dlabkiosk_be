@@ -24,4 +24,10 @@ public interface ExamScheduleRepository extends JpaRepository<ExamSchedule, Long
         + "WHERE e.store.id = :storeId "
         + "ORDER BY e.examDate ASC")
     List<ExamSchedule> findAllByStoreIdWithStore(@Param("storeId") Long storeId);
+
+    @Query("SELECT e FROM ExamSchedule e "
+        + "JOIN FETCH e.store "
+        + "WHERE e.store.id = :storeId AND e.active = true "
+        + "ORDER BY e.examDate ASC")
+    List<ExamSchedule> findAllActiveByStoreIdWithStore(@Param("storeId") Long storeId);
 }

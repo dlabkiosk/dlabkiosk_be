@@ -1,5 +1,7 @@
 package com.moduletest.deasungkioskbackend.common.security;
 
+import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
+import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import java.util.Map;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -31,6 +33,14 @@ public final class SecurityUtil {
             return requestedStoreId;
         }
         return getCurrentStoreId();
+    }
+
+    public static Long resolveStoreIdRequired(Long requestedStoreId) {
+        Long resolved = resolveStoreId(requestedStoreId);
+        if (resolved == null) {
+            throw new BusinessException(ErrorCode.STORE_ID_REQUIRED);
+        }
+        return resolved;
     }
 
     @SuppressWarnings("unchecked")

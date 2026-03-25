@@ -76,13 +76,16 @@ public class AuthController {
     }
 
     @Operation(summary = "관리자 로그아웃",
-        description = "Redis에서 토큰을 삭제하고 쿠키를 초기화한다.")
+        description = "Redis에서 현재 세션의 토큰만 삭제하고 쿠키를 초기화한다. 다른 기기의 세션에는 영향 없음.")
     @PostMapping("/logout")
-    public CommonResponse<Void> logout(HttpServletResponse response) {
+    public CommonResponse<Void> logout(HttpServletRequest request,
+                                       HttpServletResponse response) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.isAuthenticated()) {
             Long userId = Long.valueOf(authentication.getName());
-            authService.logout(userId);
+            String accessToken = CookieUtil.extractCookie(request, "accessToken");
+            String refreshToken = CookieUtil.extractCookie(request, "refreshToken");
+            authService.logout(userId, accessToken, refreshToken);
         }
         CookieUtil.clearAccessToken(response);
         CookieUtil.clearRefreshToken(response);

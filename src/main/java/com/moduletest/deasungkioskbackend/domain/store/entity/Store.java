@@ -41,27 +41,68 @@ public class Store extends BaseTimeEntity {
     @Column(name = "kiosk_pin", nullable = false, length = 10)
     private String kioskPin;
 
+    @Column(name = "dsa_acad_cd", length = 50)
+    private String dsaAcadCd;
+
+    @Column(name = "dsa_client_id", length = 100)
+    private String dsaClientId;
+
+    @Column(name = "dsa_secret_id", length = 200)
+    private String dsaSecretId;
+
+    @Column(name = "is_dsa_synced", nullable = false)
+    private boolean dsaSynced;
+
     @Builder
     public Store(String storeName, String storeCode, String address, String phone,
-                 boolean active, String kioskPin) {
+                 boolean active, String kioskPin, String dsaAcadCd, String dsaClientId,
+                 String dsaSecretId, boolean dsaSynced) {
         this.storeName = storeName;
         this.storeCode = storeCode;
         this.address = address;
         this.phone = phone;
         this.active = active;
         this.kioskPin = kioskPin != null ? kioskPin : "0000";
+        this.dsaAcadCd = dsaAcadCd;
+        this.dsaClientId = dsaClientId;
+        this.dsaSecretId = dsaSecretId;
+        this.dsaSynced = dsaSynced;
     }
 
-    public void updateInfo(String storeName, String address, String phone, boolean active) {
-        this.storeName = storeName;
-        this.address = address;
-        this.phone = phone;
-        this.active = active;
+    public void updateInfo(String storeName, String address, String phone, Boolean active) {
+        if (storeName != null && !storeName.isBlank()) {
+            this.storeName = storeName;
+        }
+        if (address != null && !address.isBlank()) {
+            this.address = address;
+        }
+        if (phone != null && !phone.isBlank()) {
+            this.phone = phone;
+        }
+        if (active != null) {
+            this.active = active;
+        }
     }
 
     public void updateKioskPin(String kioskPin) {
-        this.kioskPin = kioskPin;
+        if (kioskPin != null && !kioskPin.isBlank()) {
+            this.kioskPin = kioskPin;
+        }
     }
 
+    public void updateDsaCredentials(String dsaAcadCd, String dsaClientId, String dsaSecretId) {
+        if (dsaAcadCd != null && !dsaAcadCd.isBlank()) {
+            this.dsaAcadCd = dsaAcadCd;
+        }
+        if (dsaClientId != null && !dsaClientId.isBlank()) {
+            this.dsaClientId = dsaClientId;
+        }
+        if (dsaSecretId != null && !dsaSecretId.isBlank()) {
+            this.dsaSecretId = dsaSecretId;
+        }
+    }
 
+    public boolean hasDsaCredentials() {
+        return dsaAcadCd != null && dsaClientId != null && dsaSecretId != null;
+    }
 }

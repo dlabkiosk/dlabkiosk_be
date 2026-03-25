@@ -16,6 +16,11 @@ spring:
         format_sql: true
     open-in-view: false
 
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
   flyway:
     enabled: true
 
@@ -50,3 +55,19 @@ cloud:
 
 server:
   port: 8080
+
+
+
+    #dsa:
+    # api:
+    #  base-url: https://devapi.dshw.co.kr
+  # connect-timeout: 10000
+  # read-timeout: 10000
+
+
+
+dsa:
+  api:
+    base-url: https://api.dshw.co.kr
+    connect-timeout: 10000
+    read-timeout: 10000

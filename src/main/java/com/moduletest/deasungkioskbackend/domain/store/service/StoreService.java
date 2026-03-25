@@ -53,6 +53,9 @@ public class StoreService {
             .phone(request.phone())
             .active(true)
             .kioskPin(request.kioskPin())
+            .dsaAcadCd(request.dsaAcadCd())
+            .dsaClientId(request.dsaClientId())
+            .dsaSecretId(request.dsaSecretId())
             .build();
         Store savedStore = storeRepository.save(store);
         return StoreResponse.fromEntity(savedStore);
@@ -64,10 +67,9 @@ public class StoreService {
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
         store.updateInfo(request.storeName(), request.address(), request.phone(), request.active());
-
-        if (request.kioskPin() != null) {
-            store.updateKioskPin(request.kioskPin());
-        }
+        store.updateKioskPin(request.kioskPin());
+        store.updateDsaCredentials(
+            request.dsaAcadCd(), request.dsaClientId(), request.dsaSecretId());
 
         return StoreResponse.fromEntity(store);
     }

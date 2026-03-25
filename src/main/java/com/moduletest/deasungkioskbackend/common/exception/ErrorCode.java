@@ -27,6 +27,7 @@ public enum ErrorCode {
     // Store
     STORE_NOT_FOUND("ST001", "지점을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     DUPLICATE_STORE_CODE("ST002", "이미 사용 중인 지점 코드입니다", HttpStatus.CONFLICT),
+    STORE_ID_REQUIRED("ST003", "ADMIN은 지점 ID를 지정해야 합니다", HttpStatus.BAD_REQUEST),
 
 
     // Student
@@ -89,7 +90,41 @@ public enum ErrorCode {
 
 
     // Phone Submission
-    ALREADY_SUBMITTED_PHONE("PS001", "오늘 이미 휴대폰 미소지 신청을 했습니다", HttpStatus.CONFLICT),
+    ALREADY_SUBMITTED_PHONE("PS001", "이미 해당 기간에 휴대폰 미소지 신청이 있습니다", HttpStatus.CONFLICT),
+    INVALID_PHONE_SUBMISSION_PERIOD("PS002", "시작일은 종료일보다 이전이어야 합니다", HttpStatus.BAD_REQUEST),
+    PHONE_SUBMISSION_NOT_FOUND("PS003", "해당 휴대폰 미소지 신청을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+
+    // Seat Label
+    STUDENT_NOT_FOUND_BY_SEAT_LABEL("SL004", "해당 좌석에 배정된 학생이 없습니다", HttpStatus.NOT_FOUND),
+
+    // Phone Last4
+    STUDENT_NOT_FOUND_BY_PHONE_LAST4("STU006", "해당 전화번호 뒷자리로 학생을 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND),
+    MULTIPLE_STUDENTS_FOUND_BY_PHONE_LAST4("STU007",
+        "동일한 전화번호 뒷자리를 가진 학생이 여러 명입니다. UUID으로 검색해주세요",
+        HttpStatus.CONFLICT),
+    STUDENT_NOT_IN_STORE("STU008", "해당 지점에 소속된 학생이 아닙니다", HttpStatus.FORBIDDEN),
+
+    // Student Message
+    STUDENT_MESSAGE_NOT_FOUND("SM001", "학생 메시지를 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+    MESSAGE_TEMPLATE_NOT_FOUND("MT001", "메시지 템플릿을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+
+    // Seat Change Request
+    SEAT_CHANGE_REQUEST_NOT_FOUND("SCR001", "좌석 변경 신청을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+    ALREADY_PENDING_SEAT_CHANGE("SCR002", "이미 대기 중인 좌석 변경 신청이 있습니다", HttpStatus.CONFLICT),
+    DESIRED_SEAT_ALREADY_ASSIGNED("SCR003", "희망 좌석이 이미 다른 학생에게 배정되어 있습니다", HttpStatus.CONFLICT),
+    SEAT_CHANGE_ALREADY_PROCESSED("SCR004", "이미 처리된 좌석 변경 신청입니다", HttpStatus.BAD_REQUEST),
+    SEAT_NOT_IN_THIS_STORE("SCR005", "해당 지점의 좌석이 아닙니다", HttpStatus.BAD_REQUEST),
+    DESIRED_SEAT_IS_CURRENT("SCR006", "현재 배정된 좌석과 동일한 좌석입니다", HttpStatus.BAD_REQUEST),
+    SEAT_NOT_IN_REQUEST("SCR007", "해당 좌석은 이 신청의 희망 순위에 포함되어 있지 않습니다", HttpStatus.BAD_REQUEST),
+
+    // Meal
+    NOT_MEAL_TIME("ML001", "현재 식사시간이 아닙니다", HttpStatus.BAD_REQUEST),
+    ALREADY_MEAL_TAGGED("ML002", "이미 급식 태그가 완료되었습니다", HttpStatus.CONFLICT),
+
+    // Meal Menu
+    MEAL_MENU_NOT_FOUND("MM001", "식단을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+
     ;
 
 

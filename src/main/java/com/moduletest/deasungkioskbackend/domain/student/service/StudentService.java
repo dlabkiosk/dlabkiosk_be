@@ -1,21 +1,29 @@
 package com.moduletest.deasungkioskbackend.domain.student.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
+import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionResponse;
+import com.moduletest.deasungkioskbackend.domain.phonesubmission.repository.PhoneSubmissionRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
 import com.moduletest.deasungkioskbackend.domain.seat.exception.SeatException;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatRepository;
+import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.SeatChangeRequestResponse;
+import com.moduletest.deasungkioskbackend.domain.seatchangerequest.repository.SeatChangeRequestRepository;
+import com.moduletest.deasungkioskbackend.domain.seatleave.dto.SeatLeaveResponse;
+import com.moduletest.deasungkioskbackend.domain.seatleave.repository.SeatLeaveRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentCreateRequest;
+import com.moduletest.deasungkioskbackend.domain.student.dto.StudentKioskResponse;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentResponse;
-import com.moduletest.deasungkioskbackend.domain.student.dto.StudentUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.exception.StudentException;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,8 +36,10 @@ public class StudentService {
     private final StudentRepository studentRepository;
     private final StoreRepository storeRepository;
     private final SeatRepository seatRepository;
-    private final QrCodeService qrCodeService;
     private final StudentResolverService studentResolverService;
+    private final SeatChangeRequestRepository seatChangeRequestRepository;
+    private final PhoneSubmissionRepository phoneSubmissionRepository;
+    private final SeatLeaveRepository seatLeaveRepository;
 
     public List<StudentResponse> findAllStudents(Long storeId) {
         if (storeId != null) {
@@ -51,13 +61,9 @@ public class StudentService {
     }
 
     @Transactional
-    public StudentResponse createStudent(StudentCreateRequest request) {
-        Store store = storeRepository.findById(request.storeId())
+    public StudentResponse createStudent(StudentCreateRequest request, Long storeId) {
+        Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
-
-        if (studentRepository.existsByPhone(request.phone())) {
-            throw new StudentException(ErrorCode.DUPLICATE_STUDENT_PHONE);
-        }
 
         if (request.studentNumber() != null && !request.studentNumber().isBlank()
             && studentRepository.existsByStudentNumber(request.studentNumber())) {
@@ -69,37 +75,14 @@ public class StudentService {
         Student student = Student.builder()
             .store(store)
             .name(request.name())
-            .phone(request.phone())
-            .qrUuid(UUID.randomUUID().toString())
-            .grade(request.grade())
             .rfidUid(request.rfidUid())
             .studentNumber(request.studentNumber())
+            .phoneLast4(request.phoneLast4())
             .assignedSeat(assignedSeat)
             .build();
 
         Student savedStudent = studentRepository.save(student);
         return StudentResponse.fromEntity(savedStudent);
-    }
-
-    @Transactional
-    public StudentResponse updateStudent(Long studentId, StudentUpdateRequest request) {
-        Student student = studentRepository.findById(studentId)
-            .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
-
-        Store store = storeRepository.findById(request.storeId())
-            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
-
-        student.updateInfo(request.name(), request.phone(), request.grade(),
-            store, request.studentNumber());
-
-        if (request.rfidUid() != null) {
-            student.updateRfidUid(request.rfidUid());
-        }
-
-        Seat assignedSeat = resolveSeat(request.seatId());
-        student.assignSeat(assignedSeat);
-
-        return StudentResponse.fromEntity(student);
     }
 
     @Transactional
@@ -109,11 +92,39 @@ public class StudentService {
         studentRepository.delete(student);
     }
 
-    public StudentResponse searchStudent(String identifier,
-                                         String studentNumber, String phone) {
-        Student student = studentResolverService.resolveStudent(
-            identifier, studentNumber, phone);
-        return StudentResponse.fromEntity(student);
+    public StudentKioskResponse searchStudentForKiosk(String identifier, Long storeId,
+                                                      InputMethod inputMethod) {
+        Student student = studentResolverService.resolveAuto(
+            identifier, storeId, inputMethod);
+        Long studentId = student.getId();
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime monthStart = today.withDayOfMonth(1).atStartOfDay();
+        LocalDateTime monthEnd = today.plusMonths(1).withDayOfMonth(1).atStartOfDay();
+
+        List<PhoneSubmissionResponse> phoneSubmissions = phoneSubmissionRepository
+            .findAllByStudentIdAndPeriod(studentId, monthStart, monthEnd)
+            .stream()
+            .map(PhoneSubmissionResponse::fromEntity)
+            .toList();
+
+        List<SeatChangeRequestResponse> seatChangeRequests = seatChangeRequestRepository
+            .findAllByStudentIdWithDetails(studentId)
+            .stream()
+            .filter(r -> r.getCreatedAt() != null
+                && !r.getCreatedAt().isBefore(monthStart)
+                && r.getCreatedAt().isBefore(monthEnd))
+            .map(SeatChangeRequestResponse::fromEntity)
+            .toList();
+
+        List<SeatLeaveResponse> seatLeaves = seatLeaveRepository
+            .findAllByStudentIdAndPeriod(studentId, monthStart, monthEnd)
+            .stream()
+            .map(SeatLeaveResponse::fromEntity)
+            .toList();
+
+        return StudentKioskResponse.of(student,
+            phoneSubmissions, seatChangeRequests, seatLeaves);
     }
 
     private Seat resolveSeat(Long seatId) {
@@ -127,6 +138,6 @@ public class StudentService {
     public byte[] generateStudentQrCode(Long studentId) {
         Student student = studentRepository.findById(studentId)
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
-        return qrCodeService.generateQrCodePng(student.getQrUuid());
+        return QrCodeService.generateQrCodePng(student.getRfidUid());
     }
 }

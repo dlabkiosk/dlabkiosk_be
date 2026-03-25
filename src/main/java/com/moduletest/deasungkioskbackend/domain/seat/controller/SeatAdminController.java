@@ -2,8 +2,10 @@ package com.moduletest.deasungkioskbackend.domain.seat.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
+import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatResponse;
+import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.service.SeatService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,13 +32,38 @@ public class SeatAdminController {
     private final SeatService seatService;
 
     @Operation(summary = "좌석 목록 조회",
-        description = "전체 좌석을 조회한다. storeId를 전달하면 해당 지점 좌석만 필터링된다.")
+        description = "MANAGER: 자기 지점 좌석만 조회. ADMIN: 전체 좌석 조회. "
+            + "areaCd 파라미터로 구역(강의실)별 필터링 가능.")
     @GetMapping
     public CommonResponse<List<SeatResponse>> findAllSeats(
-        @RequestParam(required = false) Long storeId) {
-        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
-        List<SeatResponse> seats = seatService.findAllSeats(resolvedStoreId);
+        @RequestParam(required = false) String areaCd) {
+        Long storeId = SecurityUtil.resolveStoreId(null);
+        List<SeatResponse> seats = seatService.findAllSeats(storeId, areaCd);
         return CommonResponse.success(seats);
+    }
+
+    @Operation(summary = "구역별 좌석 현황 조회 (DSA + 이탈 상태)",
+        description = "DSA에서 구역별 좌석 레이아웃과 상태를 조회한다. "
+            + "areaCd 필수. 구역 목록은 /areas에서 먼저 조회.\n\n"
+            + "**좌석 구분(seatGn)**: Y(사용 좌석), N(미사용 좌석), E(통로)\n\n"
+            + "**좌석 상태(state)**: S(등원), D(외출), N(미출석), B(공석), A(좌석이탈)")
+    @GetMapping("/status")
+    public CommonResponse<List<SeatStatusResponse>> findSeatStatus(
+        @RequestParam(required = false) Long storeId,
+        @RequestParam String areaCd) {
+        Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(storeId);
+        List<SeatStatusResponse> seats = seatService.findSeatStatusByArea(resolvedStoreId, areaCd);
+        return CommonResponse.success(seats);
+    }
+
+    @Operation(summary = "구역(강의실) 목록 조회",
+        description = "지점의 구역 목록을 조회한다. 좌석 현황 조회 전 구역 선택에 사용.")
+    @GetMapping("/areas")
+    public CommonResponse<List<AreaResponse>> findAreas(
+        @RequestParam(required = false) Long storeId) {
+        Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(storeId);
+        List<AreaResponse> areas = seatService.findAreasByStoreId(resolvedStoreId);
+        return CommonResponse.success(areas);
     }
 
     @Operation(summary = "좌석 단건 조회", description = "좌석 ID로 단건 조회한다.")
@@ -47,11 +74,15 @@ public class SeatAdminController {
     }
 
     @Operation(summary = "좌석 등록",
-        description = "새 좌석을 등록한다. 좌표(x_pos, y_pos)는 캔버스 픽셀 단위.")
+        description = "MANAGER: 자기 지점에 자동 등록. "
+            + "ADMIN: storeId 필수 — 등록할 지점 지정. "
+            + "좌표(x_pos, y_pos)는 캔버스 픽셀 단위.")
     @PostMapping
     public CommonResponse<SeatResponse> createSeat(
+        @RequestParam(required = false) Long storeId,
         @Valid @RequestBody SeatCreateRequest request) {
-        SeatResponse seat = seatService.createSeat(request);
+        Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(storeId);
+        SeatResponse seat = seatService.createSeat(request, resolvedStoreId);
         return CommonResponse.success(seat);
     }
 

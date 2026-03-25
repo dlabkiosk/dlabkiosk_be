@@ -16,5 +16,11 @@ public record StoreCreateRequest(
     String phone,
     @Schema(description = "키오스크 PIN (미입력 시 0000)", example = "1234")
     @Size(max = 10, message = "PIN은 10자를 초과할 수 없습니다.")
-    String kioskPin
+    String kioskPin,
+    @Schema(description = "DSA 학원 고유코드", example = "ACAD001")
+    String dsaAcadCd,
+    @Schema(description = "DSA 키오스크 ID", example = "kiosk_client_01")
+    String dsaClientId,
+    @Schema(description = "DSA 시크릿 키", example = "secret_key_01")
+    String dsaSecretId
 ) { }

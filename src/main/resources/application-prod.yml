@@ -10,6 +10,11 @@ spring:
       ddl-auto: validate
     open-in-view: false
 
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
   flyway:
     enabled: true
 
@@ -40,6 +45,12 @@ cloud:
     region:
       static: ap-northeast-2
 
-      
+
+dsa:
+  api:
+    base-url: https://api.dshw.co.kr
+    connect-timeout: 5000
+    read-timeout: 10000
+
 server:
   port: 8080
