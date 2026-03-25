@@ -66,4 +66,14 @@ public class Student extends BaseTimeEntity {
     public void assignSeat(Seat seat) {
         this.assignedSeat = seat;
     }
+
+    public void syncFromDsa(String name, String rfidUid, String studentNumber,
+                            String phoneLast4, Seat assignedSeat) {
+        this.name = name;
+        this.rfidUid = rfidUid;
+        this.studentNumber = studentNumber;
+        this.phoneLast4 = phoneLast4;
+        this.assignedSeat = assignedSeat;
+        this.dsaSynced = true;
+    }
 }

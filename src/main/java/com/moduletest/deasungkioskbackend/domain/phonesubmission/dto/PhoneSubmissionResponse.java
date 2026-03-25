@@ -37,22 +37,17 @@ public record PhoneSubmissionResponse(
 ) {
 
     public static PhoneSubmissionResponse fromEntity(PhoneSubmission ps) {
-        return fromEntity(ps, null);
+        return fromEntity(ps, ps.getParentPhone());
     }
 
     public static PhoneSubmissionResponse fromEntity(PhoneSubmission ps,
         String parentPhoneNumber) {
-        return fromEntity(ps, null, parentPhoneNumber);
-    }
-
-    public static PhoneSubmissionResponse fromEntity(PhoneSubmission ps,
-        String className, String parentPhoneNumber) {
         return new PhoneSubmissionResponse(
             ps.getId(),
             ps.getStudent().getId(),
             ps.getStudent().getName(),
             ps.getStudent().getStudentNumber(),
-            className,
+            null,
             ps.getStudent().getAssignedSeat() != null
                 ? ps.getStudent().getAssignedSeat().getSeatLabel() : null,
             ps.getSubmissionType(),

@@ -194,6 +194,11 @@ public class TagService {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new KioskException(ErrorCode.STORE_NOT_FOUND));
 
+        // 외출/조퇴 시 사유신청권 재확인
+        if (request.action() == AttendAction.D || request.action() == AttendAction.C) {
+            validateApprovedRequest(student, store, request.action());
+        }
+
         // DSA 3.14에 태그 전송
         dsaAttendanceService.sendAttendTag(student.getRfidUid(), store);
 
@@ -202,6 +207,55 @@ public class TagService {
             case C -> handleCheckOut(AttendAction.C, student, storeId, true);
             default -> throw new AttendanceException(ErrorCode.INVALID_INPUT_VALUE);
         };
+    }
+
+    private void validateApprovedRequest(Student student, Store store, AttendAction action) {
+        List<ApprovedRequest> approved = dsaRequestService
+            .findApprovedRequests(student.getRfidUid(), store);
+
+        if (approved.isEmpty()) {
+            throw new AttendanceException(ErrorCode.OUTING_NOT_APPROVED);
+        }
+
+        boolean hasMatchingApproval = approved.stream()
+            .anyMatch(req -> matchesAction(req.regGn(), action)
+                && isWithin30Minutes(req.regDt()));
+
+        if (!hasMatchingApproval) {
+            throw new AttendanceException(ErrorCode.OUTING_NOT_APPROVED);
+        }
+    }
+
+    private boolean matchesAction(String regGn, AttendAction action) {
+        if (regGn == null) {
+            return true;
+        }
+        if (action == AttendAction.C) {
+            return "6".equals(regGn) || "C".equalsIgnoreCase(regGn)
+                || "조퇴".equals(regGn);
+        }
+        if (action == AttendAction.D) {
+            return "4".equals(regGn) || "7".equals(regGn)
+                || "D".equalsIgnoreCase(regGn) || "N".equalsIgnoreCase(regGn)
+                || "외출".equals(regGn);
+        }
+        return true;
+    }
+
+    private boolean isWithin30Minutes(String regDt) {
+        if (regDt == null || regDt.isBlank()) {
+            return true;
+        }
+        try {
+            LocalDateTime requestedTime = LocalDateTime.parse(regDt,
+                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            LocalDateTime now = LocalDateTime.now();
+            long minutesBefore = Duration.between(now, requestedTime).toMinutes();
+            return minutesBefore <= 30;
+        } catch (Exception e) {
+            log.warn("reg_dt 파싱 실패: {}", regDt);
+            return true;
+        }
     }
 
     @Transactional
@@ -313,15 +367,20 @@ public class TagService {
     private List<PendingAction> buildPendingActions(List<ApprovedRequest> requests) {
         List<PendingAction> actions = new ArrayList<>();
         for (ApprovedRequest req : requests) {
+            if (!isWithin30Minutes(req.regDt())) {
+                continue;
+            }
+
             String regGn = req.regGn();
             AttendAction action;
             String message;
 
-            // TODO: DSA reg_gn 값 확정 후 정확한 매핑 필요
-            if ("C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn)) {
+            if ("6".equals(regGn) || "C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn)) {
                 action = AttendAction.C;
                 message = "조퇴 하시겠습니까?";
-            } else if ("D".equalsIgnoreCase(regGn) || "외출".equals(regGn)) {
+            } else if ("4".equals(regGn) || "7".equals(regGn)
+                || "D".equalsIgnoreCase(regGn) || "N".equalsIgnoreCase(regGn)
+                || "외출".equals(regGn)) {
                 action = AttendAction.D;
                 message = "외출 하시겠습니까?";
             } else {

@@ -47,4 +47,6 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     boolean existsByAssignedSeatId(Long assignedSeatId);
 
     long countByStoreId(Long storeId);
+
+    List<Student> findAllByStoreId(Long storeId);
 }

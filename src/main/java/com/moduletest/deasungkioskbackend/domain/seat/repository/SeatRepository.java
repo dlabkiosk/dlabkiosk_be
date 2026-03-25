@@ -18,4 +18,5 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     @Query("SELECT s FROM Seat s JOIN FETCH s.store WHERE s.id = :id")
     Optional<Seat> findByIdWithStore(@Param("id") Long id);
 
+    Optional<Seat> findBySeatCdAndStoreId(String seatCd, Long storeId);
 }

@@ -55,16 +55,20 @@ public class PhoneSubmission extends BaseTimeEntity {
     @Column(name = "memo")
     private String memo;
 
+    @Column(name = "parent_phone", length = 100)
+    private String parentPhone;
+
     @Builder
     public PhoneSubmission(Student student, Store store, LocalDateTime submittedAt,
                            PhoneSubmissionType submissionType,
-                           LocalDate startDate, LocalDate endDate) {
+                           LocalDate startDate, LocalDate endDate, String parentPhone) {
         this.student = student;
         this.store = store;
         this.submittedAt = submittedAt;
         this.submissionType = submissionType;
         this.startDate = startDate;
         this.endDate = endDate;
+        this.parentPhone = parentPhone;
     }
 
     public void updateSubmission(PhoneSubmissionType submissionType,
