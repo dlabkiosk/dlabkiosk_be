@@ -45,21 +45,30 @@ public class AdvertisementAdminController {
     }
 
     @Operation(summary = "광고 등록",
-        description = "multipart/form-data로 파일과 설정을 함께 전송. mediaType은 IMAGE 또는 VIDEO.")
+        description = "multipart/form-data로 파일과 설정을 함께 전송. mediaType은 IMAGE 또는 VIDEO.\n\n"
+            + "이미지 크롭: cropX, cropY, cropWidth, cropHeight를 함께 전송하면 "
+            + "해당 영역만 잘라서 저장합니다. 미전송 시 원본 그대로 저장.")
     @PostMapping(consumes = "multipart/form-data")
     public CommonResponse<AdvertisementResponse> createAdvertisement(
         @RequestParam Long storeId,
         @RequestParam MultipartFile file,
         @RequestParam(defaultValue = "IMAGE") String mediaType,
         @RequestParam(defaultValue = "0") int displayOrder,
-        @RequestParam(defaultValue = "5") int displaySeconds) {
+        @RequestParam(defaultValue = "5") int displaySeconds,
+        @RequestParam(required = false) Integer cropX,
+        @RequestParam(required = false) Integer cropY,
+        @RequestParam(required = false) Integer cropWidth,
+        @RequestParam(required = false) Integer cropHeight) {
         return CommonResponse.success(
             advertisementService.createAdvertisement(
-                storeId, file, mediaType, displayOrder, displaySeconds));
+                storeId, file, mediaType, displayOrder, displaySeconds,
+                cropX, cropY, cropWidth, cropHeight));
     }
 
     @Operation(summary = "광고 수정",
-        description = "파일 변경 시 file 포함, 설정만 변경 시 file 없이 전송.")
+        description = "파일 변경 시 file 포함, 설정만 변경 시 file 없이 전송.\n\n"
+            + "이미지 크롭: cropX, cropY, cropWidth, cropHeight를 함께 전송하면 "
+            + "해당 영역만 잘라서 저장합니다.")
     @PutMapping(value = "/{id}", consumes = "multipart/form-data")
     public CommonResponse<AdvertisementResponse> updateAdvertisement(
         @PathVariable Long id,
@@ -67,10 +76,15 @@ public class AdvertisementAdminController {
         @RequestParam(required = false) String mediaType,
         @RequestParam(required = false) Integer displayOrder,
         @RequestParam(required = false) Integer displaySeconds,
-        @RequestParam(required = false) Boolean active) {
+        @RequestParam(required = false) Boolean active,
+        @RequestParam(required = false) Integer cropX,
+        @RequestParam(required = false) Integer cropY,
+        @RequestParam(required = false) Integer cropWidth,
+        @RequestParam(required = false) Integer cropHeight) {
         return CommonResponse.success(
             advertisementService.updateAdvertisement(
-                id, file, mediaType, displayOrder, displaySeconds, active));
+                id, file, mediaType, displayOrder, displaySeconds, active,
+                cropX, cropY, cropWidth, cropHeight));
     }
 
     @Operation(summary = "광고 삭제")
