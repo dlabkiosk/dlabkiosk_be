@@ -207,7 +207,8 @@ public class TagService {
             .orElseThrow(() -> new KioskException(ErrorCode.STORE_NOT_FOUND));
 
         // 외출/조퇴 시 사유신청권 재확인
-        if (request.action() == AttendAction.D || request.action() == AttendAction.C) {
+        if (request.action() == AttendAction.D || request.action() == AttendAction.N
+                || request.action() == AttendAction.C) {
             validateApprovedRequest(student, store, request.action());
         }
 
@@ -216,8 +217,8 @@ public class TagService {
             student.getRfidUid(), store);
 
         return switch (request.action()) {
-            case D -> handleOutingStart(
-                AttendAction.D, student, storeId, confirmResult.dsaSynced());
+            case D, N -> handleOutingStart(
+                request.action(), student, storeId, confirmResult.dsaSynced());
             case C -> handleCheckOut(
                 AttendAction.C, student, storeId, confirmResult.dsaSynced());
             default -> throw new AttendanceException(ErrorCode.INVALID_INPUT_VALUE);
@@ -249,7 +250,7 @@ public class TagService {
             return "6".equals(regGn) || "C".equalsIgnoreCase(regGn)
                 || "조퇴".equals(regGn);
         }
-        if (action == AttendAction.D) {
+        if (action == AttendAction.D || action == AttendAction.N) {
             return "4".equals(regGn) || "7".equals(regGn)
                 || "D".equalsIgnoreCase(regGn) || "N".equalsIgnoreCase(regGn)
                 || "외출".equals(regGn);
