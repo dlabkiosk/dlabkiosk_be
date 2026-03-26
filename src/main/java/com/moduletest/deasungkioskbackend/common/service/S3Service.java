@@ -3,7 +3,6 @@ package com.moduletest.deasungkioskbackend.common.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.exception.FileUploadException;
-import java.io.InputStream;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -51,28 +50,6 @@ public class S3Service {
                 RequestBody.fromInputStream(file.getInputStream(), file.getSize())
             );
 
-        } catch (Exception e) {
-            throw new FileUploadException(ErrorCode.FILE_UPLOAD_FAILED);
-        }
-
-        return "https://" + bucket + ".s3." + region + ".amazonaws.com/" + key;
-    }
-
-    public String upload(InputStream inputStream, long contentLength,
-                         String contentType, String extension) {
-        String key = UUID.randomUUID() + extension;
-
-        try {
-            PutObjectRequest putRequest = PutObjectRequest.builder()
-                .bucket(bucket)
-                .key(key)
-                .contentType(contentType)
-                .build();
-
-            s3Client.putObject(
-                putRequest,
-                RequestBody.fromInputStream(inputStream, contentLength)
-            );
         } catch (Exception e) {
             throw new FileUploadException(ErrorCode.FILE_UPLOAD_FAILED);
         }

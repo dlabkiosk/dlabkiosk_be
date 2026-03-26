@@ -1,9 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.advertisement.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
-import com.moduletest.deasungkioskbackend.common.service.ImageCropService;
 import com.moduletest.deasungkioskbackend.common.service.S3Service;
-import java.io.InputStream;
 import com.moduletest.deasungkioskbackend.domain.advertisement.dto.AdvertisementResponse;
 import com.moduletest.deasungkioskbackend.domain.advertisement.entity.Advertisement;
 import com.moduletest.deasungkioskbackend.domain.advertisement.exception.AdvertisementException;
@@ -25,7 +23,6 @@ public class AdvertisementService {
     private final AdvertisementRepository advertisementRepository;
     private final StoreRepository storeRepository;
     private final S3Service s3Service;
-    private final ImageCropService imageCropService;
 
     public List<AdvertisementResponse> findAllAdvertisements(Long storeId) {
         if (storeId != null) {
@@ -53,13 +50,11 @@ public class AdvertisementService {
     @Transactional
     public AdvertisementResponse createAdvertisement(Long storeId, MultipartFile file,
         String mediaType, int displayOrder,
-        int displaySeconds,
-        Integer cropX, Integer cropY,
-        Integer cropWidth, Integer cropHeight) {
+        int displaySeconds) {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
-        String fileUrl = uploadWithCrop(file, cropX, cropY, cropWidth, cropHeight);
+        String fileUrl = s3Service.upload(file);
 
         Advertisement advertisement = Advertisement.builder()
             .store(store)
@@ -77,43 +72,18 @@ public class AdvertisementService {
     @Transactional
     public AdvertisementResponse updateAdvertisement(Long id, MultipartFile file,
         String mediaType, Integer displayOrder,
-        Integer displaySeconds, Boolean active,
-        Integer cropX, Integer cropY,
-        Integer cropWidth, Integer cropHeight) {
+        Integer displaySeconds, Boolean active) {
         Advertisement advertisement = advertisementRepository.findByIdWithStore(id)
             .orElseThrow(() -> new AdvertisementException(ErrorCode.ADVERTISEMENT_NOT_FOUND));
 
         String newImageUrl = null;
         if (file != null && !file.isEmpty()) {
             s3Service.delete(advertisement.getImageUrl());
-            newImageUrl = uploadWithCrop(file, cropX, cropY, cropWidth, cropHeight);
+            newImageUrl = s3Service.upload(file);
         }
 
         advertisement.updateInfo(newImageUrl, mediaType, displayOrder, displaySeconds, active);
         return AdvertisementResponse.fromEntity(advertisement);
-    }
-
-    private String uploadWithCrop(MultipartFile file,
-                                   Integer cropX, Integer cropY,
-                                   Integer cropWidth, Integer cropHeight) {
-        if (cropX != null && cropY != null && cropWidth != null && cropHeight != null) {
-            long croppedSize = imageCropService.getCroppedSize(
-                file, cropX, cropY, cropWidth, cropHeight);
-            InputStream croppedStream = imageCropService.cropImage(
-                file, cropX, cropY, cropWidth, cropHeight);
-
-            String extension = extractExtension(file.getOriginalFilename());
-            return s3Service.upload(croppedStream, croppedSize,
-                file.getContentType(), extension);
-        }
-        return s3Service.upload(file);
-    }
-
-    private String extractExtension(String filename) {
-        if (filename != null && filename.contains(".")) {
-            return filename.substring(filename.lastIndexOf("."));
-        }
-        return ".png";
     }
 
     @Transactional
