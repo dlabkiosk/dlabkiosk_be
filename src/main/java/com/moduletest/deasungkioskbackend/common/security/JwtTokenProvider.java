@@ -55,7 +55,6 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
             .subject(String.valueOf(storeId))
-            .claim("storeId", storeId)
             .claim("storeCode", storeCode)
             .claim("role", "KIOSK")
             .issuedAt(now)
