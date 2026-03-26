@@ -1,6 +1,8 @@
 package com.moduletest.deasungkioskbackend.domain.student.service;
 
+import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionResponse;
@@ -58,6 +60,7 @@ public class StudentService {
     public StudentResponse findStudentById(Long studentId) {
         Student student = studentRepository.findByIdWithStore(studentId)
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
+        validateStoreAccess(student);
         return StudentResponse.fromEntity(student);
     }
 
@@ -88,8 +91,9 @@ public class StudentService {
 
     @Transactional
     public void deleteStudent(Long studentId) {
-        Student student = studentRepository.findById(studentId)
+        Student student = studentRepository.findByIdWithStore(studentId)
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
+        validateStoreAccess(student);
         studentRepository.delete(student);
     }
 
@@ -143,8 +147,18 @@ public class StudentService {
     }
 
     public byte[] generateStudentQrCode(Long studentId) {
-        Student student = studentRepository.findById(studentId)
+        Student student = studentRepository.findByIdWithStore(studentId)
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
+        validateStoreAccess(student);
         return QrCodeService.generateQrCodePng(student.getRfidUid());
+    }
+
+    private void validateStoreAccess(Student student) {
+        if (!SecurityUtil.isAdmin()) {
+            Long storeId = SecurityUtil.getCurrentStoreId();
+            if (!student.getStore().getId().equals(storeId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+        }
     }
 }

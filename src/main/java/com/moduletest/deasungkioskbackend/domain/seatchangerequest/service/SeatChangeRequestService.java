@@ -4,6 +4,7 @@ import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAreaService;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaSeatService;
 import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
@@ -230,6 +231,7 @@ public class SeatChangeRequestService {
         SeatChangeRequest request = seatChangeRequestRepository.findByIdWithDetails(requestId)
             .orElseThrow(() -> new SeatChangeRequestException(
                 ErrorCode.SEAT_CHANGE_REQUEST_NOT_FOUND));
+        validateStoreAccess(request);
         return SeatChangeRequestResponse.fromEntity(request);
     }
 
@@ -238,6 +240,7 @@ public class SeatChangeRequestService {
         SeatChangeRequest request = seatChangeRequestRepository.findByIdWithDetails(requestId)
             .orElseThrow(() -> new SeatChangeRequestException(
                 ErrorCode.SEAT_CHANGE_REQUEST_NOT_FOUND));
+        validateStoreAccess(request);
 
         if (request.getStatus() != SeatChangeRequestStatus.PENDING) {
             throw new SeatChangeRequestException(ErrorCode.SEAT_CHANGE_ALREADY_PROCESSED);
@@ -292,6 +295,7 @@ public class SeatChangeRequestService {
         SeatChangeRequest request = seatChangeRequestRepository.findByIdWithDetails(requestId)
             .orElseThrow(() -> new SeatChangeRequestException(
                 ErrorCode.SEAT_CHANGE_REQUEST_NOT_FOUND));
+        validateStoreAccess(request);
 
         if (request.getStatus() != SeatChangeRequestStatus.PENDING) {
             throw new SeatChangeRequestException(ErrorCode.SEAT_CHANGE_ALREADY_PROCESSED);
@@ -408,6 +412,15 @@ public class SeatChangeRequestService {
             case 3 -> request.getDesiredSeat3();
             default -> throw new SeatChangeRequestException(ErrorCode.SEAT_NOT_IN_REQUEST);
         };
+    }
+
+    private void validateStoreAccess(SeatChangeRequest request) {
+        if (!SecurityUtil.isAdmin()) {
+            Long storeId = SecurityUtil.getCurrentStoreId();
+            if (!request.getStore().getId().equals(storeId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+        }
     }
 
     private Seat findSeatInStore(Long seatId, Long storeId) {
