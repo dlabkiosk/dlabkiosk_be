@@ -1,6 +1,8 @@
 package com.moduletest.deasungkioskbackend.domain.notice.service;
 
+import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.notice.dto.NoticeCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.notice.dto.NoticeResponse;
 import com.moduletest.deasungkioskbackend.domain.notice.dto.NoticeUpdateRequest;
@@ -74,6 +76,7 @@ public class NoticeService {
     public NoticeResponse updateNotice(Long noticeId, NoticeUpdateRequest request) {
         Notice notice = noticeRepository.findByIdWithStore(noticeId)
             .orElseThrow(() -> new NoticeException(ErrorCode.NOTICE_NOT_FOUND));
+        validateStoreAccess(notice);
 
         notice.updateInfo(request.title(), request.content(), request.pinned(), request.active());
         return NoticeResponse.fromEntity(notice);
@@ -81,8 +84,18 @@ public class NoticeService {
 
     @Transactional
     public void deleteNotice(Long noticeId) {
-        Notice notice = noticeRepository.findById(noticeId)
+        Notice notice = noticeRepository.findByIdWithStore(noticeId)
             .orElseThrow(() -> new NoticeException(ErrorCode.NOTICE_NOT_FOUND));
+        validateStoreAccess(notice);
         noticeRepository.delete(notice);
+    }
+
+    private void validateStoreAccess(Notice notice) {
+        if (!SecurityUtil.isAdmin()) {
+            Long storeId = SecurityUtil.getCurrentStoreId();
+            if (!notice.getStore().getId().equals(storeId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+        }
     }
 }

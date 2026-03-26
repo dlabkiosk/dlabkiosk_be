@@ -1,7 +1,11 @@
 package com.moduletest.deasungkioskbackend.domain.advertisement.service;
 
+import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
+import com.moduletest.deasungkioskbackend.common.service.ImageCropService;
 import com.moduletest.deasungkioskbackend.common.service.S3Service;
+import java.io.InputStream;
 import com.moduletest.deasungkioskbackend.domain.advertisement.dto.AdvertisementResponse;
 import com.moduletest.deasungkioskbackend.domain.advertisement.entity.Advertisement;
 import com.moduletest.deasungkioskbackend.domain.advertisement.exception.AdvertisementException;
@@ -23,6 +27,7 @@ public class AdvertisementService {
     private final AdvertisementRepository advertisementRepository;
     private final StoreRepository storeRepository;
     private final S3Service s3Service;
+    private final ImageCropService imageCropService;
 
     public List<AdvertisementResponse> findAllAdvertisements(Long storeId) {
         if (storeId != null) {
@@ -38,6 +43,7 @@ public class AdvertisementService {
     public AdvertisementResponse findAdvertisementById(Long id) {
         Advertisement advertisement = advertisementRepository.findByIdWithStore(id)
             .orElseThrow(() -> new AdvertisementException(ErrorCode.ADVERTISEMENT_NOT_FOUND));
+        validateStoreAccess(advertisement);
         return AdvertisementResponse.fromEntity(advertisement);
     }
 
@@ -50,11 +56,13 @@ public class AdvertisementService {
     @Transactional
     public AdvertisementResponse createAdvertisement(Long storeId, MultipartFile file,
         String mediaType, int displayOrder,
-        int displaySeconds) {
+        int displaySeconds,
+        Integer cropX, Integer cropY,
+        Integer cropWidth, Integer cropHeight) {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
-        String fileUrl = s3Service.upload(file);
+        String fileUrl = uploadWithCrop(file, cropX, cropY, cropWidth, cropHeight);
 
         Advertisement advertisement = Advertisement.builder()
             .store(store)
@@ -72,24 +80,60 @@ public class AdvertisementService {
     @Transactional
     public AdvertisementResponse updateAdvertisement(Long id, MultipartFile file,
         String mediaType, Integer displayOrder,
-        Integer displaySeconds, Boolean active) {
+        Integer displaySeconds, Boolean active,
+        Integer cropX, Integer cropY,
+        Integer cropWidth, Integer cropHeight) {
         Advertisement advertisement = advertisementRepository.findByIdWithStore(id)
             .orElseThrow(() -> new AdvertisementException(ErrorCode.ADVERTISEMENT_NOT_FOUND));
+        validateStoreAccess(advertisement);
 
         String newImageUrl = null;
         if (file != null && !file.isEmpty()) {
             s3Service.delete(advertisement.getImageUrl());
-            newImageUrl = s3Service.upload(file);
+            newImageUrl = uploadWithCrop(file, cropX, cropY, cropWidth, cropHeight);
         }
 
         advertisement.updateInfo(newImageUrl, mediaType, displayOrder, displaySeconds, active);
         return AdvertisementResponse.fromEntity(advertisement);
     }
 
+    private String uploadWithCrop(MultipartFile file,
+                                   Integer cropX, Integer cropY,
+                                   Integer cropWidth, Integer cropHeight) {
+        if (cropX != null && cropY != null && cropWidth != null && cropHeight != null) {
+            long croppedSize = imageCropService.getCroppedSize(
+                file, cropX, cropY, cropWidth, cropHeight);
+            InputStream croppedStream = imageCropService.cropImage(
+                file, cropX, cropY, cropWidth, cropHeight);
+
+            String extension = extractExtension(file.getOriginalFilename());
+            return s3Service.upload(croppedStream, croppedSize,
+                file.getContentType(), extension);
+        }
+        return s3Service.upload(file);
+    }
+
+    private void validateStoreAccess(Advertisement advertisement) {
+        if (!SecurityUtil.isAdmin()) {
+            Long storeId = SecurityUtil.getCurrentStoreId();
+            if (!advertisement.getStore().getId().equals(storeId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+        }
+    }
+
+    private String extractExtension(String filename) {
+        if (filename != null && filename.contains(".")) {
+            return filename.substring(filename.lastIndexOf("."));
+        }
+        return ".png";
+    }
+
     @Transactional
     public void deleteAdvertisement(Long id) {
-        Advertisement advertisement = advertisementRepository.findById(id)
+        Advertisement advertisement = advertisementRepository.findByIdWithStore(id)
             .orElseThrow(() -> new AdvertisementException(ErrorCode.ADVERTISEMENT_NOT_FOUND));
+        validateStoreAccess(advertisement);
         s3Service.delete(advertisement.getImageUrl());
         advertisementRepository.delete(advertisement);
     }
