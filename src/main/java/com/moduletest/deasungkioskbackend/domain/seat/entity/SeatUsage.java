@@ -65,4 +65,8 @@ public class SeatUsage extends BaseTimeEntity {
         this.status = SeatUsageStatus.ENDED;
         this.endedAt = endedAt;
     }
+
+    public void changeSeat(Seat newSeat) {
+        this.seat = newSeat;
+    }
 }
