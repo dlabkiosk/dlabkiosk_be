@@ -39,12 +39,13 @@ public class MessageTemplateAdminController {
     }
 
     @Operation(summary = "메시지 템플릿 등록",
-        description = "자주 사용하는 문구를 템플릿으로 저장한다.")
+        description = "MANAGER: 자기 지점에 자동 등록. ADMIN: storeId 필수 — 등록할 지점 지정.")
     @PostMapping
     public CommonResponse<MessageTemplateResponse> createTemplate(
         @Valid @RequestBody MessageTemplateCreateRequest request) {
+        Long resolvedStoreId = SecurityUtil.resolveStoreIdRequired(request.storeId());
         return CommonResponse.success(
-            messageTemplateService.createTemplate(request));
+            messageTemplateService.createTemplate(request, resolvedStoreId));
     }
 
     @Operation(summary = "메시지 템플릿 수정")

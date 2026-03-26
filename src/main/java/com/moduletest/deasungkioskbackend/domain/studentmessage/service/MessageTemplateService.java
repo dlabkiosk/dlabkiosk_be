@@ -1,6 +1,8 @@
 package com.moduletest.deasungkioskbackend.domain.studentmessage.service;
 
+import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
@@ -37,8 +39,9 @@ public class MessageTemplateService {
     }
 
     @Transactional
-    public MessageTemplateResponse createTemplate(MessageTemplateCreateRequest request) {
-        Store store = storeRepository.findById(request.storeId())
+    public MessageTemplateResponse createTemplate(MessageTemplateCreateRequest request,
+                                                   Long storeId) {
+        Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
         MessageTemplate template = MessageTemplate.builder()
@@ -56,6 +59,7 @@ public class MessageTemplateService {
         MessageTemplate template = messageTemplateRepository.findByIdWithStore(id)
             .orElseThrow(() -> new StudentMessageException(
                 ErrorCode.MESSAGE_TEMPLATE_NOT_FOUND));
+        validateStoreAccess(template);
 
         template.updateContent(request.content());
         return MessageTemplateResponse.fromEntity(template);
@@ -63,9 +67,19 @@ public class MessageTemplateService {
 
     @Transactional
     public void deleteTemplate(Long id) {
-        MessageTemplate template = messageTemplateRepository.findById(id)
+        MessageTemplate template = messageTemplateRepository.findByIdWithStore(id)
             .orElseThrow(() -> new StudentMessageException(
                 ErrorCode.MESSAGE_TEMPLATE_NOT_FOUND));
+        validateStoreAccess(template);
         messageTemplateRepository.delete(template);
+    }
+
+    private void validateStoreAccess(MessageTemplate template) {
+        if (!SecurityUtil.isAdmin()) {
+            Long storeId = SecurityUtil.getCurrentStoreId();
+            if (!template.getStore().getId().equals(storeId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+        }
     }
 }
