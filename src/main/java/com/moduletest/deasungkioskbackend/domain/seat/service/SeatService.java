@@ -1,7 +1,9 @@
 package com.moduletest.deasungkioskbackend.domain.seat.service;
 
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAreaService;
+import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatResponse;
@@ -136,6 +138,7 @@ public class SeatService {
     public SeatResponse findSeatById(Long seatId) {
         Seat seat = seatRepository.findByIdWithStore(seatId)
             .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_FOUND));
+        validateStoreAccess(seat);
         return SeatResponse.fromEntity(seat);
     }
 
@@ -159,8 +162,9 @@ public class SeatService {
 
     @Transactional
     public SeatResponse updateSeat(Long seatId, SeatUpdateRequest request) {
-        Seat seat = seatRepository.findById(seatId)
+        Seat seat = seatRepository.findByIdWithStore(seatId)
             .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_FOUND));
+        validateStoreAccess(seat);
 
         seat.updateInfo(
             request.seatLabel(),
@@ -174,9 +178,19 @@ public class SeatService {
 
     @Transactional
     public void deleteSeat(Long seatId) {
-        Seat seat = seatRepository.findById(seatId)
+        Seat seat = seatRepository.findByIdWithStore(seatId)
             .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_FOUND));
+        validateStoreAccess(seat);
         seatRepository.delete(seat);
+    }
+
+    private void validateStoreAccess(Seat seat) {
+        if (!SecurityUtil.isAdmin()) {
+            Long storeId = SecurityUtil.getCurrentStoreId();
+            if (!seat.getStore().getId().equals(storeId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+        }
     }
 
 }

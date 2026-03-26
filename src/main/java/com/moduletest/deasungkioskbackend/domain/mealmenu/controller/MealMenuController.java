@@ -1,13 +1,13 @@
 package com.moduletest.deasungkioskbackend.domain.mealmenu.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
-import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.mealmenu.dto.MealMenuWeekResponse;
 import com.moduletest.deasungkioskbackend.domain.mealmenu.service.MealMenuService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -27,7 +27,7 @@ public class MealMenuController {
     @GetMapping
     public CommonResponse<MealMenuWeekResponse> findWeeklyMenu(
         @RequestParam(required = false) LocalDate weekStartDate) {
-        Long storeId = SecurityUtil.getCurrentStoreId();
+        Long storeId = getStoreIdFromToken();
         if (weekStartDate == null) {
             LocalDate today = LocalDate.now();
             weekStartDate = today.minusDays(
@@ -36,5 +36,10 @@ public class MealMenuController {
         MealMenuWeekResponse response = mealMenuService
             .findWeeklyMenu(storeId, weekStartDate);
         return CommonResponse.success(response);
+    }
+
+    private Long getStoreIdFromToken() {
+        return Long.valueOf(
+            SecurityContextHolder.getContext().getAuthentication().getName());
     }
 }

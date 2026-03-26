@@ -1,6 +1,8 @@
 package com.moduletest.deasungkioskbackend.domain.seatleave.service;
 
+import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatRepository;
 import com.moduletest.deasungkioskbackend.domain.seatleave.dto.SeatLeaveReasonCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.seatleave.dto.SeatLeaveReasonResponse;
@@ -62,16 +64,27 @@ public class SeatLeaveReasonService {
     @Transactional
     public SeatLeaveReasonResponse updateReason(Long reasonId,
         SeatLeaveReasonUpdateRequest request) {
-        SeatLeaveReason reason = seatLeaveReasonRepository.findById(reasonId)
+        SeatLeaveReason reason = seatLeaveReasonRepository.findByIdWithStore(reasonId)
             .orElseThrow(() -> new SeatLeaveException(ErrorCode.SEAT_LEAVE_REASON_NOT_FOUND));
+        validateStoreAccess(reason);
         reason.updateInfo(request.reasonName(), request.displayOrder(), request.active());
         return SeatLeaveReasonResponse.fromEntity(reason);
     }
 
     @Transactional
     public void deleteReason(Long id) {
-        SeatLeaveReason reason = seatLeaveReasonRepository.findById(id)
+        SeatLeaveReason reason = seatLeaveReasonRepository.findByIdWithStore(id)
             .orElseThrow(() -> new SeatLeaveException(ErrorCode.SEAT_LEAVE_REASON_NOT_FOUND));
+        validateStoreAccess(reason);
         seatLeaveReasonRepository.delete(reason);
+    }
+
+    private void validateStoreAccess(SeatLeaveReason reason) {
+        if (!SecurityUtil.isAdmin()) {
+            Long storeId = SecurityUtil.getCurrentStoreId();
+            if (!reason.getStore().getId().equals(storeId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+        }
     }
 }

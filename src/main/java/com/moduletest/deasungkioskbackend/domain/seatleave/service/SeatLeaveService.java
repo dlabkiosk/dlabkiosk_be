@@ -1,6 +1,8 @@
 package com.moduletest.deasungkioskbackend.domain.seatleave.service;
 
+import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsage;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsageStatus;
@@ -115,6 +117,7 @@ public class SeatLeaveService {
     public SeatLeaveResponse forceEndLeave(Long seatLeaveId) {
         SeatLeave seatLeave = seatLeaveRepository.findByIdWithDetails(seatLeaveId)
             .orElseThrow(() -> new SeatLeaveException(ErrorCode.NOT_ON_SEAT_LEAVE));
+        validateStoreAccess(seatLeave);
 
         if (seatLeave.getEndedAt() != null) {
             throw new SeatLeaveException(ErrorCode.NOT_ON_SEAT_LEAVE);
@@ -203,6 +206,15 @@ public class SeatLeaveService {
             return out.toByteArray();
         } catch (IOException e) {
             throw new SeatLeaveException(ErrorCode.FILE_UPLOAD_FAILED);
+        }
+    }
+
+    private void validateStoreAccess(SeatLeave seatLeave) {
+        if (!SecurityUtil.isAdmin()) {
+            Long storeId = SecurityUtil.getCurrentStoreId();
+            if (!seatLeave.getStore().getId().equals(storeId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
         }
     }
 

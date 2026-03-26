@@ -1,6 +1,8 @@
 package com.moduletest.deasungkioskbackend.domain.examschedule.service;
 
+import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.examschedule.dto.ExamScheduleCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.examschedule.dto.ExamScheduleResponse;
 import com.moduletest.deasungkioskbackend.domain.examschedule.dto.ExamScheduleUpdateRequest;
@@ -47,6 +49,7 @@ public class ExamScheduleService {
     public ExamScheduleResponse findExamScheduleById(Long examScheduleId) {
         ExamSchedule examSchedule = examScheduleRepository.findByIdWithStore(examScheduleId)
             .orElseThrow(() -> new ExamScheduleException(ErrorCode.EXAM_SCHEDULE_NOT_FOUND));
+        validateStoreAccess(examSchedule);
         return ExamScheduleResponse.fromEntity(examSchedule);
     }
 
@@ -71,6 +74,7 @@ public class ExamScheduleService {
         ExamScheduleUpdateRequest request) {
         ExamSchedule examSchedule = examScheduleRepository.findByIdWithStore(examScheduleId)
             .orElseThrow(() -> new ExamScheduleException(ErrorCode.EXAM_SCHEDULE_NOT_FOUND));
+        validateStoreAccess(examSchedule);
 
         examSchedule.updateInfo(request.examName(), request.examDate());
         return ExamScheduleResponse.fromEntity(examSchedule);
@@ -78,8 +82,9 @@ public class ExamScheduleService {
 
     @Transactional
     public void deleteExamSchedule(Long examScheduleId) {
-        ExamSchedule examSchedule = examScheduleRepository.findById(examScheduleId)
+        ExamSchedule examSchedule = examScheduleRepository.findByIdWithStore(examScheduleId)
             .orElseThrow(() -> new ExamScheduleException(ErrorCode.EXAM_SCHEDULE_NOT_FOUND));
+        validateStoreAccess(examSchedule);
         examScheduleRepository.delete(examSchedule);
     }
 
@@ -87,7 +92,17 @@ public class ExamScheduleService {
     public ExamScheduleResponse toggleActive(Long examScheduleId) {
         ExamSchedule examSchedule = examScheduleRepository.findByIdWithStore(examScheduleId)
             .orElseThrow(() -> new ExamScheduleException(ErrorCode.EXAM_SCHEDULE_NOT_FOUND));
+        validateStoreAccess(examSchedule);
         examSchedule.toggleActive();
         return ExamScheduleResponse.fromEntity(examSchedule);
+    }
+
+    private void validateStoreAccess(ExamSchedule examSchedule) {
+        if (!SecurityUtil.isAdmin()) {
+            Long storeId = SecurityUtil.getCurrentStoreId();
+            if (!examSchedule.getStore().getId().equals(storeId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+        }
     }
 }
