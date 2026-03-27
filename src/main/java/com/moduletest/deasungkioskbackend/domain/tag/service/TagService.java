@@ -75,6 +75,7 @@ public class TagService {
         Student student = studentResolverService.resolveAuto(
             request.identifier(), storeId, request.inputMethod());
         validateStudentStore(student, storeId);
+        // 비관적 락: 동일 학생 동시 태그 방지
         studentRepository.findByIdForUpdate(student.getId());
 
         Store store = storeRepository.findById(storeId)
@@ -201,6 +202,7 @@ public class TagService {
         Student student = studentResolverService.resolveAuto(
             request.identifier(), storeId, request.inputMethod());
         validateStudentStore(student, storeId);
+        // 비관적 락: 동일 학생 동시 태그 방지
         studentRepository.findByIdForUpdate(student.getId());
 
         Store store = storeRepository.findById(storeId)
@@ -212,15 +214,18 @@ public class TagService {
             validateApprovedRequest(student, store, request.action());
         }
 
-        // DSA 3.14에 태그 전송
+        // DSA 3.14에 태그 전송 — 실패 시 처리 중단
         AttendTagResult confirmResult = dsaAttendanceService.sendAttendTag(
             student.getRfidUid(), store);
+        if (!confirmResult.dsaSynced()) {
+            throw new AttendanceException(ErrorCode.DSA_SYNC_FAILED);
+        }
 
         return switch (request.action()) {
             case D, N -> handleOutingStart(
-                request.action(), student, storeId, confirmResult.dsaSynced());
+                request.action(), student, storeId, true);
             case C -> handleCheckOut(
-                AttendAction.C, student, storeId, confirmResult.dsaSynced());
+                AttendAction.C, student, storeId, true);
             default -> throw new AttendanceException(ErrorCode.INVALID_INPUT_VALUE);
         };
     }
@@ -235,7 +240,7 @@ public class TagService {
 
         boolean hasMatchingApproval = approved.stream()
             .anyMatch(req -> matchesAction(req.regGn(), action)
-                && isWithin30Minutes(req.regDt()));
+                && (action == AttendAction.C || isWithin30Minutes(req.regDt())));
 
         if (!hasMatchingApproval) {
             throw new AttendanceException(ErrorCode.OUTING_NOT_APPROVED);
@@ -266,8 +271,8 @@ public class TagService {
             LocalDateTime requestedTime = LocalDateTime.parse(regDt,
                 java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
             LocalDateTime now = LocalDateTime.now();
-            long minutesBefore = Duration.between(now, requestedTime).toMinutes();
-            return minutesBefore <= 30;
+            long minutesUntil = Duration.between(now, requestedTime).toMinutes();
+            return minutesUntil <= 30;
         } catch (Exception e) {
             log.warn("reg_dt 파싱 실패: {}", regDt);
             return true;
@@ -383,15 +388,19 @@ public class TagService {
     private List<PendingAction> buildPendingActions(List<ApprovedRequest> requests) {
         List<PendingAction> actions = new ArrayList<>();
         for (ApprovedRequest req : requests) {
-            if (!isWithin30Minutes(req.regDt())) {
+            String regGn = req.regGn();
+            boolean isEarlyLeave = "6".equals(regGn)
+                || "C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn);
+
+            // 외출만 30분 제한, 조퇴는 항상 허용
+            if (!isEarlyLeave && !isWithin30Minutes(req.regDt())) {
                 continue;
             }
 
-            String regGn = req.regGn();
             AttendAction action;
             String message;
 
-            if ("6".equals(regGn) || "C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn)) {
+            if (isEarlyLeave) {
                 action = AttendAction.C;
                 message = "조퇴 하시겠습니까?";
             } else if ("4".equals(regGn) || "7".equals(regGn)
@@ -641,9 +650,11 @@ public class TagService {
             storeId, student.getId(),
             seatLeave.getStartedAt(), seatLeave.getEndedAt());
 
-        seatRedisService.markSeatInUse(
-            storeId, seatLeave.getSeat().getId(),
-            student.getId(), student.getName());
+        if (seatLeave.getSeat() != null) {
+            seatRedisService.markSeatInUse(
+                storeId, seatLeave.getSeat().getId(),
+                student.getId(), student.getName());
+        }
 
         return TagResponse.builder()
             .processed(true)

@@ -81,13 +81,13 @@ public final class StudentDetailDsaService {
             DsaResponse response = dsaApiClient.post(
                 "/kiosk/getPointStdList", params, DsaResponse.class, store);
 
-            if (!response.isSuccess() || response.getData() == null) {
+            if (!response.isSuccess() || response.getDataAsList() == null) {
                 log.warn("DSA 상벌점 조회 실패 - code: {}", response.getCode());
                 return null;
             }
 
             List<DsaPointRecord> records = new ArrayList<>();
-            for (Map<String, Object> item : response.getData()) {
+            for (Map<String, Object> item : response.getDataAsList()) {
                 String stdNo = getStringValue(item, "std_no");
                 if (studentNumber != null && !studentNumber.equals(stdNo)) {
                     continue;
@@ -123,13 +123,13 @@ public final class StudentDetailDsaService {
             DsaResponse response = dsaApiClient.post(
                 "/kiosk/getReceiptInfo", params, DsaResponse.class, store);
 
-            if (!response.isSuccess() || response.getData() == null) {
+            if (!response.isSuccess() || response.getDataAsList() == null) {
                 log.warn("DSA 수납 조회 실패 - code: {}", response.getCode());
                 return null;
             }
 
             List<DsaReceiptRecord> records = new ArrayList<>();
-            for (Map<String, Object> item : response.getData()) {
+            for (Map<String, Object> item : response.getDataAsList()) {
                 records.add(DsaReceiptRecord.builder()
                     .receiptName(getStringValue(item, "rcv_nm"))
                     .suppliedAmount(getStringValue(item, "supp_amt"))
@@ -163,13 +163,13 @@ public final class StudentDetailDsaService {
             DsaResponse response = dsaApiClient.post(
                 "/kiosk/getMealApplyStdInfo", params, DsaResponse.class, store);
 
-            if (!response.isSuccess() || response.getData() == null) {
+            if (!response.isSuccess() || response.getDataAsList() == null) {
                 log.warn("DSA 급식 신청 조회 실패 - code: {}", response.getCode());
                 return null;
             }
 
             List<DsaMealApplication> records = new ArrayList<>();
-            for (Map<String, Object> item : response.getData()) {
+            for (Map<String, Object> item : response.getDataAsList()) {
                 String stdNo = getStringValue(item, "std_no");
                 if (studentNumber != null && !studentNumber.equals(stdNo)) {
                     continue;

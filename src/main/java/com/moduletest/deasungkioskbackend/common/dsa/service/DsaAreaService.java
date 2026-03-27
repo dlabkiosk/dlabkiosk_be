@@ -50,14 +50,14 @@ public final class DsaAreaService {
                 GET_STUDY_AREA_INFO_PATH, params, DsaResponse.class,
                 store, dsaSeatRestTemplate);
 
-            if (!response.isSuccess() || response.getData() == null) {
+            if (!response.isSuccess() || response.getDataAsList() == null) {
                 log.warn("DSA getStudyAreaInfo 실패 - code: {}, message: {}. storeId: {}",
                     response.getCode(), response.getMessage(), store.getId());
                 return List.of();
             }
 
             List<AreaResponse> areas = new ArrayList<>();
-            for (Map<String, Object> item : response.getData()) {
+            for (Map<String, Object> item : response.getDataAsList()) {
                 String areaCd = String.valueOf(item.get("area_cd"));
                 String areaNm = String.valueOf(item.get("area_nm"));
                 areas.add(new AreaResponse(areaCd, areaNm));
@@ -95,7 +95,7 @@ public final class DsaAreaService {
                 GET_STUDY_AREA_SEAT_INFO_PATH, seatParams, DsaResponse.class,
                 store, dsaSeatRestTemplate);
 
-            if (!seatResponse.isSuccess() || seatResponse.getData() == null) {
+            if (!seatResponse.isSuccess() || seatResponse.getDataAsList() == null) {
                 log.warn("DSA getStudyAreaSeatInfo 실패. storeId: {}", store.getId());
                 return List.of();
             }
@@ -109,8 +109,8 @@ public final class DsaAreaService {
                 store, dsaSeatRestTemplate);
 
             Map<String, String> stateMap = new HashMap<>();
-            if (stateResponse.isSuccess() && stateResponse.getData() != null) {
-                for (Map<String, Object> item : stateResponse.getData()) {
+            if (stateResponse.isSuccess() && stateResponse.getDataAsList() != null) {
+                for (Map<String, Object> item : stateResponse.getDataAsList()) {
                     stateMap.put(
                         String.valueOf(item.get("seat_cd")),
                         String.valueOf(item.get("state")));
@@ -119,7 +119,7 @@ public final class DsaAreaService {
 
             // 합치기
             List<SeatStatusResponse> result = new ArrayList<>();
-            for (Map<String, Object> seat : seatResponse.getData()) {
+            for (Map<String, Object> seat : seatResponse.getDataAsList()) {
                 String seatCd = String.valueOf(seat.get("seat_cd"));
                 String seatNm = seat.get("seat_nm") != null
                     ? String.valueOf(seat.get("seat_nm")) : "";

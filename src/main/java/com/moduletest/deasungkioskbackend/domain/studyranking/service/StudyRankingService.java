@@ -91,11 +91,11 @@ public class StudyRankingService {
             DsaResponse rankingList = callDsaSafe(
                 "/kiosk/getLastWeekStudyTimeList", store);
 
-            if (rankingList == null || rankingList.getData() == null) {
+            if (rankingList == null || rankingList.getDataAsList() == null) {
                 continue;
             }
 
-            for (Map<String, Object> item : rankingList.getData()) {
+            for (Map<String, Object> item : rankingList.getDataAsList()) {
                 String studentName = String.valueOf(item.getOrDefault("std_nm", ""));
                 String studyTime = String.valueOf(item.getOrDefault("att_tm", "0시간 0분"));
 

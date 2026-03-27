@@ -109,12 +109,16 @@ public class StudentResolverService {
             throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
         }
         if (inputMethod != null) {
-            return switch (inputMethod) {
+            Student student = switch (inputMethod) {
                 case RFID -> resolveByIdentifier(value.trim());
                 case SEAT_LABEL -> resolveBySeatLabel(value.trim(), storeId);
                 case PHONE_LAST4 -> resolveByPhoneLast4(value.trim(), storeId);
                 case PHONE -> resolveByPhone(value.trim(), storeId);
             };
+            if (!student.getStore().getId().equals(storeId)) {
+                throw new StudentException(ErrorCode.STUDENT_NOT_IN_STORE);
+            }
+            return student;
         }
         return resolveAutoInternal(value, storeId);
     }

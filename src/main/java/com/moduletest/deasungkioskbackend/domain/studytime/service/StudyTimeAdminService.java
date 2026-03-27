@@ -106,13 +106,13 @@ public class StudyTimeAdminService {
             DsaResponse response = dsaApiClient.post(
                 "/kiosk/getStudyTimeList", params, DsaResponse.class, store);
 
-            if (!response.isSuccess() || response.getData() == null) {
+            if (!response.isSuccess() || response.getDataAsList() == null) {
                 log.warn("DSA getStudyTimeList 실패 - code: {}, message: {}",
                     response.getCode(), response.getMessage());
                 return result;
             }
 
-            for (Map<String, Object> item : response.getData()) {
+            for (Map<String, Object> item : response.getDataAsList()) {
                 String stdNo = getStringValue(item, "std_no");
                 String studyDt = getStringValue(item, "study_dt");
                 String attTm = getStringValue(item, "att_tm");

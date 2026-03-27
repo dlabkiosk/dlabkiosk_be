@@ -2,6 +2,7 @@ package com.moduletest.deasungkioskbackend.common.dsa.dto;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +17,7 @@ public class DsaResponse {
 
     private int code;
     private String message;
-    private List<Map<String, Object>> data;
+    private Object data;
 
     @JsonProperty("total_inwon")
     private String totalInwon;
@@ -33,5 +34,21 @@ public class DsaResponse {
 
     public boolean isSuccess() {
         return code == 0;
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> getDataAsList() {
+        if (data == null) {
+            return null;
+        }
+        if (data instanceof List<?> list) {
+            if (list.isEmpty()) {
+                return Collections.emptyList();
+            }
+            if (list.get(0) instanceof Map) {
+                return (List<Map<String, Object>>) data;
+            }
+        }
+        return Collections.emptyList();
     }
 }
