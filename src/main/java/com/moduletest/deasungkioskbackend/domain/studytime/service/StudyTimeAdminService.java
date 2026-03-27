@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public final class StudyTimeAdminService {
+public class StudyTimeAdminService {
 
     private static final Pattern TIME_PATTERN =
         Pattern.compile("(\\d+)시간\\s*(\\d+)분");

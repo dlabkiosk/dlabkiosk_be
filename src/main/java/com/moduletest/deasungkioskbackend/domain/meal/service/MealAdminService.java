@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public final class MealAdminService {
+public class MealAdminService {
 
     private final DsaApiClient dsaApiClient;
     private final StoreRepository storeRepository;

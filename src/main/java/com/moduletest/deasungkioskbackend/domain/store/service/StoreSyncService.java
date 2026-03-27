@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public final class StoreSyncService {
+public class StoreSyncService {
 
     private final DsaStoreService dsaStoreService;
     private final StoreRepository storeRepository;

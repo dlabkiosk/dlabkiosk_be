@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public final class StudentSyncService {
+public class StudentSyncService {
 
     private final DsaStudentService dsaStudentService;
     private final StudentRepository studentRepository;
