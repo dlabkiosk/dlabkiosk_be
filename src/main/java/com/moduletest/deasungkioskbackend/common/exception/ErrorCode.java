@@ -123,6 +123,8 @@ public enum ErrorCode {
     OUTING_NOT_APPROVED("OT004", "승인된 외출/조퇴 신청이 없습니다", HttpStatus.FORBIDDEN),
     EARLY_LEAVE_RE_ATTEND_FAILED("OT005",
         "재등원 처리에 실패했습니다. 잠시 후 다시 시도해주세요.", HttpStatus.BAD_GATEWAY),
+    DSA_SYNC_FAILED("OT006",
+        "DSA 출결 처리에 실패했습니다. 잠시 후 다시 시도해주세요.", HttpStatus.BAD_GATEWAY),
 
     // Meal
     NOT_MEAL_TIME("ML001", "현재 식사시간이 아닙니다", HttpStatus.BAD_REQUEST),

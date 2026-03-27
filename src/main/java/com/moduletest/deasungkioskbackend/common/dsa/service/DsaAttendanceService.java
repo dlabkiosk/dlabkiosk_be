@@ -137,8 +137,8 @@ public class DsaAttendanceService {
         }
 
         // data 리스트에서 확인
-        if (response.getData() != null && !response.getData().isEmpty()) {
-            Object dataAttGn = response.getData().get(0).get("att_gn");
+        if (response.getDataAsList() != null && !response.getDataAsList().isEmpty()) {
+            Object dataAttGn = response.getDataAsList().get(0).get("att_gn");
             if (dataAttGn != null) {
                 return dataAttGn.toString().trim();
             }

@@ -92,11 +92,11 @@ public class DashboardService {
             DsaResponse response = dsaApiClient.post(
                 "/kiosk/getMealApplyStdInfo", params, DsaResponse.class, store);
 
-            if (!response.isSuccess() || response.getData() == null) {
+            if (!response.isSuccess() || response.getDataAsList() == null) {
                 return null;
             }
 
-            long count = response.getData().stream()
+            long count = response.getDataAsList().stream()
                 .filter(item -> todayDay.equals(String.valueOf(item.get("day"))))
                 .count();
 

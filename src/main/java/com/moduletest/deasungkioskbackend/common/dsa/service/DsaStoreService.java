@@ -34,14 +34,14 @@ public final class DsaStoreService {
             DsaResponse response = dsaApiClient.post(
                 GET_DLAB_LIST_PATH, params, DsaResponse.class, store);
 
-            if (!response.isSuccess() || response.getData() == null) {
+            if (!response.isSuccess() || response.getDataAsList() == null) {
                 log.warn("DSA getDlabList 실패 - code: {}, message: {}",
                     response.getCode(), response.getMessage());
                 return List.of();
             }
 
             List<DsaStoreData> stores = new ArrayList<>();
-            for (Map<String, Object> item : response.getData()) {
+            for (Map<String, Object> item : response.getDataAsList()) {
                 DsaStoreData data = DsaStoreData.fromMap(item);
                 if (data.acadCd() != null && data.acadNm() != null) {
                     stores.add(data);

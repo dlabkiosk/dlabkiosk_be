@@ -36,13 +36,13 @@ public final class DsaParentPhoneService {
             DsaResponse response = dsaApiClient.post(
                 GET_PARENT_HP_LIST_PATH, params, DsaResponse.class, store);
 
-            if (!response.isSuccess() || response.getData() == null
-                || response.getData().isEmpty()) {
+            if (!response.isSuccess() || response.getDataAsList() == null
+                || response.getDataAsList().isEmpty()) {
                 return null;
             }
 
             StringJoiner joiner = new StringJoiner(" / ");
-            for (Map<String, Object> item : response.getData()) {
+            for (Map<String, Object> item : response.getDataAsList()) {
                 String pgb = String.valueOf(item.get("p_gb"));
                 String php = String.valueOf(item.get("p_hp"));
                 String label = formatParentLabel(pgb);

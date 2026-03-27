@@ -39,14 +39,14 @@ public final class DsaStudentService {
             DsaResponse response = dsaApiClient.post(
                 GET_STD_INFO_LIST_PATH, params, DsaResponse.class, store);
 
-            if (!response.isSuccess() || response.getData() == null) {
+            if (!response.isSuccess() || response.getDataAsList() == null) {
                 log.warn("DSA getStdInfoList 실패 - code: {}, message: {}. storeId: {}",
                     response.getCode(), response.getMessage(), store.getId());
                 return List.of();
             }
 
             List<DsaStudentData> students = new ArrayList<>();
-            for (Map<String, Object> item : response.getData()) {
+            for (Map<String, Object> item : response.getDataAsList()) {
                 log.debug("DSA 학생 원본 데이터: {}", item);
                 DsaStudentData data = DsaStudentData.fromMap(item);
                 log.info("DSA 학생 파싱 결과 - name: {}, seatCd: {}", data.stdNm(), data.seatCd());
@@ -88,12 +88,12 @@ public final class DsaStudentService {
             DsaResponse response = dsaApiClient.post(
                 GET_STD_INFO_PATH, params, DsaResponse.class, store);
 
-            if (!response.isSuccess() || response.getData() == null
-                || response.getData().isEmpty()) {
+            if (!response.isSuccess() || response.getDataAsList() == null
+                || response.getDataAsList().isEmpty()) {
                 return null;
             }
 
-            Map<String, Object> data = response.getData().get(0);
+            Map<String, Object> data = response.getDataAsList().get(0);
             Object hp = data.get("hp");
             if (hp == null) {
                 hp = data.get("p_hp");

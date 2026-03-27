@@ -45,12 +45,12 @@ public class DsaRequestService {
             DsaResponse response = dsaApiClient.post(
                 GET_REQUEST_LIST_PATH, params, DsaResponse.class, store);
 
-            if (!response.isSuccess() || response.getData() == null) {
+            if (!response.isSuccess() || response.getDataAsList() == null) {
                 return Collections.emptyList();
             }
 
             List<ApprovedRequest> approved = new ArrayList<>();
-            for (Map<String, Object> item : response.getData()) {
+            for (Map<String, Object> item : response.getDataAsList()) {
                 String state = getStringValue(item, "state");
                 if ("S".equals(state)) {
                     approved.add(new ApprovedRequest(

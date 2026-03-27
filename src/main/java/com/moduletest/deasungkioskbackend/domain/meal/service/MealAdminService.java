@@ -113,8 +113,8 @@ public class MealAdminService {
                 DsaResponse response = dsaApiClient.post(
                     "/kiosk/getMealApplyStdInfo", params, DsaResponse.class, store);
 
-                if (response.isSuccess() && response.getData() != null) {
-                    for (Map<String, Object> item : response.getData()) {
+                if (response.isSuccess() && response.getDataAsList() != null) {
+                    for (Map<String, Object> item : response.getDataAsList()) {
                         String stdNo = String.valueOf(item.get("std_no"));
                         String day = String.valueOf(item.get("day"));
                         String mealGb = String.valueOf(item.get("meal_gb"));

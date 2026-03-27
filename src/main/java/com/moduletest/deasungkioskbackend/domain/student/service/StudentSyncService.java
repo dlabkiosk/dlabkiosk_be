@@ -70,7 +70,12 @@ public class StudentSyncService {
     @Transactional
     public StudentSyncResult synchronizeStudentsByStore(Store store) {
 
-        seatService.synchronizeSeats(store);
+        try {
+            seatService.synchronizeSeats(store);
+        } catch (Exception e) {
+            log.error("좌석 동기화 실패 - 학생 동기화는 계속 진행. storeId: {}",
+                store.getId(), e);
+        }
 
         List<DsaStudentData> dsaStudents = dsaStudentService.findAllStudents(store);
         if (dsaStudents.isEmpty()) {

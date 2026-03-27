@@ -41,6 +41,9 @@ public class DsaApiClient {
                     path, params, responseType, store, restTemplate);
             }
             throw e;
+        } catch (Exception e) {
+            log.error("DSA API 호출 실패 - path: {}, storeId: {}", path, store.getId(), e);
+            throw new DsaApiException(-1, "DSA API 호출 실패: " + e.getMessage());
         }
     }
 
