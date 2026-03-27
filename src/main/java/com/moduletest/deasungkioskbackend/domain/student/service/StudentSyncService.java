@@ -14,6 +14,7 @@ import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepositor
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -80,11 +81,6 @@ public class StudentSyncService {
             .filter(s -> s.getRfidUid() != null)
             .collect(Collectors.toMap(Student::getRfidUid, Function.identity()));
 
-        Map<String, Student> byStudentNumber = existingStudents.stream()
-            .filter(s -> s.getStudentNumber() != null)
-            .collect(Collectors.toMap(Student::getStudentNumber, Function.identity(),
-                (existing, duplicate) -> existing));
-
         int created = 0;
         int updated = 0;
         int unchanged = 0;
@@ -96,7 +92,7 @@ public class StudentSyncService {
                 Seat seat = resolveSeat(dsaStudent.seatCd(), store);
                 String phone = dsaStudentService.findStudentPhone(
                     dsaStudent.rfidNo(), store);
-                Student matched = findMatchingStudent(dsaStudent, byRfidUid, byStudentNumber);
+                Student matched = findMatchingStudent(dsaStudent, byRfidUid);
 
                 if (matched != null) {
                     if (hasChanges(matched, dsaStudent, seat, phone)) {
@@ -125,9 +121,6 @@ public class StudentSyncService {
                     studentRepository.save(newStudent);
 
                     byRfidUid.put(newStudent.getRfidUid(), newStudent);
-                    if (newStudent.getStudentNumber() != null) {
-                        byStudentNumber.put(newStudent.getStudentNumber(), newStudent);
-                    }
                     created++;
                 }
             } catch (Exception e) {
@@ -148,19 +141,10 @@ public class StudentSyncService {
     }
 
     private Student findMatchingStudent(DsaStudentData dsaStudent,
-                                        Map<String, Student> byRfidUid,
-                                        Map<String, Student> byStudentNumber) {
+                                        Map<String, Student> byRfidUid) {
         if (dsaStudent.rfidNo() != null) {
-            Student matched = byRfidUid.get(dsaStudent.rfidNo());
-            if (matched != null) {
-                return matched;
-            }
+            return byRfidUid.get(dsaStudent.rfidNo());
         }
-
-        if (dsaStudent.stdNo() != null) {
-            return byStudentNumber.get(dsaStudent.stdNo());
-        }
-
         return null;
     }
 
@@ -199,9 +183,14 @@ public class StudentSyncService {
 
     private Seat resolveSeat(String seatCd, Store store) {
         if (seatCd == null || seatCd.isBlank()) {
+            log.warn("resolveSeat: seatCd가 null/blank. storeId: {}", store.getId());
             return null;
         }
-        return seatRepository.findBySeatCdAndStoreId(seatCd, store.getId())
-            .orElse(null);
+        log.info("resolveSeat: seatCd='{}', storeId={}", seatCd, store.getId());
+        Optional<Seat> seat = seatRepository.findBySeatCdAndStoreId(seatCd, store.getId());
+        if (seat.isEmpty()) {
+            log.warn("resolveSeat: 좌석 못 찾음. seatCd='{}', storeId={}", seatCd, store.getId());
+        }
+        return seat.orElse(null);
     }
 }

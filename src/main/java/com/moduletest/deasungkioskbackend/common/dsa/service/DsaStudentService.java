@@ -94,11 +94,14 @@ public final class DsaStudentService {
             }
 
             Map<String, Object> data = response.getData().get(0);
-            Object pHp = data.get("p_hp");
-            if (pHp == null) {
+            Object hp = data.get("hp");
+            if (hp == null) {
+                hp = data.get("p_hp");
+            }
+            if (hp == null) {
                 return null;
             }
-            String phone = String.valueOf(pHp).replaceAll("[^0-9]", "");
+            String phone = String.valueOf(hp).replaceAll("[^0-9]", "");
             if (phone.length() >= 8) {
                 return phone.substring(phone.length() - 8);
             }
