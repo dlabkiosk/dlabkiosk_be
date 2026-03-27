@@ -32,6 +32,7 @@ public class StudentSyncService {
     private final StoreRepository storeRepository;
     private final SeatRepository seatRepository;
 
+    @Transactional
     public List<StudentSyncResult> synchronizeAllStores() {
         List<Store> stores = storeRepository.findAllWithDsaCredentials();
         log.info("학생 동기화 시작: DSA 인증정보 있는 지점 {}개", stores.size());
@@ -54,6 +55,7 @@ public class StudentSyncService {
         return results;
     }
 
+    @Transactional
     public StudentSyncResult synchronizeByStoreId(Long storeId) {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
