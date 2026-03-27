@@ -258,12 +258,13 @@ public class SeatChangeRequestService {
 
         // DSA 3.23 좌석 변경 동기화 (DSA 먼저, 실패 시 승인 중단)
         Store store = request.getStore();
-        if (approvedSeat.getSeatCd() != null) {
-            boolean dsaSuccess = dsaSeatService.sendSeatChange(
-                student.getRfidUid(), approvedSeat.getSeatCd(), store);
-            if (!dsaSuccess) {
-                throw new BusinessException(ErrorCode.DSA_SEAT_CHANGE_FAILED);
-            }
+        if (approvedSeat.getSeatCd() == null) {
+            throw new BusinessException(ErrorCode.DSA_SEAT_CHANGE_FAILED);
+        }
+        boolean dsaSuccess = dsaSeatService.sendSeatChange(
+            student.getRfidUid(), approvedSeat.getSeatCd(), store);
+        if (!dsaSuccess) {
+            throw new BusinessException(ErrorCode.DSA_SEAT_CHANGE_FAILED);
         }
 
         Seat oldSeat = student.getAssignedSeat();

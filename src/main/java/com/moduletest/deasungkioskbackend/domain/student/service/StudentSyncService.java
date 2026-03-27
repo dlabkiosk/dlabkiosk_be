@@ -105,13 +105,15 @@ public class StudentSyncService {
                 Student matched = findMatchingStudent(dsaStudent, byRfidUid);
 
                 if (matched != null) {
-                    if (hasChanges(matched, dsaStudent, seat, phone)) {
+                    // DSA 3.24 실패 시 기존 전화번호 유지
+                    String resolvedPhone = phone != null ? phone : matched.getPhone();
+                    if (hasChanges(matched, dsaStudent, seat, resolvedPhone)) {
                         matched.syncFromDsa(
                             dsaStudent.stdNm(),
                             dsaStudent.rfidNo(),
                             dsaStudent.stdNo(),
                             dsaStudent.hp(),
-                            phone,
+                            resolvedPhone,
                             seat);
                         updated++;
                     } else {
