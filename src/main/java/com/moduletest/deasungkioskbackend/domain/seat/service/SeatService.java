@@ -204,6 +204,55 @@ public class SeatService {
         seatRepository.delete(seat);
     }
 
+    /**
+     * 전 구역 좌석 동기화. DSA 3.7(구역) + 3.8(좌석) 호출하여 upsert.
+     */
+    @Transactional
+    public void synchronizeSeats(Store store) {
+        List<AreaResponse> areas = dsaAreaService.findAreas(store);
+        if (areas.isEmpty()) {
+            return;
+        }
+
+        List<Seat> allSeats = seatRepository.findAllByStoreIdWithStore(store.getId());
+        Map<String, Seat> seatLabelMap = new HashMap<>();
+        for (Seat seat : allSeats) {
+            seatLabelMap.put(seat.getSeatLabel(), seat);
+        }
+
+        for (AreaResponse area : areas) {
+            List<SeatStatusResponse> dsaSeats =
+                dsaAreaService.findSeatStatusByArea(area.areaCd(), store);
+
+            for (SeatStatusResponse dsaSeat : dsaSeats) {
+                if (dsaSeat.seatNm() == null || dsaSeat.seatNm().isEmpty()) {
+                    continue;
+                }
+                Seat seat = seatLabelMap.get(dsaSeat.seatNm());
+                if (seat != null) {
+                    seat.syncFromDsa(dsaSeat.seatNm(), dsaSeat.seatCd(),
+                        dsaSeat.xPos(), dsaSeat.yPos(),
+                        area.areaCd(), area.areaNm(), dsaSeat.seatGn());
+                } else {
+                    seat = seatRepository.save(Seat.builder()
+                        .store(store)
+                        .seatLabel(dsaSeat.seatNm())
+                        .seatType(SeatType.INDIVIDUAL)
+                        .xPos(dsaSeat.xPos())
+                        .yPos(dsaSeat.yPos())
+                        .active(true)
+                        .areaCd(area.areaCd())
+                        .areaNm(area.areaNm())
+                        .seatCd(dsaSeat.seatCd())
+                        .seatGn(dsaSeat.seatGn())
+                        .dsaSynced(true)
+                        .build());
+                    seatLabelMap.put(seat.getSeatLabel(), seat);
+                }
+            }
+        }
+    }
+
     private String findAreaName(String areaCd, Store store) {
         List<AreaResponse> areas = dsaAreaService.findAreas(store);
         for (AreaResponse area : areas) {

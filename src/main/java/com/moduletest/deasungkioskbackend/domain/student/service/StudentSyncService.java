@@ -6,11 +6,12 @@ import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatRepository;
+import com.moduletest.deasungkioskbackend.domain.seat.service.SeatService;
+import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
+import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentSyncResult;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
-import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
-import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,11 +32,11 @@ public class StudentSyncService {
     private final StudentRepository studentRepository;
     private final StoreRepository storeRepository;
     private final SeatRepository seatRepository;
+    private final SeatService seatService;
 
     @Transactional
     public List<StudentSyncResult> synchronizeAllStores() {
         List<Store> stores = storeRepository.findAllWithDsaCredentials();
-        log.info("학생 동기화 시작: DSA 인증정보 있는 지점 {}개", stores.size());
 
         List<StudentSyncResult> results = new ArrayList<>();
         for (Store store : stores) {
@@ -51,7 +52,6 @@ public class StudentSyncService {
             }
         }
 
-        log.info("학생 동기화 완료: 전체 {}개 지점", results.size());
         return results;
     }
 
@@ -69,6 +69,9 @@ public class StudentSyncService {
 
     @Transactional
     public StudentSyncResult synchronizeStudentsByStore(Store store) {
+
+        seatService.synchronizeSeats(store);
+
         List<DsaStudentData> dsaStudents = dsaStudentService.findAllStudents(store);
         if (dsaStudents.isEmpty()) {
             log.info("DSA 학생 데이터 없음. storeId: {}", store.getId());
@@ -134,16 +137,13 @@ public class StudentSyncService {
             }
         }
 
-        log.info("학생 동기화 결과 - storeId: {}, 전체: {}, 생성: {}, 수정: {}, 변경없음: {}, 실패: {}",
-            store.getId(), dsaStudents.size(), created, updated, unchanged, failed);
-
         return new StudentSyncResult(
             store.getId(), store.getStoreName(),
             dsaStudents.size(), created, updated, unchanged, failed, errors);
     }
 
     private Student findMatchingStudent(DsaStudentData dsaStudent,
-                                        Map<String, Student> byRfidUid) {
+        Map<String, Student> byRfidUid) {
         if (dsaStudent.rfidNo() != null) {
             return byRfidUid.get(dsaStudent.rfidNo());
         }
@@ -151,7 +151,7 @@ public class StudentSyncService {
     }
 
     private boolean hasChanges(Student student, DsaStudentData dsaStudent,
-                              Seat seat, String phone) {
+        Seat seat, String phone) {
         if (!student.getName().equals(dsaStudent.stdNm())) {
             return true;
         }
@@ -185,14 +185,11 @@ public class StudentSyncService {
 
     private Seat resolveSeat(String seatCd, Store store) {
         if (seatCd == null || seatCd.isBlank()) {
-            log.warn("resolveSeat: seatCd가 null/blank. storeId: {}", store.getId());
             return null;
         }
-        log.info("resolveSeat: seatCd='{}', storeId={}", seatCd, store.getId());
+
         Optional<Seat> seat = seatRepository.findBySeatCdAndStoreId(seatCd, store.getId());
-        if (seat.isEmpty()) {
-            log.warn("resolveSeat: 좌석 못 찾음. seatCd='{}', storeId={}", seatCd, store.getId());
-        }
+
         return seat.orElse(null);
     }
 }
