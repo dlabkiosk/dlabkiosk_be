@@ -14,6 +14,7 @@ import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepositor
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -199,9 +200,14 @@ public class StudentSyncService {
 
     private Seat resolveSeat(String seatCd, Store store) {
         if (seatCd == null || seatCd.isBlank()) {
+            log.warn("resolveSeat: seatCd가 null/blank. storeId: {}", store.getId());
             return null;
         }
-        return seatRepository.findBySeatCdAndStoreId(seatCd, store.getId())
-            .orElse(null);
+        log.info("resolveSeat: seatCd='{}', storeId={}", seatCd, store.getId());
+        Optional<Seat> seat = seatRepository.findBySeatCdAndStoreId(seatCd, store.getId());
+        if (seat.isEmpty()) {
+            log.warn("resolveSeat: 좌석 못 찾음. seatCd='{}', storeId={}", seatCd, store.getId());
+        }
+        return seat.orElse(null);
     }
 }

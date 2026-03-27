@@ -37,7 +37,7 @@ public class Student extends BaseTimeEntity {
     @Column(name = "rfid_uid", nullable = false, unique = true, length = 50)
     private String rfidUid;
 
-    @Column(name = "student_number", unique = true, length = 30)
+    @Column(name = "student_number", length = 30)
     private String studentNumber;
 
     @Column(name = "phone_last4", length = 4)
