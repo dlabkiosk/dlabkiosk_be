@@ -33,6 +33,23 @@ public class StudentResolverService {
                 ErrorCode.STUDENT_NOT_FOUND_BY_SEAT_LABEL));
     }
 
+    public Student resolveByPhone(String phone, Long storeId) {
+        if (phone == null || phone.isBlank()) {
+            throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
+        }
+        String phone8 = phone.length() >= 8
+            ? phone.substring(phone.length() - 8) : phone;
+        List<Student> students = studentRepository.findAllByPhoneAndStoreId(
+            phone8, storeId);
+        if (students.isEmpty()) {
+            throw new StudentException(ErrorCode.STUDENT_NOT_FOUND);
+        }
+        if (students.size() > 1) {
+            throw new MultipleStudentsException(students);
+        }
+        return students.get(0);
+    }
+
     public Student resolveByPhoneLast4(String phoneLast4, Long storeId) {
         if (phoneLast4 == null || phoneLast4.isBlank()) {
             throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
@@ -96,6 +113,7 @@ public class StudentResolverService {
                 case RFID -> resolveByIdentifier(value.trim());
                 case SEAT_LABEL -> resolveBySeatLabel(value.trim(), storeId);
                 case PHONE_LAST4 -> resolveByPhoneLast4(value.trim(), storeId);
+                case PHONE -> resolveByPhone(value.trim(), storeId);
             };
         }
         return resolveAutoInternal(value, storeId);
@@ -128,7 +146,21 @@ public class StudentResolverService {
             return bySeat.get();
         }
 
-        // 3. phoneLast4로 조회
+        // 3. phone(8자리)로 조회
+        if (trimmed.length() >= 8) {
+            String phone8 = trimmed.length() == 8
+                ? trimmed : trimmed.substring(trimmed.length() - 8);
+            List<Student> byPhone8 = studentRepository.findAllByPhoneAndStoreId(
+                phone8, storeId);
+            if (byPhone8.size() == 1) {
+                return byPhone8.get(0);
+            }
+            if (byPhone8.size() > 1) {
+                throw new MultipleStudentsException(byPhone8);
+            }
+        }
+
+        // 4. phoneLast4로 조회
         List<Student> byPhone = studentRepository.findAllByPhoneLast4AndStoreId(
             trimmed, storeId);
         if (byPhone.size() == 1) {

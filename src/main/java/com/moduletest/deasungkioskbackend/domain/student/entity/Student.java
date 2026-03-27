@@ -43,6 +43,9 @@ public class Student extends BaseTimeEntity {
     @Column(name = "phone_last4", length = 4)
     private String phoneLast4;
 
+    @Column(name = "phone", length = 20)
+    private String phone;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_seat_id")
     private Seat assignedSeat;
@@ -52,13 +55,14 @@ public class Student extends BaseTimeEntity {
 
     @Builder
     public Student(Store store, String name, String rfidUid,
-                   String studentNumber, String phoneLast4, Seat assignedSeat,
-                   boolean dsaSynced) {
+                   String studentNumber, String phoneLast4, String phone,
+                   Seat assignedSeat, boolean dsaSynced) {
         this.store = store;
         this.name = name;
         this.rfidUid = rfidUid;
         this.studentNumber = studentNumber;
         this.phoneLast4 = phoneLast4;
+        this.phone = phone;
         this.assignedSeat = assignedSeat;
         this.dsaSynced = dsaSynced;
     }
@@ -68,11 +72,12 @@ public class Student extends BaseTimeEntity {
     }
 
     public void syncFromDsa(String name, String rfidUid, String studentNumber,
-                            String phoneLast4, Seat assignedSeat) {
+                            String phoneLast4, String phone, Seat assignedSeat) {
         this.name = name;
         this.rfidUid = rfidUid;
         this.studentNumber = studentNumber;
         this.phoneLast4 = phoneLast4;
+        this.phone = phone;
         this.assignedSeat = assignedSeat;
         this.dsaSynced = true;
     }

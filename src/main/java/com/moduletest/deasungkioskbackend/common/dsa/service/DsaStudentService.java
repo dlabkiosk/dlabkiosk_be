@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 public final class DsaStudentService {
 
     private static final String GET_STD_INFO_LIST_PATH = "/kiosk/getStdInfoList";
+    private static final String GET_STD_INFO_PATH = "/kiosk/getStdInfo";
 
     private final DsaApiClient dsaApiClient;
 
@@ -46,7 +47,9 @@ public final class DsaStudentService {
 
             List<DsaStudentData> students = new ArrayList<>();
             for (Map<String, Object> item : response.getData()) {
+                log.debug("DSA 학생 원본 데이터: {}", item);
                 DsaStudentData data = DsaStudentData.fromMap(item);
+                log.info("DSA 학생 파싱 결과 - name: {}, seatCd: {}", data.stdNm(), data.seatCd());
                 if (data.rfidNo() != null && data.stdNm() != null) {
                     students.add(data);
                 } else {
@@ -65,6 +68,45 @@ public final class DsaStudentService {
         } catch (Exception e) {
             log.error("DSA getStdInfoList 예외. storeId: {}", store.getId(), e);
             return List.of();
+        }
+    }
+
+    /**
+     * DSA 3.24 getStdInfo 호출.
+     * rfidNo로 학생 상세(전화번호 포함)를 조회한다.
+     * p_hp 필드에서 전화번호 뒷 8자리를 추출하여 반환한다.
+     */
+    public String findStudentPhone(String rfidNo, Store store) {
+        if (!store.hasDsaCredentials() || rfidNo == null) {
+            return null;
+        }
+
+        try {
+            Map<String, Object> params = new HashMap<>();
+            params.put("rfid_no", rfidNo);
+
+            DsaResponse response = dsaApiClient.post(
+                GET_STD_INFO_PATH, params, DsaResponse.class, store);
+
+            if (!response.isSuccess() || response.getData() == null
+                || response.getData().isEmpty()) {
+                return null;
+            }
+
+            Map<String, Object> data = response.getData().get(0);
+            Object pHp = data.get("p_hp");
+            if (pHp == null) {
+                return null;
+            }
+            String phone = String.valueOf(pHp).replaceAll("[^0-9]", "");
+            if (phone.length() >= 8) {
+                return phone.substring(phone.length() - 8);
+            }
+            return phone.isEmpty() ? null : phone;
+
+        } catch (Exception e) {
+            log.warn("DSA getStdInfo 전화번호 조회 실패 - rfidNo: {}", rfidNo, e);
+            return null;
         }
     }
 }
