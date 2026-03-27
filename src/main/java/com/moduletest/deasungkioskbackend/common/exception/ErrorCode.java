@@ -117,6 +117,12 @@ public enum ErrorCode {
     SEAT_NOT_IN_THIS_STORE("SCR005", "해당 지점의 좌석이 아닙니다", HttpStatus.BAD_REQUEST),
     DESIRED_SEAT_IS_CURRENT("SCR006", "현재 배정된 좌석과 동일한 좌석입니다", HttpStatus.BAD_REQUEST),
     SEAT_NOT_IN_REQUEST("SCR007", "해당 좌석은 이 신청의 희망 순위에 포함되어 있지 않습니다", HttpStatus.BAD_REQUEST),
+    DSA_SEAT_CHANGE_FAILED("SCR008", "DSA 좌석 변경 처리에 실패했습니다", HttpStatus.BAD_GATEWAY),
+
+    // Outing approval
+    OUTING_NOT_APPROVED("OT004", "승인된 외출/조퇴 신청이 없습니다", HttpStatus.FORBIDDEN),
+    EARLY_LEAVE_RE_ATTEND_FAILED("OT005",
+        "재등원 처리에 실패했습니다. 잠시 후 다시 시도해주세요.", HttpStatus.BAD_GATEWAY),
 
     // Meal
     NOT_MEAL_TIME("ML001", "현재 식사시간이 아닙니다", HttpStatus.BAD_REQUEST),
@@ -124,6 +130,10 @@ public enum ErrorCode {
 
     // Meal Menu
     MEAL_MENU_NOT_FOUND("MM001", "식단을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+
+    // Sync
+    SYNC_DSA_CREDENTIALS_MISSING("SYNC001", "DSA 인증정보가 없는 지점입니다", HttpStatus.BAD_REQUEST),
+    SYNC_FAILED("SYNC002", "학생 동기화에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
 
     ;
 

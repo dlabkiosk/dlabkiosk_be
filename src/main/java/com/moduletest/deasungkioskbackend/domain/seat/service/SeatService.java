@@ -84,12 +84,32 @@ public class SeatService {
                 leave.getReason().getReasonName());
         }
 
-        // DSA 좌석 정보를 우리 DB 좌석에 동기화 (areaCd/areaNm은 건드리지 않음)
+        // DSA 좌석 → 우리 DB upsert (seatLabel 기준 매칭)
+        String areaNm = findAreaName(areaCd, store);
         for (SeatStatusResponse dsaSeat : dsaSeats) {
+            if (dsaSeat.seatNm() == null || dsaSeat.seatNm().isEmpty()) {
+                continue;
+            }
             Seat seat = seatLabelMap.get(dsaSeat.seatNm());
             if (seat != null) {
-                seat.syncDsaSeatInfo(dsaSeat.seatCd(),
-                    dsaSeat.xPos(), dsaSeat.yPos(), dsaSeat.seatGn());
+                seat.syncFromDsa(dsaSeat.seatNm(), dsaSeat.seatCd(),
+                    dsaSeat.xPos(), dsaSeat.yPos(),
+                    areaCd, areaNm, dsaSeat.seatGn());
+            } else {
+                seat = seatRepository.save(Seat.builder()
+                    .store(store)
+                    .seatLabel(dsaSeat.seatNm())
+                    .seatType(SeatType.INDIVIDUAL)
+                    .xPos(dsaSeat.xPos())
+                    .yPos(dsaSeat.yPos())
+                    .active(true)
+                    .areaCd(areaCd)
+                    .areaNm(areaNm)
+                    .seatCd(dsaSeat.seatCd())
+                    .seatGn(dsaSeat.seatGn())
+                    .dsaSynced(true)
+                    .build());
+                seatLabelMap.put(seat.getSeatLabel(), seat);
             }
         }
 
@@ -182,6 +202,16 @@ public class SeatService {
             .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_FOUND));
         validateStoreAccess(seat);
         seatRepository.delete(seat);
+    }
+
+    private String findAreaName(String areaCd, Store store) {
+        List<AreaResponse> areas = dsaAreaService.findAreas(store);
+        for (AreaResponse area : areas) {
+            if (area.areaCd().equals(areaCd)) {
+                return area.areaNm();
+            }
+        }
+        return null;
     }
 
     private void validateStoreAccess(Seat seat) {

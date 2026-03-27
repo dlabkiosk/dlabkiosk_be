@@ -1,5 +1,6 @@
 package com.moduletest.deasungkioskbackend.domain.phonesubmission.service;
 
+import com.moduletest.deasungkioskbackend.common.dsa.service.DsaParentPhoneService;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
@@ -37,6 +38,7 @@ public class PhoneSubmissionService {
 
     private final PhoneSubmissionRepository phoneSubmissionRepository;
     private final StudentResolverService studentResolverService;
+    private final DsaParentPhoneService dsaParentPhoneService;
 
 
     @Transactional
@@ -74,8 +76,11 @@ public class PhoneSubmissionService {
         PhoneSubmission converted = handleDuplicateSubmission(
             student.getId(), request.submissionType(), startDate, endDate);
         if (converted != null) {
-            return PhoneSubmissionResponse.fromEntity(converted);
+            return PhoneSubmissionResponse.fromEntity(converted, converted.getParentPhone());
         }
+
+        String parentPhone = dsaParentPhoneService.findParentPhone(
+            student.getRfidUid(), student.getStore());
 
         PhoneSubmission submission = PhoneSubmission.builder()
             .student(student)
@@ -84,11 +89,12 @@ public class PhoneSubmissionService {
             .submissionType(request.submissionType())
             .startDate(startDate)
             .endDate(endDate)
+            .parentPhone(parentPhone)
             .build();
 
         phoneSubmissionRepository.save(submission);
 
-        return PhoneSubmissionResponse.fromEntity(submission);
+        return PhoneSubmissionResponse.fromEntity(submission, submission.getParentPhone());
     }
 
     private PhoneSubmission handleDuplicateSubmission(Long studentId, PhoneSubmissionType type,
@@ -225,7 +231,8 @@ public class PhoneSubmissionService {
                 row.createCell(5).setCellValue(
                     ps.getStudent().getPhoneLast4() != null
                         ? ps.getStudent().getPhoneLast4() : "");
-                row.createCell(6).setCellValue("");
+                row.createCell(6).setCellValue(
+                    ps.getParentPhone() != null ? ps.getParentPhone() : "");
                 row.createCell(7).setCellValue(formatSubmissionType(ps.getSubmissionType()));
                 row.createCell(8).setCellValue(ps.getStartDate().toString());
                 row.createCell(9).setCellValue(

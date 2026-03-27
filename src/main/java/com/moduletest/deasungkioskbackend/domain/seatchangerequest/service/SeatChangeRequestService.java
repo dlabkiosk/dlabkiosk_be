@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.seatchangerequest.service;
 
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAreaService;
+import com.moduletest.deasungkioskbackend.common.dsa.service.DsaSeatService;
 import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
@@ -10,6 +11,8 @@ import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatType;
+import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsageStatus;
+import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.exception.SeatException;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.service.SeatRedisService;
@@ -52,7 +55,9 @@ public class SeatChangeRequestService {
     private final StudentRepository studentRepository;
     private final StudentResolverService studentResolverService;
     private final SeatRedisService seatRedisService;
+    private final SeatUsageRepository seatUsageRepository;
     private final DsaAreaService dsaAreaService;
+    private final DsaSeatService dsaSeatService;
     private final StoreRepository storeRepository;
 
     @Transactional
@@ -251,9 +256,24 @@ public class SeatChangeRequestService {
         Student student = studentRepository.findByIdForUpdate(request.getStudent().getId())
             .orElseThrow(() -> new SeatChangeRequestException(ErrorCode.STUDENT_NOT_FOUND));
 
+        // DSA 3.23 좌석 변경 동기화 (DSA 먼저, 실패 시 승인 중단)
+        Store store = request.getStore();
+        if (approvedSeat.getSeatCd() != null) {
+            boolean dsaSuccess = dsaSeatService.sendSeatChange(
+                student.getRfidUid(), approvedSeat.getSeatCd(), store);
+            if (!dsaSuccess) {
+                throw new BusinessException(ErrorCode.DSA_SEAT_CHANGE_FAILED);
+            }
+        }
+
         Seat oldSeat = student.getAssignedSeat();
         student.assignSeat(approvedSeat);
         handleRedisOnSeatChange(student, oldSeat, approvedSeat);
+
+        // 등원 중이면 SeatUsage 좌석도 갱신
+        seatUsageRepository.findByStudentIdAndStatus(
+                student.getId(), SeatUsageStatus.IN_USE)
+            .ifPresent(usage -> usage.changeSeat(approvedSeat));
 
         if (request.hasRemainingPriorities(priority)) {
             request.clearPrioritiesAtAndBelow(priority, approvedSeat);

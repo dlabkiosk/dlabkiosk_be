@@ -105,4 +105,9 @@ public class Store extends BaseTimeEntity {
     public boolean hasDsaCredentials() {
         return dsaAcadCd != null && dsaClientId != null && dsaSecretId != null;
     }
+
+    public void syncFromDsa(String storeName) {
+        this.storeName = storeName;
+        this.dsaSynced = true;
+    }
 }

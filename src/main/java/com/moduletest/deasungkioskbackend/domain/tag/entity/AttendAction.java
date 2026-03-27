@@ -11,6 +11,7 @@ public enum AttendAction {
     T("하원"),
     A("지각"),
     D("외출"),
+    N("사유외출"),
     C("조퇴"),
     R("복귀");
 

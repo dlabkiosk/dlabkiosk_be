@@ -57,9 +57,9 @@ public class DashboardService {
             callDsaSafe("/kiosk/getTotalAttendCount", store));
 
         return DashboardAllResponse.builder()
-            .dailyOperation(buildDailyOperation(storeId, todayAttendance))
+            .dailyOperation(buildDailyOperation(storeId, todayAttendance, store))
             .mealTagSummary(buildMealTagSummary(storeId))
-            .attendanceSummary(buildAttendanceSummary(todayAttendance, storeId, startOfDay))
+            .attendanceSummary(buildAttendanceSummary(todayAttendance, storeId, startOfDay, store))
             .seatLeaveSummary(buildSeatLeaveSummary(storeId, startOfDay))
             .studyRanking(callDsaSafe("/kiosk/getLastWeekStudyTimeList", store))
             .pendingApprovals(null) // TODO: DSA 3.16 출결 사유신청 대기 연동 후 구현
@@ -68,29 +68,95 @@ public class DashboardService {
             .build();
     }
 
-    private DailyOperationSummary buildDailyOperation(Long storeId, Long todayAttendance) {
+    private DailyOperationSummary buildDailyOperation(Long storeId, Long todayAttendance,
+                                                       Store store) {
         long registeredStudents = studentRepository.countByStoreId(storeId);
+        Long mealRequests = countTodayMealRequests(store);
 
         return DailyOperationSummary.builder()
             .registeredStudents(registeredStudents)
             .todayAttendance(todayAttendance)
-            .mealRequests(null)
+            .mealRequests(mealRequests)
             .build();
     }
 
+    private Long countTodayMealRequests(Store store) {
+        try {
+            LocalDate today = LocalDate.now();
+            String month = today.toString().substring(0, 7);
+            String todayDay = String.valueOf(today.getDayOfMonth());
+
+            Map<String, Object> params = new HashMap<>();
+            params.put("month", month);
+
+            DsaResponse response = dsaApiClient.post(
+                "/kiosk/getMealApplyStdInfo", params, DsaResponse.class, store);
+
+            if (!response.isSuccess() || response.getData() == null) {
+                return null;
+            }
+
+            long count = response.getData().stream()
+                .filter(item -> todayDay.equals(String.valueOf(item.get("day"))))
+                .count();
+
+            return count;
+        } catch (Exception e) {
+            log.warn("DSA getMealApplyStdInfo 호출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private AttendanceSummary buildAttendanceSummary(
-            Long todayAttendance, Long storeId, LocalDateTime startOfDay) {
+            Long todayAttendance, Long storeId, LocalDateTime startOfDay, Store store) {
         long outing = outingRepository.countActiveByStoreIdToday(
             storeId, startOfDay, startOfDay.plusDays(1));
 
-        // TODO: 조퇴/결석/지각 — DSA 개별 집계 API 없음, DSA 연동 확장 시 구현
+        Long earlyLeave = null;
+        Long absent = null;
+        Long late = null;
+
+        DsaResponse attendState = callDsaAttendState(store);
+        if (attendState != null) {
+            earlyLeave = parseLongSafe(attendState.getExtra().get("early_cnt"));
+            absent = parseLongSafe(attendState.getExtra().get("absence_cnt"));
+            late = parseLongSafe(attendState.getExtra().get("late_cnt"));
+        }
+
         return AttendanceSummary.builder()
             .present(todayAttendance)
-            .earlyLeave(null)
-            .absent(null)
+            .earlyLeave(earlyLeave)
+            .absent(absent)
             .outing(outing)
-            .late(null)
+            .late(late)
             .build();
+    }
+
+    private DsaResponse callDsaAttendState(Store store) {
+        try {
+            String today = LocalDate.now().toString();
+            Map<String, Object> params = new HashMap<>();
+            params.put("st_dt", today);
+            params.put("ed_dt", today);
+
+            return dsaApiClient.post(
+                "/kiosk/getAttendState", params, DsaResponse.class, store);
+        } catch (Exception e) {
+            log.warn("DSA getAttendState 호출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private Long parseLongSafe(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(String.valueOf(value).trim());
+        } catch (NumberFormatException e) {
+            log.warn("숫자 파싱 실패: {}", value);
+            return null;
+        }
     }
 
     private SeatLeaveSummary buildSeatLeaveSummary(Long storeId, LocalDateTime startOfDay) {

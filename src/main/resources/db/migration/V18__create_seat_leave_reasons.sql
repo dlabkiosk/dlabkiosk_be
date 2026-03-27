@@ -12,9 +12,4 @@ CREATE TABLE seat_leave_reasons
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
 
--- 기본 사유 데이터
-INSERT INTO seat_leave_reasons (store_id, reason_name, display_order)
-VALUES (1, '화장실', 1),
-       (1, '음수대', 2),
-       (1, '인포데스크', 3),
-       (1, '기타', 4);
+-- 시드 데이터 제거 (DSA 동기화로 대체)

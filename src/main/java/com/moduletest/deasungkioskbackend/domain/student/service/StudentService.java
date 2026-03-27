@@ -42,6 +42,7 @@ public class StudentService {
     private final SeatChangeRequestRepository seatChangeRequestRepository;
     private final PhoneSubmissionRepository phoneSubmissionRepository;
     private final SeatLeaveRepository seatLeaveRepository;
+    private final StudentDetailDsaService studentDetailDsaService;
 
     public List<StudentResponse> findAllStudents(Long storeId) {
         if (storeId != null) {
@@ -127,8 +128,14 @@ public class StudentService {
             .map(SeatLeaveResponse::fromEntity)
             .toList();
 
+        Store store = student.getStore();
+
         return StudentKioskResponse.of(student,
-            phoneSubmissions, seatChangeRequests, seatLeaves);
+            phoneSubmissions, seatChangeRequests, seatLeaves,
+            studentDetailDsaService.findMealApplications(student.getStudentNumber(), store),
+            studentDetailDsaService.findReceipts(student.getRfidUid(), store),
+            studentDetailDsaService.findAttendanceSummary(student.getRfidUid(), store),
+            studentDetailDsaService.findPoints(student.getStudentNumber(), store));
     }
 
     private Seat resolveSeat(Long seatId) {

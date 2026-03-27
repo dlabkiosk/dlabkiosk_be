@@ -17,6 +17,7 @@ spring:
 
   flyway:
     enabled: true
+    repair-on-migrate: true
 
   data:
     redis:
@@ -45,6 +46,10 @@ cloud:
     region:
       static: ap-northeast-2
 
+
+sync:
+  student:
+    cron: "0 0 4 * * *"
 
 dsa:
   api:

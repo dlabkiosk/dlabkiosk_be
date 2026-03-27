@@ -23,6 +23,7 @@ spring:
 
   flyway:
     enabled: true
+    repair-on-migrate: true
 
   data:
     redis:
@@ -66,8 +67,12 @@ server:
 
 
 
+sync:
+  student:
+    cron: "0 0 4 * * *"
+
 dsa:
   api:
-    base-url: https://api.dshw.co.kr
+    base-url: https://devapi.dshw.co.kr
     connect-timeout: 10000
     read-timeout: 10000

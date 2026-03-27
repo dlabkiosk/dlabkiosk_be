@@ -34,23 +34,27 @@ public record StudentKioskResponse(
     @Schema(description = "당월 좌석 이탈 내역")
     List<SeatLeaveResponse> seatLeaves,
 
-    @Schema(description = "급식 신청 내역 (DSA 연동 예정)")
-    Object mealApplications,
+    @Schema(description = "당월 급식 신청 내역 (DSA 3.30)")
+    List<DsaMealApplication> mealApplications,
 
-    @Schema(description = "수납 내역 (DSA 연동 예정)")
-    Object receipts,
+    @Schema(description = "수납 현황 (DSA 3.29)")
+    List<DsaReceiptRecord> receipts,
 
-    @Schema(description = "출결 특이사항 (DSA 연동 예정)")
-    Object attendanceSummary,
+    @Schema(description = "당월 출결 특이사항 (DSA 3.26)")
+    DsaAttendanceSummary attendanceSummary,
 
-    @Schema(description = "상벌점 정보 (DSA 연동 예정)")
-    Object points
+    @Schema(description = "당월 상벌점 내역 (DSA 3.28)")
+    List<DsaPointRecord> points
 ) {
 
     public static StudentKioskResponse of(Student student,
                                            List<PhoneSubmissionResponse> phoneSubmissions,
                                            List<SeatChangeRequestResponse> seatChangeRequests,
-                                           List<SeatLeaveResponse> seatLeaves) {
+                                           List<SeatLeaveResponse> seatLeaves,
+                                           List<DsaMealApplication> mealApplications,
+                                           List<DsaReceiptRecord> receipts,
+                                           DsaAttendanceSummary attendanceSummary,
+                                           List<DsaPointRecord> points) {
         String seatLabel = null;
         if (student.getAssignedSeat() != null) {
             seatLabel = student.getAssignedSeat().getSeatLabel();
@@ -65,10 +69,10 @@ public record StudentKioskResponse(
             phoneSubmissions,
             seatChangeRequests,
             seatLeaves,
-            null,
-            null,
-            null,
-            null
+            mealApplications,
+            receipts,
+            attendanceSummary,
+            points
         );
     }
 }

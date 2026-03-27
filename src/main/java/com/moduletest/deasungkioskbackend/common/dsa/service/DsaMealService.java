@@ -30,12 +30,6 @@ public final class DsaMealService {
      * @return 급식 신청 여부 (true: 신청, false: 미신청). DSA 호출 실패 시 true (관대하게 처리)
      */
     public boolean isMealApplied(String rfidUid, MealType mealType, Store store) {
-        // TODO: DSA 개발기 연동 확인 후 제거
-        if (true) {
-            log.debug("DSA 급식 조회 비활성화 - 기본값(true) 사용. storeId: {}", store.getId());
-            return true;
-        }
-
         if (!store.hasDsaCredentials()) {
             log.debug("DSA 인증정보 없음 - 급식 신청 여부 기본값(true) 사용. storeId: {}",
                 store.getId());

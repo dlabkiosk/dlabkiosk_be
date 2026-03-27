@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.tag.service;
 
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAttendanceService;
+import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAttendanceService.AttendTagResult;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaMealService;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaRequestService;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaRequestService.ApprovedRequest;
@@ -90,10 +91,10 @@ public class TagService {
         Optional<Outing> activeOuting = outingRepository
             .findActiveOutingByStudentToday(student.getId(), startOfDay, endOfDay);
         if (activeOuting.isPresent()) {
-            AttendAction dsaAction = dsaAttendanceService.sendAttendTag(
+            AttendTagResult dsaResult = dsaAttendanceService.sendAttendTag(
                 student.getRfidUid(), store);
             TagResponse response = handleOutingEnd(
-                AttendAction.R, student, storeId, dsaAction != null);
+                AttendAction.R, student, storeId, dsaResult.dsaSynced());
             return withMealInfo(response, mealInfo);
         }
 
@@ -107,15 +108,24 @@ public class TagService {
         }
 
         // 3. 미등원이면 → 등원 처리 우선 (+ 급식 정보 포함)
-        // TODO: 조퇴 후 재태그 시 조퇴→외출 변환 필요 (DSA 조퇴 수정 API 확정 후 구현)
         Optional<Attendance> checkedIn = attendanceRepository
             .findTodayAttendanceByStudentAndStatus(
                 student.getId(), startOfDay, endOfDay, AttendanceStatus.CHECKED_IN);
         if (checkedIn.isEmpty()) {
-            AttendAction dsaAction = dsaAttendanceService.sendAttendTag(
+            AttendTagResult dsaResult = dsaAttendanceService.sendAttendTag(
                 student.getRfidUid(), store);
-            AttendAction action = (dsaAction == AttendAction.A) ? AttendAction.A : AttendAction.S;
-            TagResponse response = handleCheckIn(action, student, storeId, dsaAction != null);
+
+            // 조퇴 후 재태그 → DSA 3.22 재등원 처리
+            if (dsaResult.earlyLeftBlocked()) {
+                TagResponse response = handleReAttendAfterEarlyLeave(
+                    student, store, storeId);
+                return withMealInfo(response, mealInfo);
+            }
+
+            AttendAction action = (dsaResult.action() == AttendAction.A)
+                ? AttendAction.A : AttendAction.S;
+            TagResponse response = handleCheckIn(
+                action, student, storeId, dsaResult.dsaSynced());
             return withMealInfo(response, mealInfo);
         }
 
@@ -179,8 +189,10 @@ public class TagService {
         }
 
         // 승인된 신청 없음 → 하원 처리
-        dsaAttendanceService.sendAttendTag(student.getRfidUid(), store);
-        TagResponse response = handleCheckOut(AttendAction.T, student, storeId, true);
+        AttendTagResult checkOutResult = dsaAttendanceService.sendAttendTag(
+            student.getRfidUid(), store);
+        TagResponse response = handleCheckOut(
+            AttendAction.T, student, storeId, checkOutResult.dsaSynced());
         return withMealInfo(response, mealInfo);
     }
 
@@ -194,14 +206,72 @@ public class TagService {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new KioskException(ErrorCode.STORE_NOT_FOUND));
 
+        // 외출/조퇴 시 사유신청권 재확인
+        if (request.action() == AttendAction.D || request.action() == AttendAction.N
+                || request.action() == AttendAction.C) {
+            validateApprovedRequest(student, store, request.action());
+        }
+
         // DSA 3.14에 태그 전송
-        dsaAttendanceService.sendAttendTag(student.getRfidUid(), store);
+        AttendTagResult confirmResult = dsaAttendanceService.sendAttendTag(
+            student.getRfidUid(), store);
 
         return switch (request.action()) {
-            case D -> handleOutingStart(AttendAction.D, student, storeId, true);
-            case C -> handleCheckOut(AttendAction.C, student, storeId, true);
+            case D, N -> handleOutingStart(
+                request.action(), student, storeId, confirmResult.dsaSynced());
+            case C -> handleCheckOut(
+                AttendAction.C, student, storeId, confirmResult.dsaSynced());
             default -> throw new AttendanceException(ErrorCode.INVALID_INPUT_VALUE);
         };
+    }
+
+    private void validateApprovedRequest(Student student, Store store, AttendAction action) {
+        List<ApprovedRequest> approved = dsaRequestService
+            .findApprovedRequests(student.getRfidUid(), store);
+
+        if (approved.isEmpty()) {
+            throw new AttendanceException(ErrorCode.OUTING_NOT_APPROVED);
+        }
+
+        boolean hasMatchingApproval = approved.stream()
+            .anyMatch(req -> matchesAction(req.regGn(), action)
+                && isWithin30Minutes(req.regDt()));
+
+        if (!hasMatchingApproval) {
+            throw new AttendanceException(ErrorCode.OUTING_NOT_APPROVED);
+        }
+    }
+
+    private boolean matchesAction(String regGn, AttendAction action) {
+        if (regGn == null) {
+            return true;
+        }
+        if (action == AttendAction.C) {
+            return "6".equals(regGn) || "C".equalsIgnoreCase(regGn)
+                || "조퇴".equals(regGn);
+        }
+        if (action == AttendAction.D || action == AttendAction.N) {
+            return "4".equals(regGn) || "7".equals(regGn)
+                || "D".equalsIgnoreCase(regGn) || "N".equalsIgnoreCase(regGn)
+                || "외출".equals(regGn);
+        }
+        return true;
+    }
+
+    private boolean isWithin30Minutes(String regDt) {
+        if (regDt == null || regDt.isBlank()) {
+            return true;
+        }
+        try {
+            LocalDateTime requestedTime = LocalDateTime.parse(regDt,
+                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            LocalDateTime now = LocalDateTime.now();
+            long minutesBefore = Duration.between(now, requestedTime).toMinutes();
+            return minutesBefore <= 30;
+        } catch (Exception e) {
+            log.warn("reg_dt 파싱 실패: {}", regDt);
+            return true;
+        }
     }
 
     @Transactional
@@ -313,15 +383,20 @@ public class TagService {
     private List<PendingAction> buildPendingActions(List<ApprovedRequest> requests) {
         List<PendingAction> actions = new ArrayList<>();
         for (ApprovedRequest req : requests) {
+            if (!isWithin30Minutes(req.regDt())) {
+                continue;
+            }
+
             String regGn = req.regGn();
             AttendAction action;
             String message;
 
-            // TODO: DSA reg_gn 값 확정 후 정확한 매핑 필요
-            if ("C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn)) {
+            if ("6".equals(regGn) || "C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn)) {
                 action = AttendAction.C;
                 message = "조퇴 하시겠습니까?";
-            } else if ("D".equalsIgnoreCase(regGn) || "외출".equals(regGn)) {
+            } else if ("4".equals(regGn) || "7".equals(regGn)
+                || "D".equalsIgnoreCase(regGn) || "N".equalsIgnoreCase(regGn)
+                || "외출".equals(regGn)) {
                 action = AttendAction.D;
                 message = "외출 하시겠습니까?";
             } else {
@@ -335,6 +410,47 @@ public class TagService {
     }
 
     // ── 액션 핸들러 ──
+
+    private TagResponse handleReAttendAfterEarlyLeave(Student student, Store store,
+                                                       Long storeId) {
+        boolean reAttendSuccess = dsaAttendanceService.sendReAttendProc(
+            student.getRfidUid(), store);
+
+        if (!reAttendSuccess) {
+            log.warn("DSA 재등원 처리 실패. studentId: {}, storeId: {}",
+                student.getId(), storeId);
+            throw new AttendanceException(ErrorCode.EARLY_LEAVE_RE_ATTEND_FAILED);
+        }
+
+        // DSA 재등원 성공 → 등원 처리 (좌석 IN_USE 복원)
+        Attendance attendance = Attendance.builder()
+            .student(student)
+            .store(student.getStore())
+            .checkInAt(LocalDateTime.now())
+            .build();
+        attendanceRepository.save(attendance);
+
+        seatCheckIn(student, storeId);
+
+        List<String> messages = studentMessageRepository
+            .findAllActiveByStudentId(student.getId())
+            .stream()
+            .map(StudentMessage::getContent)
+            .toList();
+
+        return TagResponse.builder()
+            .processed(true)
+            .action(AttendAction.S)
+            .actionLabel("재등원")
+            .studentId(student.getId())
+            .studentName(student.getName())
+            .studentNumber(student.getStudentNumber())
+            .seatLabel(getSeatLabel(student))
+            .checkInAt(attendance.getCheckInAt())
+            .messages(messages.isEmpty() ? null : messages)
+            .dsaSynced(true)
+            .build();
+    }
 
     private TagResponse handleCheckIn(AttendAction action, Student student,
                                       Long storeId, boolean dsaSynced) {
