@@ -94,15 +94,18 @@ public class StudentSyncService {
         for (DsaStudentData dsaStudent : dsaStudents) {
             try {
                 Seat seat = resolveSeat(dsaStudent.seatCd(), store);
+                String phone = dsaStudentService.findStudentPhone(
+                    dsaStudent.rfidNo(), store);
                 Student matched = findMatchingStudent(dsaStudent, byRfidUid, byStudentNumber);
 
                 if (matched != null) {
-                    if (hasChanges(matched, dsaStudent, seat)) {
+                    if (hasChanges(matched, dsaStudent, seat, phone)) {
                         matched.syncFromDsa(
                             dsaStudent.stdNm(),
                             dsaStudent.rfidNo(),
                             dsaStudent.stdNo(),
                             dsaStudent.hp(),
+                            phone,
                             seat);
                         updated++;
                     } else {
@@ -115,6 +118,7 @@ public class StudentSyncService {
                         .rfidUid(dsaStudent.rfidNo())
                         .studentNumber(dsaStudent.stdNo())
                         .phoneLast4(dsaStudent.hp())
+                        .phone(phone)
                         .assignedSeat(seat)
                         .dsaSynced(true)
                         .build();
@@ -160,7 +164,8 @@ public class StudentSyncService {
         return null;
     }
 
-    private boolean hasChanges(Student student, DsaStudentData dsaStudent, Seat seat) {
+    private boolean hasChanges(Student student, DsaStudentData dsaStudent,
+                              Seat seat, String phone) {
         if (!student.getName().equals(dsaStudent.stdNm())) {
             return true;
         }
@@ -171,6 +176,9 @@ public class StudentSyncService {
             return true;
         }
         if (!equalsNullable(student.getPhoneLast4(), dsaStudent.hp())) {
+            return true;
+        }
+        if (!equalsNullable(student.getPhone(), phone)) {
             return true;
         }
         Long currentSeatId = student.getAssignedSeat() != null

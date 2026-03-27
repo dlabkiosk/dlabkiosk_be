@@ -25,6 +25,9 @@ public record DsaStudentData(
         if (value == null || "null".equals(String.valueOf(value))) {
             return null;
         }
+        if (value instanceof Number) {
+            return String.valueOf(((Number) value).longValue());
+        }
         return String.valueOf(value).trim();
     }
 }
