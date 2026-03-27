@@ -74,5 +74,6 @@ sync:
 dsa:
   api:
     base-url: https://devapi.dshw.co.kr
+    seat-base-url: https://api.dshw.co.kr
     connect-timeout: 10000
     read-timeout: 10000

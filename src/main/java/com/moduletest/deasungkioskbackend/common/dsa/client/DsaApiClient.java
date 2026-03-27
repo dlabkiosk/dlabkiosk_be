@@ -25,32 +25,39 @@ public class DsaApiClient {
 
     public <T> T post(String path, Map<String, Object> params,
                       Class<T> responseType, Store store) {
+        return post(path, params, responseType, store, dsaRestTemplate);
+    }
+
+    public <T> T post(String path, Map<String, Object> params,
+                      Class<T> responseType, Store store, RestTemplate restTemplate) {
         String token = dsaTokenService.getToken(store);
         params.put("token", token);
 
         try {
-            return dsaRestTemplate.postForObject(path, params, responseType);
+            return restTemplate.postForObject(path, params, responseType);
         } catch (DsaApiException e) {
             if (e.getDsaCode() == 910) {
-                return retryWithRefreshedToken(path, params, responseType, store);
+                return retryWithRefreshedToken(
+                    path, params, responseType, store, restTemplate);
             }
             throw e;
         }
     }
 
     private <T> T retryWithRefreshedToken(String path, Map<String, Object> params,
-                                          Class<T> responseType, Store store) {
+                                          Class<T> responseType, Store store,
+                                          RestTemplate restTemplate) {
         log.info("DSA 토큰 만료 - 갱신 후 재시도. storeId: {}", store.getId());
         try {
             String newToken = dsaTokenService.refreshToken(
                 store.getId(), store.getDsaClientId());
             params.put("token", newToken);
-            return dsaRestTemplate.postForObject(path, params, responseType);
+            return restTemplate.postForObject(path, params, responseType);
         } catch (DsaApiException refreshEx) {
             log.warn("DSA 토큰 갱신 실패 - 재발급 시도. storeId: {}", store.getId());
             String newToken = dsaTokenService.requestNewToken(store);
             params.put("token", newToken);
-            return dsaRestTemplate.postForObject(path, params, responseType);
+            return restTemplate.postForObject(path, params, responseType);
         }
     }
 }
