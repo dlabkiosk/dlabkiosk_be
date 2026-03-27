@@ -42,23 +42,29 @@ public class StudentMessageService {
     }
 
     @Transactional
-    public StudentMessageResponse createMessage(StudentMessageCreateRequest request,
+    public List<StudentMessageResponse> createMessage(StudentMessageCreateRequest request,
         Long storeId) {
-        Student student = studentRepository.findByIdWithStore(request.studentId())
-            .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
+        List<StudentMessageResponse> responses = new java.util.ArrayList<>();
 
-        if (storeId != null && !student.getStore().getId().equals(storeId)) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        for (Long studentId : request.studentIds()) {
+            Student student = studentRepository.findByIdWithStore(studentId)
+                .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
+
+            if (storeId != null && !student.getStore().getId().equals(storeId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+
+            StudentMessage message = StudentMessage.builder()
+                .student(student)
+                .store(student.getStore())
+                .content(request.content())
+                .build();
+
+            studentMessageRepository.save(message);
+            responses.add(StudentMessageResponse.fromEntity(message));
         }
 
-        StudentMessage message = StudentMessage.builder()
-            .student(student)
-            .store(student.getStore())
-            .content(request.content())
-            .build();
-
-        studentMessageRepository.save(message);
-        return StudentMessageResponse.fromEntity(message);
+        return responses;
     }
 
     @Transactional

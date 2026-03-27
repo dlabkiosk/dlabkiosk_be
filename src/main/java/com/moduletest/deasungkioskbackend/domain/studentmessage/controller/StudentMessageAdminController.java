@@ -46,7 +46,7 @@ public class StudentMessageAdminController {
             + "태깅 시 해당 학생에게 노출된다. "
             + "MANAGER는 자기 지점 학생에게만 등록 가능.")
     @PostMapping
-    public CommonResponse<StudentMessageResponse> createMessage(
+    public CommonResponse<List<StudentMessageResponse>> createMessage(
         @Valid @RequestBody StudentMessageCreateRequest request) {
         Long storeId = SecurityUtil.resolveStoreId(null);
         return CommonResponse.success(
