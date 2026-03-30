@@ -3,7 +3,6 @@ package com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto;
 import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 @Schema(description = "좌석 변경 신청 요청. 카드/QR/좌석번호/폰뒷자리 중 하나로 학생을 식별한다.")
 public record SeatChangeRequestCreateRequest(
