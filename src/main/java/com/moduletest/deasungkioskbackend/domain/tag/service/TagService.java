@@ -143,18 +143,12 @@ public class TagService {
     private TagResponse handleMealTimeTag(MealType mealType, MealInfo mealInfo,
                                           Student student, Store store, Long storeId,
                                           LocalDateTime startOfDay, LocalDateTime endOfDay) {
-        // 승인된 외출/조퇴 신청 확인
         List<ApprovedRequest> approvedRequests = dsaRequestService
             .findApprovedRequests(student.getRfidUid(), store);
 
         List<PendingAction> pendingActions = new ArrayList<>();
-
-        // 외출/조퇴 승인 있으면 급식 먼저 → 외출/조퇴
         if (!approvedRequests.isEmpty()) {
             pendingActions.addAll(buildPendingActions(approvedRequests));
-        } else {
-            // 승인 없으면 급식 먼저 → 하원
-            pendingActions.add(new PendingAction(AttendAction.T, "하원 하시겠습니까?", null));
         }
 
         return TagResponse.builder()
@@ -163,7 +157,7 @@ public class TagService {
             .studentName(student.getName())
             .studentNumber(student.getStudentNumber())
             .seatLabel(getSeatLabel(student))
-            .pendingActions(pendingActions)
+            .pendingActions(pendingActions.isEmpty() ? null : pendingActions)
             .dsaSynced(true)
             .mealInfo(mealInfo)
             .build();
@@ -175,25 +169,46 @@ public class TagService {
         List<ApprovedRequest> approvedRequests = dsaRequestService
             .findApprovedRequests(student.getRfidUid(), store);
 
-        if (!approvedRequests.isEmpty()) {
-            List<PendingAction> pendingActions = buildPendingActions(approvedRequests);
-            return TagResponse.builder()
-                .processed(false)
-                .studentId(student.getId())
-                .studentName(student.getName())
-                .studentNumber(student.getStudentNumber())
-                .seatLabel(getSeatLabel(student))
-                .pendingActions(pendingActions)
-                .dsaSynced(true)
-                .mealInfo(mealInfo)
-                .build();
+        // 승인된 신청 중 유효한 건 찾기
+        for (ApprovedRequest req : approvedRequests) {
+            String regGn = req.regGn();
+            boolean isEarlyLeave = "6".equals(regGn)
+                || "C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn);
+
+            if (isEarlyLeave) {
+                AttendTagResult result = dsaAttendanceService.sendAttendTag(
+                    student.getRfidUid(), store, "C");
+                if (result.rejected()) {
+                    throw new AttendanceException(ErrorCode.DSA_REJECTED);
+                }
+                TagResponse response = handleCheckOut(
+                    AttendAction.C, student, storeId, result.dsaSynced());
+                return withMealInfo(response, mealInfo);
+            }
+
+            // 외출은 30분 이내만
+            if (isWithin30Minutes(req.regDt())) {
+                String conGn = "7".equals(regGn) || "N".equalsIgnoreCase(regGn)
+                    ? "N" : "D";
+                AttendTagResult result = dsaAttendanceService.sendAttendTag(
+                    student.getRfidUid(), store, conGn);
+                if (result.rejected()) {
+                    throw new AttendanceException(ErrorCode.DSA_REJECTED);
+                }
+                TagResponse response = handleOutingStart(
+                    AttendAction.D, student, storeId, result.dsaSynced());
+                return withMealInfo(response, mealInfo);
+            }
         }
 
-        // 승인된 신청 없음 → 하원 처리
-        AttendTagResult checkOutResult = dsaAttendanceService.sendAttendTag(
+        // 유효한 승인 없음 → con_gn="" 로 3.14 호출 (DSA 자동 판별)
+        AttendTagResult result = dsaAttendanceService.sendAttendTag(
             student.getRfidUid(), store);
+        if (result.rejected()) {
+            throw new AttendanceException(ErrorCode.DSA_REJECTED);
+        }
         TagResponse response = handleCheckOut(
-            AttendAction.T, student, storeId, checkOutResult.dsaSynced());
+            AttendAction.T, student, storeId, result.dsaSynced());
         return withMealInfo(response, mealInfo);
     }
 
@@ -214,9 +229,20 @@ public class TagService {
             validateApprovedRequest(student, store, request.action());
         }
 
-        // DSA 3.14에 태그 전송 — 실패 시 처리 중단
+        // action → con_gn 매핑
+        String conGn = switch (request.action()) {
+            case D -> "D";
+            case N -> "N";
+            case C -> "C";
+            default -> "";
+        };
+
+        // DSA 3.14에 con_gn 실어서 전송 — 실패/거부 시 처리 중단
         AttendTagResult confirmResult = dsaAttendanceService.sendAttendTag(
-            student.getRfidUid(), store);
+            student.getRfidUid(), store, conGn);
+        if (confirmResult.rejected()) {
+            throw new AttendanceException(ErrorCode.DSA_REJECTED);
+        }
         if (!confirmResult.dsaSynced()) {
             throw new AttendanceException(ErrorCode.DSA_SYNC_FAILED);
         }
@@ -226,6 +252,8 @@ public class TagService {
                 request.action(), student, storeId, true);
             case C -> handleCheckOut(
                 AttendAction.C, student, storeId, true);
+            case T -> handleCheckOut(
+                AttendAction.T, student, storeId, true);
             default -> throw new AttendanceException(ErrorCode.INVALID_INPUT_VALUE);
         };
     }
@@ -645,10 +673,6 @@ public class TagService {
     private TagResponse handleSeatLeaveEnd(SeatLeave seatLeave, Student student,
                                               Long storeId) {
         seatLeave.endLeave();
-
-        studyTimeRedisService.addSeatLeaveDeduction(
-            storeId, student.getId(),
-            seatLeave.getStartedAt(), seatLeave.getEndedAt());
 
         if (seatLeave.getSeat() != null) {
             seatRedisService.markSeatInUse(

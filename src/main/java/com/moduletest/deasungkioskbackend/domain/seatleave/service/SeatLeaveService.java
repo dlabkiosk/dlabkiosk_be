@@ -101,10 +101,6 @@ public class SeatLeaveService {
 
         seatLeave.endLeave();
 
-        studyTimeRedisService.addSeatLeaveDeduction(
-            storeId, student.getId(),
-            seatLeave.getStartedAt(), seatLeave.getEndedAt());
-
         // Redis 상태 복원 (AWAY → IN_USE)
         seatRedisService.markSeatInUse(
             storeId, seatLeave.getSeat().getId(),
@@ -127,10 +123,6 @@ public class SeatLeaveService {
 
         Long storeId = seatLeave.getStore().getId();
         Long studentId = seatLeave.getStudent().getId();
-
-        studyTimeRedisService.addSeatLeaveDeduction(
-            storeId, studentId,
-            seatLeave.getStartedAt(), seatLeave.getEndedAt());
 
         seatRedisService.markSeatInUse(
             storeId, seatLeave.getSeat().getId(),

@@ -21,6 +21,7 @@ public class DsaAttendanceService {
     private static final String SET_ATTEND_STD_PATH = "/kiosk/setAttendStd";
     private static final String SET_RE_ATTEND_PROC_PATH = "/kiosk/setReAttendProc";
     private static final int CODE_ALREADY_EARLY_LEFT = 121;
+    private static final int CODE_NO_APPROVAL = 130;
     private static final DateTimeFormatter TAG_DT_FORMAT =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -33,6 +34,10 @@ public class DsaAttendanceService {
      * @return AttendTagResult (action + earlyLeftBlocked 플래그)
      */
     public AttendTagResult sendAttendTag(String rfidUid, Store store) {
+        return sendAttendTag(rfidUid, store, "");
+    }
+
+    public AttendTagResult sendAttendTag(String rfidUid, Store store, String conGn) {
         if (!store.hasDsaCredentials()) {
             log.debug("DSA 인증정보 없음 - 로컬 판별 사용. storeId: {}", store.getId());
             return AttendTagResult.noDsa();
@@ -42,7 +47,7 @@ public class DsaAttendanceService {
             Map<String, Object> params = new HashMap<>();
             params.put("rfid_no", rfidUid);
             params.put("tag_dt", LocalDateTime.now().format(TAG_DT_FORMAT));
-            params.put("con_gn", "");
+            params.put("con_gn", conGn);
 
             DsaResponse response = dsaApiClient.post(
                 SET_ATTEND_STD_PATH, params, DsaResponse.class, store);
@@ -52,6 +57,11 @@ public class DsaAttendanceService {
                     log.info("DSA 조퇴 후 재태그 감지 (code 121). rfidUid: {}, storeId: {}",
                         rfidUid, store.getId());
                     return AttendTagResult.blockedByEarlyLeave();
+                }
+                if (response.getCode() == CODE_NO_APPROVAL) {
+                    log.info("DSA 승인 내역 없음 (code 130). rfidUid: {}, storeId: {}",
+                        rfidUid, store.getId());
+                    return AttendTagResult.rejected(response.getMessage());
                 }
                 log.warn("DSA setAttendStd 실패 - code: {}, message: {}. storeId: {}",
                     response.getCode(), response.getMessage(), store.getId());
@@ -114,18 +124,23 @@ public class DsaAttendanceService {
     }
 
     public record AttendTagResult(AttendAction action, boolean dsaSynced,
-                                   boolean earlyLeftBlocked) {
+                                   boolean earlyLeftBlocked, boolean rejected,
+                                   String rejectMessage) {
 
         public static AttendTagResult success(AttendAction action) {
-            return new AttendTagResult(action, true, false);
+            return new AttendTagResult(action, true, false, false, null);
         }
 
         public static AttendTagResult blockedByEarlyLeave() {
-            return new AttendTagResult(null, true, true);
+            return new AttendTagResult(null, true, true, false, null);
+        }
+
+        public static AttendTagResult rejected(String message) {
+            return new AttendTagResult(null, true, false, true, message);
         }
 
         public static AttendTagResult noDsa() {
-            return new AttendTagResult(null, false, false);
+            return new AttendTagResult(null, false, false, false, null);
         }
     }
 
