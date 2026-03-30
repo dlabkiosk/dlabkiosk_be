@@ -228,7 +228,7 @@ public class SeatChangeRequestService {
     }
 
     @Transactional
-    public SeatChangeRequestResponse approveRequest(Long requestId, String seatLabel) {
+    public SeatChangeRequestResponse approveRequest(Long requestId, String seatCd) {
         SeatChangeRequest request = seatChangeRequestRepository.findByIdWithDetails(requestId)
             .orElseThrow(() -> new SeatChangeRequestException(
                 ErrorCode.SEAT_CHANGE_REQUEST_NOT_FOUND));
@@ -238,7 +238,7 @@ public class SeatChangeRequestService {
             throw new SeatChangeRequestException(ErrorCode.SEAT_CHANGE_ALREADY_PROCESSED);
         }
 
-        int priority = getPriorityForSeatLabel(request, seatLabel);
+        int priority = getPriorityForSeatCd(request, seatCd);
         if (priority == 0) {
             throw new SeatChangeRequestException(ErrorCode.SEAT_NOT_IN_REQUEST);
         }
@@ -382,17 +382,17 @@ public class SeatChangeRequestService {
         return 0;
     }
 
-    private int getPriorityForSeatLabel(SeatChangeRequest request, String seatLabel) {
+    private int getPriorityForSeatCd(SeatChangeRequest request, String seatCd) {
         if (request.getDesiredSeat1() != null
-                && request.getDesiredSeat1().getSeatLabel().equals(seatLabel)) {
+                && seatCd.equals(request.getDesiredSeat1().getSeatCd())) {
             return 1;
         }
         if (request.getDesiredSeat2() != null
-                && request.getDesiredSeat2().getSeatLabel().equals(seatLabel)) {
+                && seatCd.equals(request.getDesiredSeat2().getSeatCd())) {
             return 2;
         }
         if (request.getDesiredSeat3() != null
-                && request.getDesiredSeat3().getSeatLabel().equals(seatLabel)) {
+                && seatCd.equals(request.getDesiredSeat3().getSeatCd())) {
             return 3;
         }
         return 0;

@@ -28,17 +28,32 @@ public record SeatChangeRequestResponse(
     @Schema(description = "현재 좌석 라벨 (배정 없으면 null)", example = "A-2")
     String currentSeatLabel,
 
+    @Schema(description = "현재 좌석 코드 (배정 없으면 null)", example = "30343")
+    String currentSeatCd,
+
     @Schema(description = "1순위 희망 좌석 라벨", example = "B-3")
     String desiredSeat1Label,
+
+    @Schema(description = "1순위 희망 좌석 코드", example = "30384")
+    String desiredSeat1Cd,
 
     @Schema(description = "2순위 희망 좌석 라벨 (없으면 null)", example = "C-1")
     String desiredSeat2Label,
 
+    @Schema(description = "2순위 희망 좌석 코드 (없으면 null)", example = "30385")
+    String desiredSeat2Cd,
+
     @Schema(description = "3순위 희망 좌석 라벨 (없으면 null)", example = "D-5")
     String desiredSeat3Label,
 
+    @Schema(description = "3순위 희망 좌석 코드 (없으면 null)", example = "30386")
+    String desiredSeat3Cd,
+
     @Schema(description = "승인된 좌석 라벨 (미승인 시 null)", example = "B-3")
     String approvedSeatLabel,
+
+    @Schema(description = "승인된 좌석 코드 (미승인 시 null)", example = "30384")
+    String approvedSeatCd,
 
     @Schema(description = "신청 상태", example = "PENDING")
     String status,
@@ -60,13 +75,22 @@ public record SeatChangeRequestResponse(
             request.getStore().getStoreName(),
             request.getCurrentSeat() != null
                 ? request.getCurrentSeat().getSeatLabel() : null,
+            request.getCurrentSeat() != null
+                ? request.getCurrentSeat().getSeatCd() : null,
             request.getDesiredSeat1().getSeatLabel(),
+            request.getDesiredSeat1().getSeatCd(),
             request.getDesiredSeat2() != null
                 ? request.getDesiredSeat2().getSeatLabel() : null,
+            request.getDesiredSeat2() != null
+                ? request.getDesiredSeat2().getSeatCd() : null,
             request.getDesiredSeat3() != null
                 ? request.getDesiredSeat3().getSeatLabel() : null,
+            request.getDesiredSeat3() != null
+                ? request.getDesiredSeat3().getSeatCd() : null,
             request.getApprovedSeat() != null
                 ? request.getApprovedSeat().getSeatLabel() : null,
+            request.getApprovedSeat() != null
+                ? request.getApprovedSeat().getSeatCd() : null,
             request.getStatus().name(),
             request.getCreatedAt(),
             request.getProcessedAt()
