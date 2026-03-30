@@ -110,10 +110,10 @@ public class AdvertisementService {
             InputStream croppedStream;
 
             if (isVideo) {
-                croppedSize = videoCropService.getCroppedSize(
+                VideoCropService.CropResult result = videoCropService.cropVideo(
                     file, cropX, cropY, cropWidth, cropHeight);
-                croppedStream = videoCropService.cropVideo(
-                    file, cropX, cropY, cropWidth, cropHeight);
+                croppedSize = result.size();
+                croppedStream = result.inputStream();
             } else {
                 croppedSize = imageCropService.getCroppedSize(
                     file, cropX, cropY, cropWidth, cropHeight);
