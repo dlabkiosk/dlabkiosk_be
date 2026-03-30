@@ -50,17 +50,19 @@ public class SeatService {
 
         List<SeatStatusResponse> dsaSeats = dsaAreaService.findSeatStatusByArea(areaCd, store);
 
-        // Redis에서 AWAY 상태인 좌석의 seatLabel 수집
+        // Redis AWAY 상태 + seatCd 기준 매핑
         Map<Object, Object> redisStatus = seatRedisService.getSeatStatusMap(storeId);
         List<Seat> seats = seatRepository.findAllByStoreIdWithStore(storeId);
 
-        Map<String, Seat> seatLabelMap = new HashMap<>();
-        Map<String, Boolean> awaySeatLabels = new HashMap<>();
+        Map<String, Seat> seatCdMap = new HashMap<>();
+        Map<String, Boolean> awaySeatCds = new HashMap<>();
         for (Seat seat : seats) {
-            seatLabelMap.put(seat.getSeatLabel(), seat);
+            if (seat.getSeatCd() != null) {
+                seatCdMap.put(seat.getSeatCd(), seat);
+            }
             String status = (String) redisStatus.get(seat.getId().toString());
-            if (status != null && status.startsWith("AWAY:")) {
-                awaySeatLabels.put(seat.getSeatLabel(), true);
+            if (status != null && status.startsWith("AWAY:") && seat.getSeatCd() != null) {
+                awaySeatCds.put(seat.getSeatCd(), true);
             }
         }
 
@@ -73,13 +75,13 @@ public class SeatService {
                 leave.getReason().getReasonName());
         }
 
-        // DSA 좌석 → 우리 DB upsert (seatLabel 기준 매칭)
+        // DSA 좌석 → 우리 DB upsert (seatCd 기준 매칭)
         String areaNm = findAreaName(areaCd, store);
         for (SeatStatusResponse dsaSeat : dsaSeats) {
             if (dsaSeat.seatNm() == null || dsaSeat.seatNm().isEmpty()) {
                 continue;
             }
-            Seat seat = seatLabelMap.get(dsaSeat.seatNm());
+            Seat seat = seatCdMap.get(dsaSeat.seatCd());
             if (seat != null) {
                 seat.syncFromDsa(dsaSeat.seatNm(), dsaSeat.seatCd(),
                     dsaSeat.xPos(), dsaSeat.yPos(),
@@ -98,11 +100,11 @@ public class SeatService {
                     .seatGn(dsaSeat.seatGn())
                     .dsaSynced(true)
                     .build());
-                seatLabelMap.put(seat.getSeatLabel(), seat);
+                seatCdMap.put(seat.getSeatCd(), seat);
             }
         }
 
-        // sync 이후 seatCd → 학생명 매핑 (sync에서 seatCd가 세팅되므로 반드시 upsert 뒤에 수행)
+        // seatCd → 학생명 매핑 (upsert 뒤에 수행해야 seatCd 반영됨)
         List<Student> students = studentRepository.findAllByStoreIdWithStore(storeId);
         Map<String, String> seatCdToStudentName = new HashMap<>();
         for (Student student : students) {
@@ -117,9 +119,9 @@ public class SeatService {
         return dsaSeats.stream()
             .map(s -> {
                 String studentName = seatCdToStudentName.get(s.seatCd());
-                boolean away = awaySeatLabels.containsKey(s.seatNm());
+                boolean away = awaySeatCds.containsKey(s.seatCd());
                 if (away) {
-                    Seat seat = seatLabelMap.get(s.seatNm());
+                    Seat seat = seatCdMap.get(s.seatCd());
                     String reasonName = seat != null
                         ? seatIdToReasonName.get(seat.getId()) : null;
                     return new SeatStatusResponse(
@@ -215,9 +217,11 @@ public class SeatService {
         }
 
         List<Seat> allSeats = seatRepository.findAllByStoreIdWithStore(store.getId());
-        Map<String, Seat> seatLabelMap = new HashMap<>();
+        Map<String, Seat> seatCdMap = new HashMap<>();
         for (Seat seat : allSeats) {
-            seatLabelMap.put(seat.getSeatLabel(), seat);
+            if (seat.getSeatCd() != null) {
+                seatCdMap.put(seat.getSeatCd(), seat);
+            }
         }
 
         for (AreaResponse area : areas) {
@@ -228,7 +232,7 @@ public class SeatService {
                 if (dsaSeat.seatNm() == null || dsaSeat.seatNm().isEmpty()) {
                     continue;
                 }
-                Seat seat = seatLabelMap.get(dsaSeat.seatNm());
+                Seat seat = seatCdMap.get(dsaSeat.seatCd());
                 if (seat != null) {
                     seat.syncFromDsa(dsaSeat.seatNm(), dsaSeat.seatCd(),
                         dsaSeat.xPos(), dsaSeat.yPos(),
@@ -247,7 +251,7 @@ public class SeatService {
                         .seatGn(dsaSeat.seatGn())
                         .dsaSynced(true)
                         .build());
-                    seatLabelMap.put(seat.getSeatLabel(), seat);
+                    seatCdMap.put(seat.getSeatCd(), seat);
                 }
             }
         }
