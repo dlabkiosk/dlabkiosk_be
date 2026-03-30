@@ -49,21 +49,18 @@ public class DsaRequestService {
                 return Collections.emptyList();
             }
 
-            List<ApprovedRequest> approved = new ArrayList<>();
+            List<ApprovedRequest> requests = new ArrayList<>();
             for (Map<String, Object> item : response.getDataAsList()) {
-                String state = getStringValue(item, "state");
-                if ("S".equals(state)) {
-                    approved.add(new ApprovedRequest(
-                        getStringValue(item, "reg_cd"),
-                        getStringValue(item, "reg_dt"),
-                        getStringValue(item, "reg_gn")
-                    ));
-                }
+                requests.add(new ApprovedRequest(
+                    getStringValue(item, "reg_cd"),
+                    getStringValue(item, "reg_dt"),
+                    getStringValue(item, "reg_gn")
+                ));
             }
 
-            log.info("DSA 승인된 신청 {}건. rfidUid: {}, storeId: {}",
-                approved.size(), rfidUid, store.getId());
-            return approved;
+            log.info("DSA 출결 신청 {}건. rfidUid: {}, storeId: {}",
+                requests.size(), rfidUid, store.getId());
+            return requests;
 
         } catch (DsaApiException e) {
             log.error("DSA getRequestListStd 호출 실패 - {}. storeId: {}",

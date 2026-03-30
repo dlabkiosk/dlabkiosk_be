@@ -34,8 +34,9 @@ public class SeatChangeRequestController {
     private final StudentResolverService studentResolverService;
 
     @Operation(summary = "좌석 변경 신청/수정",
-        description = "학생 식별(identifier/학번/전화번호) + 희망 좌석 1~3순위로 좌석 변경을 신청한다. "
-            + "1순위 필수, 2~3순위 선택. 이미 대기 중인 신청이 있으면 희망 순위를 수정한다.\n\n"
+        description = "학생 식별(identifier) + 희망 좌석 코드(seatCd) 1~3순위로 좌석 변경을 신청한다. "
+            + "1순위 필수, 2~3순위 선택. 이미 대기 중인 신청이 있으면 희망 순위를 수정한다. "
+            + "좌석 코드는 구역별 좌석 목록(/seats-by-area) 응답의 seatCd를 사용한다.\n\n"
             + "inputMethod 입력 방식:\n"
             + "- RFID: 카드/QR 태깅으로 학생 식별\n"
             + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
