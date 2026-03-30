@@ -31,11 +31,10 @@ import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepositor
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -130,10 +129,13 @@ public class SeatChangeRequestService {
         List<AreaResponse> areas = dsaAreaService.findAreas(store);
         List<Seat> allSeats = seatRepository.findAllByStoreIdWithStore(storeId);
 
-        Map<String, Seat> seatLabelMap = allSeats.stream()
-            .collect(Collectors.toMap(Seat::getSeatLabel, s -> s, (a, b) -> a));
+        Map<String, Seat> seatCdMap = new HashMap<>();
+        for (Seat seat : allSeats) {
+            if (seat.getSeatCd() != null) {
+                seatCdMap.put(seat.getSeatCd(), seat);
+            }
+        }
 
-        Set<String> dsaSeatLabels = new HashSet<>();
         List<AreaAvailableSeatResponse> result = new ArrayList<>();
 
         for (AreaResponse area : areas) {
@@ -146,9 +148,7 @@ public class SeatChangeRequestService {
                     && !dsaSeat.seatNm().isEmpty();
 
                 if (saveToDB) {
-                    dsaSeatLabels.add(dsaSeat.seatNm());
-
-                    Seat seat = seatLabelMap.get(dsaSeat.seatNm());
+                    Seat seat = seatCdMap.get(dsaSeat.seatCd());
                     if (seat == null) {
                         seat = seatRepository.save(Seat.builder()
                             .store(store)
@@ -163,9 +163,9 @@ public class SeatChangeRequestService {
                             .seatGn(dsaSeat.seatGn())
                             .dsaSynced(true)
                             .build());
-                        seatLabelMap.put(seat.getSeatLabel(), seat);
-                        log.info("DSA 좌석 자동 생성: seatLabel={}, areaCd={}",
-                            seat.getSeatLabel(), area.areaCd());
+                        seatCdMap.put(seat.getSeatCd(), seat);
+                        log.info("DSA 좌석 자동 생성: seatCd={}, seatLabel={}, areaCd={}",
+                            seat.getSeatCd(), seat.getSeatLabel(), area.areaCd());
                     } else {
                         seat.syncFromDsa(dsaSeat.seatNm(), dsaSeat.seatCd(),
                             dsaSeat.xPos(), dsaSeat.yPos(),
@@ -183,14 +183,6 @@ public class SeatChangeRequestService {
             result.add(new AreaAvailableSeatResponse(
                 area.areaCd(), area.areaNm(), seatInfos));
         }
-
-        // TODO: DSA에 없는 좌석 비활성화 — DSA 연동 안정화 후 활성화
-        // for (Seat seat : allSeats) {
-        //     if (seat.isActive() && !dsaSeatLabels.contains(seat.getSeatLabel())) {
-        //         seat.deactivate();
-        //         log.info("DSA에 없는 좌석 비활성화: seatLabel={}", seat.getSeatLabel());
-        //     }
-        // }
 
         return result;
     }
