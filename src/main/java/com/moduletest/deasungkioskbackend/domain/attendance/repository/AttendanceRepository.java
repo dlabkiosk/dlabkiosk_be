@@ -33,4 +33,16 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         @Param("startOfDay") LocalDateTime startOfDay,
         @Param("endOfDay") LocalDateTime endOfDay
     );
+
+    @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM Attendance a "
+        + "WHERE a.student.id = :studentId "
+        + "AND a.checkInAt >= :startOfDay "
+        + "AND a.checkInAt < :endOfDay "
+        + "AND a.status = 'CHECKED_OUT' "
+        + "AND a.checkOutAction = 'C'")
+    boolean existsEarlyLeaveToday(
+        @Param("studentId") Long studentId,
+        @Param("startOfDay") LocalDateTime startOfDay,
+        @Param("endOfDay") LocalDateTime endOfDay
+    );
 }
