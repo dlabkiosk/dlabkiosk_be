@@ -31,9 +31,8 @@ public class PhoneSubmissionController {
         description = "학생의 활성 신청 기간 목록을 반환한다. 달력에서 이미 신청된 날짜 블러 처리용.\n\n"
             + "inputMethod 입력 방식:\n"
             + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
             + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
     @GetMapping("/my")
     public CommonResponse<List<PhoneSubmissionPeriodResponse>> getMySubmissionPeriods(
         @RequestParam String identifier,
@@ -51,9 +50,8 @@ public class PhoneSubmissionController {
             + "기간이 겹치는 중복 신청 시 거부된다.\n\n"
             + "inputMethod 입력 방식:\n"
             + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
             + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
     @PostMapping
     public CommonResponse<PhoneSubmissionResponse> submitPhoneNonPossession(
         @Valid @RequestBody PhoneSubmissionRequest request) {

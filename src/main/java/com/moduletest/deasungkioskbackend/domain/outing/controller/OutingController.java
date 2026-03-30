@@ -29,9 +29,8 @@ public class OutingController {
             + "TODO: DSA 연동 후 사전 승인된 외출만 허용하도록 변경 예정.\n\n"
             + "inputMethod 입력 방식:\n"
             + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
             + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
     @PostMapping("/start")
     public CommonResponse<OutingResponse> startOuting(
         @Valid @RequestBody OutingStartRequest request) {
@@ -46,9 +45,8 @@ public class OutingController {
             + "qrUuid와 rfidUid 중 하나만 전송해야 하며, 나머지는 null이어야 한다.\n\n"
             + "inputMethod 입력 방식:\n"
             + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
             + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
     @PostMapping("/end")
     public CommonResponse<OutingResponse> endOuting(
         @Valid @RequestBody OutingEndRequest request) {

@@ -26,9 +26,8 @@ public class StudentController {
             + "좌석 변경 신청 정보가 있으면 함께 반환한다.\n\n"
             + "inputMethod 입력 방식:\n"
             + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
             + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
     @GetMapping("/search")
     public CommonResponse<StudentKioskResponse> searchStudent(
             @RequestParam String identifier,
