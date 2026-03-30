@@ -14,15 +14,15 @@ public record SeatChangeRequestCreateRequest(
     @Schema(description = "입력 방식\n- RFID: 카드/QR\n- SEAT_LABEL: 좌석번호\n- PHONE_LAST4: 전화번호 뒷자리")
     InputMethod inputMethod,
 
-    @NotNull(message = "1순위 희망 좌석 ID는 필수입니다")
-    @Schema(description = "1순위 희망 좌석 ID", example = "5")
-    Long desiredSeatId1,
+    @NotBlank(message = "1순위 희망 좌석 코드는 필수입니다")
+    @Schema(description = "1순위 희망 좌석 코드 (DSA seatCd)", example = "30343")
+    String desiredSeatCd1,
 
-    @Schema(description = "2순위 희망 좌석 ID (선택)", example = "8")
-    Long desiredSeatId2,
+    @Schema(description = "2순위 희망 좌석 코드 (선택)", example = "30384")
+    String desiredSeatCd2,
 
-    @Schema(description = "3순위 희망 좌석 ID (선택)", example = "12")
-    Long desiredSeatId3
+    @Schema(description = "3순위 희망 좌석 코드 (선택)", example = "30390")
+    String desiredSeatCd3
 ) {
 
 }

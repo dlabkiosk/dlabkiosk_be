@@ -69,11 +69,11 @@ public class SeatChangeRequestService {
             throw new SeatChangeRequestException(ErrorCode.STUDENT_NOT_IN_THIS_STORE);
         }
 
-        Seat desiredSeat1 = findSeatInStore(request.desiredSeatId1(), storeId);
-        Seat desiredSeat2 = request.desiredSeatId2() != null
-            ? findSeatInStore(request.desiredSeatId2(), storeId) : null;
-        Seat desiredSeat3 = request.desiredSeatId3() != null
-            ? findSeatInStore(request.desiredSeatId3(), storeId) : null;
+        Seat desiredSeat1 = findSeatByCdInStore(request.desiredSeatCd1(), storeId);
+        Seat desiredSeat2 = request.desiredSeatCd2() != null && !request.desiredSeatCd2().isBlank()
+            ? findSeatByCdInStore(request.desiredSeatCd2(), storeId) : null;
+        Seat desiredSeat3 = request.desiredSeatCd3() != null && !request.desiredSeatCd3().isBlank()
+            ? findSeatByCdInStore(request.desiredSeatCd3(), storeId) : null;
 
         validateNotCurrentSeat(student, desiredSeat1, desiredSeat2, desiredSeat3);
 
@@ -356,6 +356,7 @@ public class SeatChangeRequestService {
 
                 return new SeatWaitingStatusResponse(
                     seat.getId(),
+                    seat.getSeatCd(),
                     seat.getSeatLabel(),
                     seat.getSeatType().name(),
                     seatIdToStudentName.get(seat.getId()),
@@ -423,6 +424,17 @@ public class SeatChangeRequestService {
         if (!seat.getStore().getId().equals(storeId)) {
             throw new SeatChangeRequestException(ErrorCode.SEAT_NOT_IN_THIS_STORE);
         }
+
+        if (!seat.isActive()) {
+            throw new SeatException(ErrorCode.SEAT_NOT_FOUND);
+        }
+
+        return seat;
+    }
+
+    private Seat findSeatByCdInStore(String seatCd, Long storeId) {
+        Seat seat = seatRepository.findBySeatCdAndStoreId(seatCd, storeId)
+            .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_FOUND));
 
         if (!seat.isActive()) {
             throw new SeatException(ErrorCode.SEAT_NOT_FOUND);

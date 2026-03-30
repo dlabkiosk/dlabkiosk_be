@@ -9,7 +9,10 @@ public record AvailableSeatResponse(
     @Schema(description = "좌석 ID", example = "5")
     Long seatId,
 
-    @Schema(description = "좌석 라벨", example = "B-3")
+    @Schema(description = "DSA 좌석 코드", example = "30343")
+    String seatCd,
+
+    @Schema(description = "좌석 라벨", example = "1")
     String seatLabel,
 
     @Schema(description = "좌석 타입", example = "INDIVIDUAL")
@@ -25,6 +28,7 @@ public record AvailableSeatResponse(
     public static AvailableSeatResponse of(Seat seat, String assignedStudentName) {
         return new AvailableSeatResponse(
             seat.getId(),
+            seat.getSeatCd(),
             seat.getSeatLabel(),
             seat.getSeatType().name(),
             assignedStudentName,

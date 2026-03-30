@@ -10,7 +10,10 @@ public record SeatWaitingStatusResponse(
     @Schema(description = "좌석 ID", example = "1")
     Long seatId,
 
-    @Schema(description = "좌석 라벨", example = "A-1")
+    @Schema(description = "DSA 좌석 코드", example = "30343")
+    String seatCd,
+
+    @Schema(description = "좌석 라벨", example = "1")
     String seatLabel,
 
     @Schema(description = "좌석 타입", example = "INDIVIDUAL")
