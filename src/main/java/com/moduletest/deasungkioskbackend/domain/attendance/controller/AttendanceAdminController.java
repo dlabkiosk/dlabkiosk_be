@@ -22,12 +22,12 @@ public final class AttendanceAdminController {
     private final AttendanceAdminService attendanceAdminService;
 
     @Operation(summary = "출결 현황 조회",
-        description = "해당 지점 학생들의 출결 현황을 조회합니다.\n\n"
+        description = "해당 지점 학생들의 출결 현황을 DSA 좌석 상태 기준으로 조회합니다.\n\n"
             + "attendanceStatus 필터 값:\n"
-            + "- 등원: 현재 좌석 사용 중\n"
-            + "- 외출: 외출 중\n"
-            + "- 이탈: 좌석 이탈 중\n"
-            + "- 미출석: 출석하지 않음\n\n"
+            + "- 등원: DSA 좌석 상태 S\n"
+            + "- 외출: DSA 좌석 상태 D\n"
+            + "- 미출석: DSA 좌석 상태 N/B\n"
+            + "- 미확인: DSA 좌석 매칭 안 됨 (테스트 서버 데이터 불일치로 seat_cd 미매칭)\n\n"
             + "phoneSubmitted 필터:\n"
             + "- true: 오늘 휴대폰 미소지 신청한 학생만\n"
             + "- false: 미신청 학생만\n"
