@@ -32,9 +32,8 @@ public class TagController {
             + "식사시간(점심 12:10~13:10, 저녁 18:00~19:00)에는 급식 정보도 함께 반환한다.\n\n"
             + "inputMethod 입력 방식:\n"
             + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
             + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
     @PostMapping
     public CommonResponse<TagResponse> processTag(
         @Valid @RequestBody TagRequest request) {
@@ -47,9 +46,8 @@ public class TagController {
             + "D(외출) 또는 C(조퇴)만 허용된다.\n\n"
             + "inputMethod 입력 방식:\n"
             + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
             + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
     @PostMapping("/confirm")
     public CommonResponse<TagResponse> confirmTag(
         @Valid @RequestBody TagConfirmRequest request) {
@@ -63,9 +61,8 @@ public class TagController {
             + "[주의] DSA 급식 신청 조회(3.30) 아직 미연동 — 현재 DSA 인증정보 없으면 전부 신청한 것으로 처리됨.\n\n"
             + "inputMethod 입력 방식:\n"
             + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
             + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
     @PostMapping("/meal-confirm")
     public CommonResponse<TagResponse> confirmMealTag(
         @RequestParam @NotBlank String identifier,

@@ -29,9 +29,8 @@ public class AttendanceController {
             + "당일 이미 등원 상태면 거부된다. 학생이 해당 지점 소속이 아니면 거부된다.\n\n"
             + "inputMethod 입력 방식:\n"
             + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
             + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
     @PostMapping("/check-in")
     public CommonResponse<AttendanceResponse> checkIn(
         @Valid @RequestBody CheckInRequest request) {
@@ -45,9 +44,8 @@ public class AttendanceController {
             + "사용 중인 좌석이 있으면 자동으로 좌석 퇴실도 함께 처리된다.\n\n"
             + "inputMethod 입력 방식:\n"
             + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- SEAT_LABEL: 좌석번호로 학생 식별\n"
             + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 좌석번호 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
     @PostMapping("/check-out")
     public CommonResponse<AttendanceResponse> checkOut(
         @Valid @RequestBody CheckOutRequest request) {

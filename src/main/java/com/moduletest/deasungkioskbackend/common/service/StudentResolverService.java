@@ -78,11 +78,11 @@ public class StudentResolverService {
     }
 
     /**
-     * 4가지 식별 방식 중 하나로 학생을 찾는다.
-     * 우선순위: identifier(카드/QR) → studentNumber(학번) → seatLabel(좌석번호) → phoneLast4(폰뒷자리)
+     * 3가지 식별 방식 중 하나로 학생을 찾는다.
+     * 우선순위: identifier(카드/QR) → studentNumber(학번) → phoneLast4(폰뒷자리)
      */
     public Student resolve(String identifier, String studentNumber,
-                           String seatLabel, String phoneLast4, Long storeId) {
+                           String phoneLast4, Long storeId) {
         if (identifier != null && !identifier.isBlank()) {
             return resolveByIdentifier(identifier);
         }
@@ -90,9 +90,6 @@ public class StudentResolverService {
             return studentRepository.findByStudentNumber(studentNumber.trim())
                 .orElseThrow(() -> new StudentException(
                     ErrorCode.STUDENT_NOT_FOUND_BY_STUDENT_NUMBER));
-        }
-        if (seatLabel != null && !seatLabel.isBlank()) {
-            return resolveBySeatLabel(seatLabel, storeId);
         }
         if (phoneLast4 != null && !phoneLast4.isBlank()) {
             return resolveByPhoneLast4(phoneLast4, storeId);
@@ -102,7 +99,7 @@ public class StudentResolverService {
 
     /**
      * inputMethod가 지정되면 해당 방식으로만 조회한다.
-     * null이면 자동 판별 (rfidUid → seatLabel → phoneLast4).
+     * null이면 자동 판별 (rfidUid → phone 8자리 → phoneLast4).
      */
     public Student resolveAuto(String value, Long storeId, InputMethod inputMethod) {
         if (value == null || value.isBlank()) {
@@ -111,7 +108,6 @@ public class StudentResolverService {
         if (inputMethod != null) {
             Student student = switch (inputMethod) {
                 case RFID -> resolveByIdentifier(value.trim());
-                case SEAT_LABEL -> resolveBySeatLabel(value.trim(), storeId);
                 case PHONE_LAST4 -> resolveByPhoneLast4(value.trim(), storeId);
                 case PHONE -> resolveByPhone(value.trim(), storeId);
             };
@@ -143,14 +139,7 @@ public class StudentResolverService {
             return student;
         }
 
-        // 2. seatLabel로 조회
-        Optional<Student> bySeat = studentRepository.findBySeatLabelAndStoreId(
-            trimmed, storeId);
-        if (bySeat.isPresent()) {
-            return bySeat.get();
-        }
-
-        // 3. phone(8자리)로 조회
+        // 2. phone(8자리)로 조회
         if (trimmed.length() >= 8) {
             String phone8 = trimmed.length() == 8
                 ? trimmed : trimmed.substring(trimmed.length() - 8);
