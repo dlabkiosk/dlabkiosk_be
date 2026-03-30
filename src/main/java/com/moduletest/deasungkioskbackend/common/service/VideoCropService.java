@@ -13,8 +13,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public final class VideoCropService {
 
-    public InputStream cropVideo(MultipartFile file, int cropX, int cropY,
-                                  int cropWidth, int cropHeight) {
+    public CropResult cropVideo(MultipartFile file, int cropX, int cropY,
+                                int cropWidth, int cropHeight) {
         File inputFile = null;
         File outputFile = null;
 
@@ -46,7 +46,7 @@ public final class VideoCropService {
             }
 
             byte[] result = Files.readAllBytes(outputFile.toPath());
-            return new java.io.ByteArrayInputStream(result);
+            return new CropResult(new java.io.ByteArrayInputStream(result), result.length);
 
         } catch (BusinessException e) {
             throw e;
@@ -59,48 +59,8 @@ public final class VideoCropService {
         }
     }
 
-    public long getCroppedSize(MultipartFile file, int cropX, int cropY,
-                                int cropWidth, int cropHeight) {
-        File inputFile = null;
-        File outputFile = null;
+    public record CropResult(InputStream inputStream, long size) {
 
-        try {
-            String extension = extractExtension(file.getOriginalFilename());
-            inputFile = File.createTempFile("video-size-", extension);
-            outputFile = File.createTempFile("video-size-out-", extension);
-            file.transferTo(inputFile);
-
-            String cropFilter = String.format("crop=%d:%d:%d:%d",
-                cropWidth, cropHeight, cropX, cropY);
-
-            ProcessBuilder pb = new ProcessBuilder(
-                "ffmpeg", "-y",
-                "-i", inputFile.getAbsolutePath(),
-                "-vf", cropFilter,
-                "-c:a", "copy",
-                outputFile.getAbsolutePath()
-            );
-            pb.redirectErrorStream(true);
-
-            Process process = pb.start();
-            int exitCode = process.waitFor();
-
-            if (exitCode != 0) {
-                log.error("FFmpeg 크롭 사이즈 계산 실패 (exitCode={})", exitCode);
-                throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED);
-            }
-
-            return outputFile.length();
-
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("동영상 크롭 사이즈 계산 실패", e);
-            throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED);
-        } finally {
-            deleteQuietly(inputFile);
-            deleteQuietly(outputFile);
-        }
     }
 
     private String extractExtension(String filename) {
