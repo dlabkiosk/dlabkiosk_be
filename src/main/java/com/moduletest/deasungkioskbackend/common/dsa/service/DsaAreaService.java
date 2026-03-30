@@ -10,12 +10,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 @Slf4j
+@RequiredArgsConstructor
 @Service
 public final class DsaAreaService {
 
@@ -24,14 +24,6 @@ public final class DsaAreaService {
     private static final String GET_STUDY_AREA_SEAT_STATE_PATH = "/kiosk/getStudyAreaSeatState";
 
     private final DsaApiClient dsaApiClient;
-    private final RestTemplate dsaSeatRestTemplate;
-
-    public DsaAreaService(
-        DsaApiClient dsaApiClient,
-        @Qualifier("dsaSeatRestTemplate") RestTemplate dsaSeatRestTemplate) {
-        this.dsaApiClient = dsaApiClient;
-        this.dsaSeatRestTemplate = dsaSeatRestTemplate;
-    }
 
     /**
      * DSA 3.7 getStudyAreaInfo 호출.
@@ -48,7 +40,7 @@ public final class DsaAreaService {
 
             DsaResponse response = dsaApiClient.post(
                 GET_STUDY_AREA_INFO_PATH, params, DsaResponse.class,
-                store, dsaSeatRestTemplate);
+                store);
 
             if (!response.isSuccess() || response.getDataAsList() == null) {
                 log.warn("DSA getStudyAreaInfo 실패 - code: {}, message: {}. storeId: {}",
@@ -93,7 +85,7 @@ public final class DsaAreaService {
 
             DsaResponse seatResponse = dsaApiClient.post(
                 GET_STUDY_AREA_SEAT_INFO_PATH, seatParams, DsaResponse.class,
-                store, dsaSeatRestTemplate);
+                store);
 
             if (!seatResponse.isSuccess() || seatResponse.getDataAsList() == null) {
                 log.warn("DSA getStudyAreaSeatInfo 실패. storeId: {}", store.getId());
@@ -106,7 +98,7 @@ public final class DsaAreaService {
 
             DsaResponse stateResponse = dsaApiClient.post(
                 GET_STUDY_AREA_SEAT_STATE_PATH, stateParams, DsaResponse.class,
-                store, dsaSeatRestTemplate);
+                store);
 
             Map<String, String> stateMap = new HashMap<>();
             if (stateResponse.isSuccess() && stateResponse.getDataAsList() != null) {
