@@ -42,4 +42,15 @@ public interface OutingRepository extends JpaRepository<Outing, Long> {
         @Param("startOfDay") LocalDateTime startOfDay,
         @Param("endOfDay") LocalDateTime endOfDay
     );
+
+    @Query("SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END FROM Outing o "
+        + "WHERE o.student.id = :studentId "
+        + "AND o.startedAt >= :startOfDay "
+        + "AND o.startedAt < :endOfDay "
+        + "AND o.endedAt IS NOT NULL")
+    boolean existsCompletedOutingToday(
+        @Param("studentId") Long studentId,
+        @Param("startOfDay") LocalDateTime startOfDay,
+        @Param("endOfDay") LocalDateTime endOfDay
+    );
 }

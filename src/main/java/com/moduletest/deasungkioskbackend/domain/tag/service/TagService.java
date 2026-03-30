@@ -113,15 +113,17 @@ public class TagService {
             .findTodayAttendanceByStudentAndStatus(
                 student.getId(), startOfDay, endOfDay, AttendanceStatus.CHECKED_IN);
         if (checkedIn.isEmpty()) {
-            AttendTagResult dsaResult = dsaAttendanceService.sendAttendTag(
-                student.getRfidUid(), store);
-
-            // 조퇴 후 재태그 → DSA 3.22 재등원 처리
-            if (dsaResult.earlyLeftBlocked()) {
+            // 오늘 조퇴 기록 있으면 → DSA 3.22 재등원 처리 (DSA 응답 코드 의존 X)
+            boolean hadEarlyLeaveToday = attendanceRepository.existsEarlyLeaveToday(
+                student.getId(), startOfDay, endOfDay);
+            if (hadEarlyLeaveToday) {
                 TagResponse response = handleReAttendAfterEarlyLeave(
                     student, store, storeId);
                 return withMealInfo(response, mealInfo);
             }
+
+            AttendTagResult dsaResult = dsaAttendanceService.sendAttendTag(
+                student.getRfidUid(), store);
 
             AttendAction action = (dsaResult.action() == AttendAction.A)
                 ? AttendAction.A : AttendAction.S;
@@ -146,9 +148,13 @@ public class TagService {
         List<ApprovedRequest> approvedRequests = dsaRequestService
             .findApprovedRequests(student.getRfidUid(), store);
 
+        boolean hadOutingToday = outingRepository.existsCompletedOutingToday(
+            student.getId(), startOfDay, endOfDay);
+
         List<PendingAction> pendingActions = new ArrayList<>();
         if (!approvedRequests.isEmpty()) {
-            pendingActions.addAll(buildPendingActions(approvedRequests));
+            pendingActions.addAll(
+                buildPendingActions(approvedRequests, hadOutingToday));
         }
 
         return TagResponse.builder()
@@ -169,6 +175,9 @@ public class TagService {
         List<ApprovedRequest> approvedRequests = dsaRequestService
             .findApprovedRequests(student.getRfidUid(), store);
 
+        boolean hadOutingToday = outingRepository.existsCompletedOutingToday(
+            student.getId(), startOfDay, endOfDay);
+
         // 승인된 신청 중 유효한 건 찾기
         for (ApprovedRequest req : approvedRequests) {
             String regGn = req.regGn();
@@ -186,8 +195,8 @@ public class TagService {
                 return withMealInfo(response, mealInfo);
             }
 
-            // 외출은 30분 이내만
-            if (isWithin30Minutes(req.regDt())) {
+            // 외출은 30분 이내 + 오늘 이미 외출 다녀왔으면 건너뜀
+            if (!hadOutingToday && isWithin30Minutes(req.regDt())) {
                 String conGn = "7".equals(regGn) || "N".equalsIgnoreCase(regGn)
                     ? "N" : "D";
                 AttendTagResult result = dsaAttendanceService.sendAttendTag(
@@ -413,15 +422,16 @@ public class TagService {
             .build();
     }
 
-    private List<PendingAction> buildPendingActions(List<ApprovedRequest> requests) {
+    private List<PendingAction> buildPendingActions(List<ApprovedRequest> requests,
+                                                     boolean hadOutingToday) {
         List<PendingAction> actions = new ArrayList<>();
         for (ApprovedRequest req : requests) {
             String regGn = req.regGn();
             boolean isEarlyLeave = "6".equals(regGn)
                 || "C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn);
 
-            // 외출만 30분 제한, 조퇴는 항상 허용
-            if (!isEarlyLeave && !isWithin30Minutes(req.regDt())) {
+            // 외출: 30분 제한 + 오늘 이미 다녀왔으면 제외
+            if (!isEarlyLeave && (hadOutingToday || !isWithin30Minutes(req.regDt()))) {
                 continue;
             }
 
@@ -545,7 +555,7 @@ public class TagService {
             .orElseThrow(() -> new AttendanceException(ErrorCode.NOT_CHECKED_IN));
 
         LocalDateTime checkOutTime = LocalDateTime.now();
-        attendance.checkOut(checkOutTime);
+        attendance.checkOut(checkOutTime, action.name());
 
         // 진행 중인 외출 자동 종료
         outingRepository.findActiveOutingByStudentToday(

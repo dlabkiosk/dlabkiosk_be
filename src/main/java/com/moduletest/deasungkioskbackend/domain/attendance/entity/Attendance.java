@@ -48,6 +48,9 @@ public class Attendance extends BaseTimeEntity {
     @Column(name = "check_out_at")
     private LocalDateTime checkOutAt;
 
+    @Column(name = "check_out_action", length = 10)
+    private String checkOutAction;
+
     @Builder
     public Attendance(Student student, Store store, LocalDateTime checkInAt) {
         this.student = student;
@@ -56,8 +59,9 @@ public class Attendance extends BaseTimeEntity {
         this.checkInAt = checkInAt;
     }
 
-    public void checkOut(LocalDateTime checkOutAt) {
+    public void checkOut(LocalDateTime checkOutAt, String action) {
         this.status = AttendanceStatus.CHECKED_OUT;
         this.checkOutAt = checkOutAt;
+        this.checkOutAction = action;
     }
 }

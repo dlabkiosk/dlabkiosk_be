@@ -105,7 +105,7 @@ public class AttendanceService {
             .orElseThrow(() -> new AttendanceException(ErrorCode.NOT_CHECKED_IN));
 
         LocalDateTime checkOutTime = LocalDateTime.now();
-        attendance.checkOut(checkOutTime);
+        attendance.checkOut(checkOutTime, "T");
 
         // 사용 중인 좌석이 있으면 자동 퇴실
         seatCheckOut(student, storeId);
