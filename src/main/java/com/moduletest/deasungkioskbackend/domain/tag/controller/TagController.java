@@ -1,7 +1,6 @@
 package com.moduletest.deasungkioskbackend.domain.tag.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
-import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.domain.tag.dto.TagConfirmRequest;
 import com.moduletest.deasungkioskbackend.domain.tag.dto.TagRequest;
 import com.moduletest.deasungkioskbackend.domain.tag.dto.TagResponse;
@@ -9,13 +8,11 @@ import com.moduletest.deasungkioskbackend.domain.tag.service.TagService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "[키오스크] 통합 태그",
@@ -65,11 +62,11 @@ public class TagController {
             + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
     @PostMapping("/meal-confirm")
     public CommonResponse<TagResponse> confirmMealTag(
-        @RequestParam @NotBlank String identifier,
-        @RequestParam(required = false) InputMethod inputMethod) {
+        @Valid @RequestBody TagRequest request) {
         Long storeId = getStoreIdFromToken();
         return CommonResponse.success(
-            tagService.confirmMealTag(identifier, storeId, inputMethod));
+            tagService.confirmMealTag(
+                request.identifier(), storeId, request.inputMethod()));
     }
 
     private Long getStoreIdFromToken() {
