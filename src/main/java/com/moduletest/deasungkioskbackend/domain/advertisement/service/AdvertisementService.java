@@ -5,6 +5,7 @@ import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.common.service.ImageCropService;
 import com.moduletest.deasungkioskbackend.common.service.S3Service;
+import com.moduletest.deasungkioskbackend.common.service.VideoCropService;
 import java.io.InputStream;
 import com.moduletest.deasungkioskbackend.domain.advertisement.dto.AdvertisementResponse;
 import com.moduletest.deasungkioskbackend.domain.advertisement.entity.Advertisement;
@@ -28,6 +29,7 @@ public class AdvertisementService {
     private final StoreRepository storeRepository;
     private final S3Service s3Service;
     private final ImageCropService imageCropService;
+    private final VideoCropService videoCropService;
 
     public List<AdvertisementResponse> findAllAdvertisements(Long storeId) {
         if (storeId != null) {
@@ -62,7 +64,7 @@ public class AdvertisementService {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
-        String fileUrl = uploadWithCrop(file, cropX, cropY, cropWidth, cropHeight);
+        String fileUrl = uploadWithCrop(file, mediaType, cropX, cropY, cropWidth, cropHeight);
 
         Advertisement advertisement = Advertisement.builder()
             .store(store)
@@ -90,21 +92,34 @@ public class AdvertisementService {
         String newImageUrl = null;
         if (file != null && !file.isEmpty()) {
             s3Service.delete(advertisement.getImageUrl());
-            newImageUrl = uploadWithCrop(file, cropX, cropY, cropWidth, cropHeight);
+            String resolvedMediaType = mediaType != null ? mediaType : advertisement.getMediaType();
+            newImageUrl = uploadWithCrop(file, resolvedMediaType, cropX, cropY, cropWidth, cropHeight);
         }
 
         advertisement.updateInfo(newImageUrl, mediaType, displayOrder, displaySeconds, active);
         return AdvertisementResponse.fromEntity(advertisement);
     }
 
-    private String uploadWithCrop(MultipartFile file,
+    private String uploadWithCrop(MultipartFile file, String mediaType,
                                    Integer cropX, Integer cropY,
                                    Integer cropWidth, Integer cropHeight) {
         if (cropX != null && cropY != null && cropWidth != null && cropHeight != null) {
-            long croppedSize = imageCropService.getCroppedSize(
-                file, cropX, cropY, cropWidth, cropHeight);
-            InputStream croppedStream = imageCropService.cropImage(
-                file, cropX, cropY, cropWidth, cropHeight);
+            boolean isVideo = "VIDEO".equalsIgnoreCase(mediaType);
+
+            long croppedSize;
+            InputStream croppedStream;
+
+            if (isVideo) {
+                croppedSize = videoCropService.getCroppedSize(
+                    file, cropX, cropY, cropWidth, cropHeight);
+                croppedStream = videoCropService.cropVideo(
+                    file, cropX, cropY, cropWidth, cropHeight);
+            } else {
+                croppedSize = imageCropService.getCroppedSize(
+                    file, cropX, cropY, cropWidth, cropHeight);
+                croppedStream = imageCropService.cropImage(
+                    file, cropX, cropY, cropWidth, cropHeight);
+            }
 
             String extension = extractExtension(file.getOriginalFilename());
             return s3Service.upload(croppedStream, croppedSize,

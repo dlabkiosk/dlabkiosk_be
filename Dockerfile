@@ -1,6 +1,6 @@
 FROM eclipse-temurin:17-jre-alpine
 
-RUN apk add --no-cache tzdata
+RUN apk add --no-cache tzdata ffmpeg
 ENV TZ=Asia/Seoul
 
 WORKDIR /app
