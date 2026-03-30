@@ -1,11 +1,18 @@
 package com.moduletest.deasungkioskbackend.domain.attendance.service;
 
+import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAreaService;
+import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.domain.attendance.dto.AttendanceStudentResponse;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.repository.PhoneSubmissionRepository;
-import com.moduletest.deasungkioskbackend.domain.seat.service.SeatRedisService;
+import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
+import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
+import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
+import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
+import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,19 +29,23 @@ import org.springframework.transaction.annotation.Transactional;
 public class AttendanceAdminService {
 
     private final StudentRepository studentRepository;
-    private final SeatRedisService seatRedisService;
+    private final StoreRepository storeRepository;
+    private final DsaAreaService dsaAreaService;
     private final PhoneSubmissionRepository phoneSubmissionRepository;
 
     public List<AttendanceStudentResponse> findAttendanceList(
             Long storeId, String studentName, String studentNumber,
             String status, Boolean phoneSubmitted) {
 
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
+
         List<Student> students = studentRepository.findAllByStoreIdWithStore(storeId);
-        Map<Object, Object> seatStatusMap = seatRedisService.getSeatStatusMap(storeId);
+        Map<String, String> seatCdToState = buildSeatStateMap(store);
         Set<Long> phoneSubmittedStudentIds = findPhoneSubmittedStudentIds(storeId);
 
         return students.stream()
-            .map(student -> toResponse(student, seatStatusMap, phoneSubmittedStudentIds))
+            .map(student -> toResponse(student, seatCdToState, phoneSubmittedStudentIds))
             .filter(r -> matchesStudentName(r, studentName))
             .filter(r -> matchesStudentNumber(r, studentNumber))
             .filter(r -> matchesStatus(r, status))
@@ -42,13 +53,34 @@ public class AttendanceAdminService {
             .toList();
     }
 
+    private Map<String, String> buildSeatStateMap(Store store) {
+        Map<String, String> seatCdToState = new HashMap<>();
+
+        if (!store.hasDsaCredentials()) {
+            return seatCdToState;
+        }
+
+        List<AreaResponse> areas = dsaAreaService.findAreas(store);
+        for (AreaResponse area : areas) {
+            List<SeatStatusResponse> seats =
+                dsaAreaService.findSeatStatusByArea(area.areaCd(), store);
+            for (SeatStatusResponse seat : seats) {
+                if (seat.seatCd() != null) {
+                    seatCdToState.put(seat.seatCd(), seat.state());
+                }
+            }
+        }
+
+        return seatCdToState;
+    }
+
     private AttendanceStudentResponse toResponse(Student student,
-                                                  Map<Object, Object> seatStatusMap,
+                                                  Map<String, String> seatCdToState,
                                                   Set<Long> phoneSubmittedStudentIds) {
         String seatLabel = student.getAssignedSeat() != null
             ? student.getAssignedSeat().getSeatLabel() : null;
 
-        String attendanceStatus = resolveAttendanceStatus(student, seatStatusMap);
+        String attendanceStatus = resolveAttendanceStatus(student, seatCdToState);
         boolean isPhoneSubmitted = phoneSubmittedStudentIds.contains(student.getId());
 
         return AttendanceStudentResponse.builder()
@@ -62,29 +94,24 @@ public class AttendanceAdminService {
     }
 
     private String resolveAttendanceStatus(Student student,
-                                            Map<Object, Object> seatStatusMap) {
-        if (student.getAssignedSeat() == null) {
-            return "미출석";
+                                            Map<String, String> seatCdToState) {
+        if (student.getAssignedSeat() == null
+                || student.getAssignedSeat().getSeatCd() == null) {
+            return "미확인";
         }
 
-        String seatId = student.getAssignedSeat().getId().toString();
-        String value = (String) seatStatusMap.get(seatId);
-
-        if (value == null || "AVAILABLE".equals(value)) {
-            return "미출석";
+        String state = seatCdToState.get(student.getAssignedSeat().getSeatCd());
+        if (state == null) {
+            return "미확인";
         }
 
-        if (value.startsWith("IN_USE:")) {
-            return "등원";
-        }
-        if (value.startsWith("OUTING:")) {
-            return "외출";
-        }
-        if (value.startsWith("AWAY:")) {
-            return "이탈";
-        }
-
-        return "미출석";
+        return switch (state) {
+            case "S" -> "등원";
+            case "D" -> "외출";
+            case "N" -> "미출석";
+            case "B" -> "미출석";
+            default -> "미확인";
+        };
     }
 
     private Set<Long> findPhoneSubmittedStudentIds(Long storeId) {
