@@ -50,17 +50,6 @@ public class SeatService {
 
         List<SeatStatusResponse> dsaSeats = dsaAreaService.findSeatStatusByArea(areaCd, store);
 
-        // 우리 DB에서 seatCd → 학생명 매핑 (Student.assignedSeat 기준)
-        List<Student> students = studentRepository.findAllByStoreIdWithStore(storeId);
-        Map<String, String> seatCdToStudentName = new HashMap<>();
-        for (Student student : students) {
-            if (student.getAssignedSeat() != null
-                && student.getAssignedSeat().getSeatCd() != null) {
-                seatCdToStudentName.put(
-                    student.getAssignedSeat().getSeatCd(), student.getName());
-            }
-        }
-
         // Redis에서 AWAY 상태인 좌석의 seatLabel 수집
         Map<Object, Object> redisStatus = seatRedisService.getSeatStatusMap(storeId);
         List<Seat> seats = seatRepository.findAllByStoreIdWithStore(storeId);
@@ -110,6 +99,17 @@ public class SeatService {
                     .dsaSynced(true)
                     .build());
                 seatLabelMap.put(seat.getSeatLabel(), seat);
+            }
+        }
+
+        // sync 이후 seatCd → 학생명 매핑 (sync에서 seatCd가 세팅되므로 반드시 upsert 뒤에 수행)
+        List<Student> students = studentRepository.findAllByStoreIdWithStore(storeId);
+        Map<String, String> seatCdToStudentName = new HashMap<>();
+        for (Student student : students) {
+            if (student.getAssignedSeat() != null
+                && student.getAssignedSeat().getSeatCd() != null) {
+                seatCdToStudentName.put(
+                    student.getAssignedSeat().getSeatCd(), student.getName());
             }
         }
 
