@@ -150,11 +150,13 @@ public class TagService {
 
         boolean hadOutingToday = outingRepository.existsCompletedOutingToday(
             student.getId(), startOfDay, endOfDay);
+        boolean hadEarlyLeaveToday = attendanceRepository.existsEarlyLeaveToday(
+            student.getId(), startOfDay, endOfDay);
 
         List<PendingAction> pendingActions = new ArrayList<>();
         if (!approvedRequests.isEmpty()) {
             pendingActions.addAll(
-                buildPendingActions(approvedRequests, hadOutingToday));
+                buildPendingActions(approvedRequests, hadOutingToday, hadEarlyLeaveToday));
         }
 
         return TagResponse.builder()
@@ -177,12 +179,18 @@ public class TagService {
 
         boolean hadOutingToday = outingRepository.existsCompletedOutingToday(
             student.getId(), startOfDay, endOfDay);
+        boolean hadEarlyLeaveToday = attendanceRepository.existsEarlyLeaveToday(
+            student.getId(), startOfDay, endOfDay);
 
         // 승인된 신청 중 유효한 건 찾기
         for (ApprovedRequest req : approvedRequests) {
             String regGn = req.regGn();
             boolean isEarlyLeave = "6".equals(regGn)
                 || "C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn);
+
+            if (isEarlyLeave && hadEarlyLeaveToday) {
+                continue;
+            }
 
             if (isEarlyLeave) {
                 AttendTagResult result = dsaAttendanceService.sendAttendTag(
@@ -423,12 +431,18 @@ public class TagService {
     }
 
     private List<PendingAction> buildPendingActions(List<ApprovedRequest> requests,
-                                                     boolean hadOutingToday) {
+                                                     boolean hadOutingToday,
+                                                     boolean hadEarlyLeaveToday) {
         List<PendingAction> actions = new ArrayList<>();
         for (ApprovedRequest req : requests) {
             String regGn = req.regGn();
             boolean isEarlyLeave = "6".equals(regGn)
                 || "C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn);
+
+            // 조퇴: 오늘 이미 했으면 제외
+            if (isEarlyLeave && hadEarlyLeaveToday) {
+                continue;
+            }
 
             // 외출: 30분 제한 + 오늘 이미 다녀왔으면 제외
             if (!isEarlyLeave && (hadOutingToday || !isWithin30Minutes(req.regDt()))) {
