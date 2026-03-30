@@ -70,6 +70,11 @@ public class DsaAttendanceService {
 
             String attGn = extractAttGn(response);
             if (attGn == null) {
+                if (conGn != null && !conGn.isEmpty()) {
+                    log.info("DSA 성공 (att_gn 없음, con_gn={} 지정). rfidUid: {}, storeId: {}",
+                        conGn, rfidUid, store.getId());
+                    return AttendTagResult.success(AttendAction.fromCode(conGn));
+                }
                 log.warn("DSA 응답에 att_gn 없음. storeId: {}", store.getId());
                 return AttendTagResult.noDsa();
             }
