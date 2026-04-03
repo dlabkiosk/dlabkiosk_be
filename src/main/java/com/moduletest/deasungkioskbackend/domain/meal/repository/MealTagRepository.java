@@ -19,6 +19,14 @@ public interface MealTagRepository extends JpaRepository<MealTag, Long> {
     List<MealTag> findAllByStudentIdAndMealDate(Long studentId, LocalDate mealDate);
 
     @Query("SELECT mt FROM MealTag mt "
+        + "JOIN FETCH mt.student s "
+        + "WHERE mt.store.id = :storeId AND mt.mealDate = :mealDate "
+        + "ORDER BY mt.taggedAt DESC")
+    List<MealTag> findAllByStoreIdAndMealDateWithStudent(
+        @Param("storeId") Long storeId,
+        @Param("mealDate") LocalDate mealDate);
+
+    @Query("SELECT mt FROM MealTag mt "
         + "JOIN FETCH mt.student s LEFT JOIN FETCH s.assignedSeat "
         + "WHERE mt.store.id = :storeId "
         + "AND mt.mealDate >= :startDate AND mt.mealDate <= :endDate "

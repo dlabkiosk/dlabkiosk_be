@@ -41,13 +41,18 @@ public class Notice extends BaseTimeEntity {
     @Column(name = "is_active", nullable = false)
     private boolean active;
 
+    @Column(name = "created_by", length = 50)
+    private String createdBy;
+
     @Builder
-    public Notice(Store store, String title, String content, boolean pinned, boolean active) {
+    public Notice(Store store, String title, String content, boolean pinned, boolean active,
+                  String createdBy) {
         this.store = store;
         this.title = title;
         this.content = content;
         this.pinned = pinned;
         this.active = active;
+        this.createdBy = createdBy;
     }
 
     public void updateInfo(String title, String content, Boolean pinned, Boolean active) {

@@ -1,0 +1,1 @@
+ALTER TABLE notices ADD COLUMN created_by VARCHAR(50) NULL;

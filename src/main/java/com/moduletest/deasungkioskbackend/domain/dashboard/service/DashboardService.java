@@ -8,6 +8,7 @@ import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllRespo
 import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.DailyOperationSummary;
 import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.NoticeSummaryRecord;
 import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.SeatChangeRequestRecord;
+import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.MealTagDetail;
 import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.MealTagSummary;
 import com.moduletest.deasungkioskbackend.domain.dashboard.dto.DashboardAllResponse.SeatLeaveSummary;
 import com.moduletest.deasungkioskbackend.domain.meal.entity.MealType;
@@ -38,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class DashboardService {
 
-    private static final int DASHBOARD_LIST_SIZE = 3;
+    private static final int DASHBOARD_LIST_SIZE = 5;
 
     private final DsaApiClient dsaApiClient;
     private final StoreRepository storeRepository;
@@ -176,6 +177,7 @@ public class DashboardService {
             .map(n -> NoticeSummaryRecord.builder()
                 .id(n.getId())
                 .title(n.getTitle())
+                .createdBy(n.getCreatedBy())
                 .createdAt(n.getCreatedAt())
                 .build())
             .toList();
@@ -188,9 +190,21 @@ public class DashboardService {
         long dinnerCount = mealTagRepository.countByStoreIdAndMealDateAndMealType(
             storeId, today, MealType.DINNER);
 
+        List<MealTagDetail> details = mealTagRepository
+            .findAllByStoreIdAndMealDateWithStudent(storeId, today)
+            .stream()
+            .limit(DASHBOARD_LIST_SIZE)
+            .map(mt -> MealTagDetail.builder()
+                .studentName(mt.getStudent().getName())
+                .mealType(mt.getMealType())
+                .taggedAt(mt.getTaggedAt())
+                .build())
+            .toList();
+
         return MealTagSummary.builder()
             .lunchCount(lunchCount)
             .dinnerCount(dinnerCount)
+            .details(details)
             .build();
     }
 
@@ -198,6 +212,7 @@ public class DashboardService {
         return seatChangeRequestRepository
             .findAllByStoreIdAndStatusWithStudent(storeId, SeatChangeRequestStatus.PENDING)
             .stream()
+            .limit(DASHBOARD_LIST_SIZE)
             .map(this::toSeatChangeRecord)
             .toList();
     }

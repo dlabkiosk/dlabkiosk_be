@@ -20,6 +20,8 @@ public record NoticeResponse(
     boolean pinned,
     @Schema(description = "활성화 여부", example = "true")
     boolean active,
+    @Schema(description = "작성자 (전체관리자 또는 지점명)", example = "대성학원 강남점")
+    String createdBy,
     @Schema(description = "생성일시")
     LocalDateTime createdAt,
     @Schema(description = "수정일시")
@@ -35,6 +37,7 @@ public record NoticeResponse(
             notice.getContent(),
             notice.isPinned(),
             notice.isActive(),
+            notice.getCreatedBy(),
             notice.getCreatedAt(),
             notice.getUpdatedAt()
         );
