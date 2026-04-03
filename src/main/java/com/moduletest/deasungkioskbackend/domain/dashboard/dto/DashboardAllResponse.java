@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.dashboard.dto;
 
 import com.moduletest.deasungkioskbackend.common.dsa.dto.DsaResponse;
+import com.moduletest.deasungkioskbackend.domain.meal.entity.MealType;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -29,7 +30,16 @@ public record DashboardAllResponse(
     @Builder
     public record MealTagSummary(
         long lunchCount,
-        long dinnerCount
+        long dinnerCount,
+        List<MealTagDetail> details
+    ) {
+    }
+
+    @Builder
+    public record MealTagDetail(
+        String studentName,
+        MealType mealType,
+        LocalDateTime taggedAt
     ) {
     }
 
@@ -76,6 +86,7 @@ public record DashboardAllResponse(
     public record NoticeSummaryRecord(
         Long id,
         String title,
+        String createdBy,
         LocalDateTime createdAt
     ) {
     }

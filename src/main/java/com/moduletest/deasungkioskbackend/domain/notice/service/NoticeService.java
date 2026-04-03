@@ -60,12 +60,17 @@ public class NoticeService {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
+        String createdBy = SecurityUtil.isAdmin()
+            ? "전체관리자"
+            : store.getStoreName();
+
         Notice notice = Notice.builder()
             .store(store)
             .title(request.title())
             .content(request.content())
             .pinned(request.pinned() != null && request.pinned())
             .active(true)
+            .createdBy(createdBy)
             .build();
 
         Notice savedNotice = noticeRepository.save(notice);

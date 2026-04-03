@@ -129,7 +129,7 @@ public class StudentResolverService {
         }
         String trimmed = value.trim();
 
-        // 1. rfidUid로 조회
+        // 1. rfidUid(카드/QR)로 조회
         Optional<Student> byRfid = studentRepository.findByRfidUid(trimmed);
         if (byRfid.isPresent()) {
             Student student = byRfid.get();
@@ -139,30 +139,7 @@ public class StudentResolverService {
             return student;
         }
 
-        // 2. phone(8자리)로 조회
-        if (trimmed.length() >= 8) {
-            String phone8 = trimmed.length() == 8
-                ? trimmed : trimmed.substring(trimmed.length() - 8);
-            List<Student> byPhone8 = studentRepository.findAllByPhoneAndStoreId(
-                phone8, storeId);
-            if (byPhone8.size() == 1) {
-                return byPhone8.get(0);
-            }
-            if (byPhone8.size() > 1) {
-                throw new MultipleStudentsException(byPhone8);
-            }
-        }
-
-        // 4. phoneLast4로 조회
-        List<Student> byPhone = studentRepository.findAllByPhoneLast4AndStoreId(
-            trimmed, storeId);
-        if (byPhone.size() == 1) {
-            return byPhone.get(0);
-        }
-        if (byPhone.size() > 1) {
-            throw new MultipleStudentsException(byPhone);
-        }
-
-        throw new StudentException(ErrorCode.STUDENT_NOT_FOUND);
+        // 2. 카드/QR이 아니면 전화번호 8자리로 조회
+        return resolveByPhone(trimmed, storeId);
     }
 }
