@@ -30,9 +30,10 @@ public class PhoneSubmissionController {
     @Operation(summary = "내 휴대폰 미소지 신청 기간 조회",
         description = "학생의 활성 신청 기간 목록을 반환한다. 달력에서 이미 신청된 날짜 블러 처리용.\n\n"
             + "inputMethod 입력 방식:\n"
-            + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- RFID: 카드/QR UID로 학생 식별\n"
+            + "- PHONE: 전화번호 8자리로 학생 식별\n"
+            + "- PHONE_LAST4: 전화번호 뒷자리 4자리로 학생 식별\n"
+            + "- 미입력 시: RFID → 전화번호 8자리(PHONE) 순서로 자동 판별")
     @GetMapping("/my")
     public CommonResponse<List<PhoneSubmissionPeriodResponse>> getMySubmissionPeriods(
         @RequestParam String identifier,
@@ -49,9 +50,10 @@ public class PhoneSubmissionController {
             + "DAILY(당일), PERIOD(기간 설정), NO_PHONE(휴대폰 미보유) 유형을 선택할 수 있다. "
             + "기간이 겹치는 중복 신청 시 거부된다.\n\n"
             + "inputMethod 입력 방식:\n"
-            + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- RFID: 카드/QR UID로 학생 식별\n"
+            + "- PHONE: 전화번호 8자리로 학생 식별\n"
+            + "- PHONE_LAST4: 전화번호 뒷자리 4자리로 학생 식별\n"
+            + "- 미입력 시: RFID → 전화번호 8자리(PHONE) 순서로 자동 판별")
     @PostMapping
     public CommonResponse<PhoneSubmissionResponse> submitPhoneNonPossession(
         @Valid @RequestBody PhoneSubmissionRequest request) {

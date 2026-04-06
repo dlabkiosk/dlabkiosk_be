@@ -38,9 +38,10 @@ public class SeatChangeRequestController {
             + "1순위 필수, 2~3순위 선택. 이미 대기 중인 신청이 있으면 희망 순위를 수정한다. "
             + "좌석 코드는 구역별 좌석 목록(/seats-by-area) 응답의 seatCd를 사용한다.\n\n"
             + "inputMethod 입력 방식:\n"
-            + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- RFID: 카드/QR UID로 학생 식별\n"
+            + "- PHONE: 전화번호 8자리로 학생 식별\n"
+            + "- PHONE_LAST4: 전화번호 뒷자리 4자리로 학생 식별\n"
+            + "- 미입력 시: RFID → 전화번호 8자리(PHONE) 순서로 자동 판별")
     @PostMapping
     public CommonResponse<SeatChangeRequestResponse> createRequest(
             @Valid @RequestBody SeatChangeRequestCreateRequest request) {
@@ -54,9 +55,10 @@ public class SeatChangeRequestController {
         description = "현재 대기(PENDING) 중인 내 좌석 변경 신청을 조회한다. "
             + "신청 내역이 없으면 data=null을 반환한다.\n\n"
             + "inputMethod 입력 방식:\n"
-            + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- RFID: 카드/QR UID로 학생 식별\n"
+            + "- PHONE: 전화번호 8자리로 학생 식별\n"
+            + "- PHONE_LAST4: 전화번호 뒷자리 4자리로 학생 식별\n"
+            + "- 미입력 시: RFID → 전화번호 8자리(PHONE) 순서로 자동 판별")
     @GetMapping("/my")
     public CommonResponse<SeatChangeRequestResponse> findMyPendingRequest(
             @RequestParam String identifier,
@@ -93,9 +95,10 @@ public class SeatChangeRequestController {
         description = "PENDING 상태의 신청만 취소 가능하다. "
             + "카드/QR/좌석번호/폰뒷자리 중 하나 필수.\n\n"
             + "inputMethod 입력 방식:\n"
-            + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- RFID: 카드/QR UID로 학생 식별\n"
+            + "- PHONE: 전화번호 8자리로 학생 식별\n"
+            + "- PHONE_LAST4: 전화번호 뒷자리 4자리로 학생 식별\n"
+            + "- 미입력 시: RFID → 전화번호 8자리(PHONE) 순서로 자동 판별")
     @DeleteMapping("/{requestId}")
     public CommonResponse<Void> cancelRequest(
             @PathVariable Long requestId,
