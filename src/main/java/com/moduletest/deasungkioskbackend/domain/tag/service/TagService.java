@@ -88,14 +88,19 @@ public class TagService {
         MealType mealType = MealType.fromCurrentTime(LocalTime.now());
         MealInfo mealInfo = buildMealInfo(mealType, student, store, today);
 
-        // 1. 외출 중이면 → 복귀 처리 우선 (+ 급식 정보 포함)
+        // 1. 외출 중이면 → DSA 응답 R 확인 후 복귀 처리 (+ 급식 정보 포함)
         Optional<Outing> activeOuting = outingRepository
             .findActiveOutingByStudentToday(student.getId(), startOfDay, endOfDay);
         if (activeOuting.isPresent()) {
             AttendTagResult dsaResult = dsaAttendanceService.sendAttendTag(
                 student.getRfidUid(), store);
+            if (!dsaResult.dsaSynced() || dsaResult.action() != AttendAction.R) {
+                log.warn("외출 복귀 실패 - dsaSynced: {}, action: {}. studentId: {}, storeId: {}",
+                    dsaResult.dsaSynced(), dsaResult.action(), student.getId(), storeId);
+                throw new AttendanceException(ErrorCode.DSA_SYNC_FAILED);
+            }
             TagResponse response = handleOutingEnd(
-                AttendAction.R, student, storeId, dsaResult.dsaSynced());
+                AttendAction.R, student, storeId, true);
             return withMealInfo(response, mealInfo);
         }
 
