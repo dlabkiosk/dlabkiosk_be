@@ -200,7 +200,9 @@ public class DsaAttendanceService {
         }
         Object msg = dataMap.get("message");
         if (msg != null) {
-            return msg.toString().replace("\n", " ");
+            return msg.toString()
+                .replace("\n", " ")
+                .replace("선생님께 문의해주세요", "데스크로 문의해주세요");
         }
         return null;
     }
