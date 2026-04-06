@@ -361,7 +361,7 @@ public class TagService {
                 .studentNumber(student.getStudentNumber())
                 .seatLabel(getSeatLabel(student))
                 .mealInfo(new MealInfo(mealType, mealType.getLabel(), false, false,
-                    mealType.getLabel() + " 신청내역 없음. 교직원에게 문의하세요!"))
+                    mealType.getLabel() + " 신청내역 없음. 데스크로 문의하세요!"))
                 .build();
         }
 
@@ -406,11 +406,11 @@ public class TagService {
 
         if (!applied) {
             return new MealInfo(mealType, mealType.getLabel(), false, false,
-                mealType.getLabel() + " 신청내역 없음. 교직원에게 문의하세요!");
+                mealType.getLabel() + " 신청내역 없음. 데스크로 문의하세요!");
         }
 
         return new MealInfo(mealType, mealType.getLabel(), true, false,
-            mealType.getLabel() + " 태그를 확인해주세요.");
+            mealType.getLabel() + " 식사 신청 확인 완료. 태그해주세요.");
     }
 
     private TagResponse withMealInfo(TagResponse response, MealInfo mealInfo) {
