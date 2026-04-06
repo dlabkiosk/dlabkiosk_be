@@ -41,9 +41,10 @@ public class SeatLeaveController {
     @Operation(summary = "좌석이탈 신청",
         description = "좌석번호를 입력하여 좌석이탈을 신청한다. 해당 좌석에 배정된 학생이 자동 식별된다.\n\n"
             + "inputMethod 입력 방식:\n"
-            + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- RFID: 카드/QR UID로 학생 식별\n"
+            + "- PHONE: 전화번호 8자리로 학생 식별\n"
+            + "- PHONE_LAST4: 전화번호 뒷자리 4자리로 학생 식별\n"
+            + "- 미입력 시: RFID → 전화번호 8자리(PHONE) 순서로 자동 판별")
     @PostMapping("/start")
     public CommonResponse<SeatLeaveResponse> startSeatLeave(
         @Valid @RequestBody SeatLeaveStartRequest request) {
@@ -55,9 +56,10 @@ public class SeatLeaveController {
     @Operation(summary = "좌석이탈 복귀",
         description = "좌석번호를 입력하여 이탈 상태에서 복귀한다. 해당 좌석에서 이탈 중인 학생이 자동 식별된다.\n\n"
             + "inputMethod 입력 방식:\n"
-            + "- RFID: 카드/QR 태깅으로 학생 식별\n"
-            + "- PHONE_LAST4: 전화번호 뒷자리(4자리)로 학생 식별\n"
-            + "- 미입력 시: RFID → 전화번호 8자리 → 전화번호 뒷자리 순서로 자동 판별")
+            + "- RFID: 카드/QR UID로 학생 식별\n"
+            + "- PHONE: 전화번호 8자리로 학생 식별\n"
+            + "- PHONE_LAST4: 전화번호 뒷자리 4자리로 학생 식별\n"
+            + "- 미입력 시: RFID → 전화번호 8자리(PHONE) 순서로 자동 판별")
     @PostMapping("/end")
     public CommonResponse<SeatLeaveResponse> endSeatLeave(
         @Valid @RequestBody SeatLeaveEndRequest request) {
