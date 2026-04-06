@@ -182,40 +182,29 @@ public class TagService {
         boolean hadEarlyLeaveToday = attendanceRepository.existsEarlyLeaveToday(
             student.getId(), startOfDay, endOfDay);
 
-        // 승인된 신청 중 유효한 건 찾기
-        for (ApprovedRequest req : approvedRequests) {
-            String regGn = req.regGn();
-            boolean isEarlyLeave = "6".equals(regGn)
-                || "C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn);
+        // 승인된 신청 중 유효한 건 필터링
+        List<PendingAction> validActions = buildPendingActions(
+            approvedRequests, hadOutingToday, hadEarlyLeaveToday);
 
-            if (isEarlyLeave && hadEarlyLeaveToday) {
-                continue;
-            }
+        // 유효한 승인 1건 → 바로 처리
+        if (validActions.size() == 1) {
+            PendingAction single = validActions.get(0);
+            return executeSingleAction(
+                single, student, store, storeId, mealInfo);
+        }
 
-            if (isEarlyLeave) {
-                AttendTagResult result = dsaAttendanceService.sendAttendTag(
-                    student.getRfidUid(), store, "C");
-                if (result.rejected()) {
-                    throw new AttendanceException(ErrorCode.DSA_REJECTED);
-                }
-                TagResponse response = handleCheckOut(
-                    AttendAction.C, student, storeId, result.dsaSynced());
-                return withMealInfo(response, mealInfo);
-            }
-
-            // 외출은 30분 이내 + 오늘 이미 외출 다녀왔으면 건너뜀
-            if (!hadOutingToday && isWithin30Minutes(req.regDt())) {
-                String conGn = "7".equals(regGn) || "N".equalsIgnoreCase(regGn)
-                    ? "N" : "D";
-                AttendTagResult result = dsaAttendanceService.sendAttendTag(
-                    student.getRfidUid(), store, conGn);
-                if (result.rejected()) {
-                    throw new AttendanceException(ErrorCode.DSA_REJECTED);
-                }
-                TagResponse response = handleOutingStart(
-                    AttendAction.D, student, storeId, result.dsaSynced());
-                return withMealInfo(response, mealInfo);
-            }
+        // 유효한 승인 2건 이상 → 선택지로 내려보냄
+        if (validActions.size() > 1) {
+            return TagResponse.builder()
+                .processed(false)
+                .studentId(student.getId())
+                .studentName(student.getName())
+                .studentNumber(student.getStudentNumber())
+                .seatLabel(getSeatLabel(student))
+                .pendingActions(validActions)
+                .dsaSynced(true)
+                .mealInfo(mealInfo)
+                .build();
         }
 
         // 유효한 승인 없음 → con_gn="" 로 3.14 호출 (DSA 자동 판별)
@@ -224,7 +213,7 @@ public class TagService {
         if (result.rejected()) {
             String rejectMsg = result.rejectMessage() != null
                 ? result.rejectMessage()
-                : "사전조퇴/사전외출 승인 내역이 없습니다. 선생님께 문의해주세요.";
+                : "사전조퇴/사전외출 승인 내역이 없습니다. 데스크로 문의해주세요.";
             return TagResponse.builder()
                 .processed(true)
                 .studentId(student.getId())
@@ -439,6 +428,32 @@ public class TagService {
             .dsaSynced(response.dsaSynced())
             .mealInfo(mealInfo)
             .build();
+    }
+
+    private TagResponse executeSingleAction(PendingAction pending, Student student,
+                                             Store store, Long storeId,
+                                             MealInfo mealInfo) {
+        String conGn = switch (pending.action()) {
+            case C -> "C";
+            case N -> "N";
+            default -> "D";
+        };
+
+        AttendTagResult result = dsaAttendanceService.sendAttendTag(
+            student.getRfidUid(), store, conGn);
+        if (result.rejected()) {
+            throw new AttendanceException(ErrorCode.DSA_REJECTED);
+        }
+
+        TagResponse response;
+        if (pending.action() == AttendAction.C) {
+            response = handleCheckOut(
+                AttendAction.C, student, storeId, result.dsaSynced());
+        } else {
+            response = handleOutingStart(
+                pending.action(), student, storeId, result.dsaSynced());
+        }
+        return withMealInfo(response, mealInfo);
     }
 
     private List<PendingAction> buildPendingActions(List<ApprovedRequest> requests,
