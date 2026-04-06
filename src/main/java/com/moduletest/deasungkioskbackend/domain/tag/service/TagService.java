@@ -132,6 +132,9 @@ public class TagService {
 
             AttendAction action = (dsaResult.action() == AttendAction.A)
                 ? AttendAction.A : AttendAction.S;
+            if (action == AttendAction.A) {
+                seatRedisService.markLate(storeId, student.getId());
+            }
             TagResponse response = handleCheckIn(
                 action, student, storeId, dsaResult.dsaSynced());
             return withMealInfo(response, mealInfo);

@@ -9,6 +9,7 @@ public record AttendanceStudentResponse(
     String studentNumber,
     String seatLabel,
     String attendanceStatus,
+    boolean late,
     boolean phoneSubmitted
 ) {
 }
