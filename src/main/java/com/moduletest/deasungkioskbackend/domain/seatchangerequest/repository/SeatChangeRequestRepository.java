@@ -2,6 +2,7 @@ package com.moduletest.deasungkioskbackend.domain.seatchangerequest.repository;
 
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.entity.SeatChangeRequest;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.entity.SeatChangeRequestStatus;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -79,6 +80,20 @@ public interface SeatChangeRequestRepository extends JpaRepository<SeatChangeReq
         + " ORDER BY r.createdAt DESC")
     List<SeatChangeRequest> findAllByStudentIdWithDetails(
         @Param("studentId") Long studentId);
+
+    @Query("SELECT r FROM SeatChangeRequest r"
+        + " LEFT JOIN FETCH r.currentSeat"
+        + " JOIN FETCH r.desiredSeat1"
+        + " LEFT JOIN FETCH r.desiredSeat2"
+        + " LEFT JOIN FETCH r.desiredSeat3"
+        + " LEFT JOIN FETCH r.approvedSeat"
+        + " WHERE r.student.id = :studentId"
+        + " AND r.createdAt >= :startDate AND r.createdAt < :endDate"
+        + " ORDER BY r.createdAt DESC")
+    List<SeatChangeRequest> findAllByStudentIdAndPeriodWithDetails(
+        @Param("studentId") Long studentId,
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate);
 
     @Query("SELECT r FROM SeatChangeRequest r"
         + " WHERE (r.desiredSeat1.id = :seatId"

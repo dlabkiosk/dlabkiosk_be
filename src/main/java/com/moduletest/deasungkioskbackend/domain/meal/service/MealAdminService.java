@@ -44,7 +44,13 @@ public class MealAdminService {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
 
-        List<Student> students = studentRepository.findAllByStoreIdWithStore(storeId);
+        String nameFilter = (studentName != null && !studentName.isBlank())
+            ? studentName.trim() : null;
+        String numberFilter = (studentNumber != null && !studentNumber.isBlank())
+            ? studentNumber.trim() : null;
+
+        List<Student> students = studentRepository.findAllByStoreIdAndFilter(
+            storeId, nameFilter, numberFilter);
         Map<String, Set<String>> dsaAppliedMap = fetchDsaMealApplied(store, startDate, endDate);
         List<MealTag> mealTags = mealTagRepository.findAllByStoreIdAndPeriod(
             storeId, startDate, endDate);
@@ -53,9 +59,6 @@ public class MealAdminService {
         List<MealStatusResponse> results = new ArrayList<>();
 
         for (Student student : students) {
-            if (!matchesFilter(student, studentName, studentNumber)) {
-                continue;
-            }
 
             for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
                 String seatLabel = student.getAssignedSeat() != null
@@ -163,15 +166,4 @@ public class MealAdminService {
         return studentId + ":" + date + ":" + mealType;
     }
 
-    private boolean matchesFilter(Student student, String studentName, String studentNumber) {
-        if (studentName != null && !studentName.isBlank()
-            && !student.getName().contains(studentName)) {
-            return false;
-        }
-        if (studentNumber != null && !studentNumber.isBlank()
-            && !studentNumber.equals(student.getStudentNumber())) {
-            return false;
-        }
-        return true;
-    }
 }

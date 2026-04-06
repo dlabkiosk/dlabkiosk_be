@@ -28,8 +28,10 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,9 +42,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class DashboardService {
 
     private static final int DASHBOARD_LIST_SIZE = 5;
+    private static final String MEAL_COUNT_CACHE_KEY = "dsa:meal-count:";
+    private static final long MEAL_COUNT_CACHE_TTL_MINUTES = 30;
 
     private final DsaApiClient dsaApiClient;
     private final StoreRepository storeRepository;
+    private final RedisTemplate<String, String> redisTemplate;
     private final StudentRepository studentRepository;
     private final OutingRepository outingRepository;
     private final SeatLeaveRepository seatLeaveRepository;
@@ -82,8 +87,19 @@ public class DashboardService {
     }
 
     private Long countTodayMealRequests(Store store) {
+        if (!store.hasDsaCredentials()) {
+            return null;
+        }
+
+        LocalDate today = LocalDate.now();
+        String cacheKey = MEAL_COUNT_CACHE_KEY + store.getId() + ":" + today;
+
+        String cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            return Long.parseLong(cached);
+        }
+
         try {
-            LocalDate today = LocalDate.now();
             String month = today.toString().substring(0, 7);
             String todayDay = String.valueOf(today.getDayOfMonth());
 
@@ -100,6 +116,10 @@ public class DashboardService {
             long count = response.getDataAsList().stream()
                 .filter(item -> todayDay.equals(String.valueOf(item.get("day"))))
                 .count();
+
+            redisTemplate.opsForValue().set(
+                cacheKey, String.valueOf(count),
+                MEAL_COUNT_CACHE_TTL_MINUTES, TimeUnit.MINUTES);
 
             return count;
         } catch (Exception e) {
@@ -118,7 +138,7 @@ public class DashboardService {
         Long late = null;
 
         DsaResponse attendState = callDsaAttendState(store);
-        if (attendState != null) {
+        if (attendState != null && attendState.getExtra() != null) {
             earlyLeave = parseLongSafe(attendState.getExtra().get("early_cnt"));
             absent = parseLongSafe(attendState.getExtra().get("absence_cnt"));
             late = parseLongSafe(attendState.getExtra().get("late_cnt"));

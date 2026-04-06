@@ -55,17 +55,23 @@ public final class StudentDetailDsaService {
             params.put("ed_dt", today.toString());
 
             DsaResponse response = dsaApiClient.post(
-                "/kiosk/getParentHpList", params, DsaResponse.class, store);
+                "/kiosk/getAttendState", params, DsaResponse.class, store);
 
             if (!response.isSuccess()) {
                 log.warn("DSA 출결 특이사항 조회 실패 - code: {}", response.getCode());
                 return null;
             }
 
+            Map<String, Object> extra = response.getExtra();
+            if (extra == null) {
+                log.warn("DSA 출결 특이사항 응답에 extra 없음. storeId: {}", store.getId());
+                return null;
+            }
+
             return DsaAttendanceSummary.builder()
-                .absenceCount(parseIntSafe(response.getExtra().get("absence_cnt")))
-                .earlyLeaveCount(parseIntSafe(response.getExtra().get("early_cnt")))
-                .outingCount(parseIntSafe(response.getExtra().get("out_cnt")))
+                .absenceCount(parseIntSafe(extra.get("absence_cnt")))
+                .earlyLeaveCount(parseIntSafe(extra.get("early_cnt")))
+                .outingCount(parseIntSafe(extra.get("out_cnt")))
                 .build();
 
         } catch (Exception e) {

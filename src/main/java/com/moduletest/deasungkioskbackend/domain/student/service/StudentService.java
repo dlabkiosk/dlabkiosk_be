@@ -114,11 +114,8 @@ public class StudentService {
             .toList();
 
         List<SeatChangeRequestResponse> seatChangeRequests = seatChangeRequestRepository
-            .findAllByStudentIdWithDetails(studentId)
+            .findAllByStudentIdAndPeriodWithDetails(studentId, monthStart, monthEnd)
             .stream()
-            .filter(r -> r.getCreatedAt() != null
-                && !r.getCreatedAt().isBefore(monthStart)
-                && r.getCreatedAt().isBefore(monthEnd))
             .map(SeatChangeRequestResponse::fromEntity)
             .toList();
 

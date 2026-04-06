@@ -8,6 +8,7 @@ import com.moduletest.deasungkioskbackend.domain.tag.entity.AttendAction;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,6 +67,15 @@ public class DsaAttendanceService {
                 log.warn("DSA setAttendStd 실패 - code: {}, message: {}. storeId: {}",
                     response.getCode(), response.getMessage(), store.getId());
                 return AttendTagResult.noDsa();
+            }
+
+            // data 내부 code 확인 (최상위 code=0이어도 내부에 거부 코드가 올 수 있음)
+            Integer innerCode = extractInnerCode(response);
+            if (innerCode != null && innerCode == CODE_NO_APPROVAL) {
+                String innerMessage = extractInnerMessage(response);
+                log.info("DSA 승인 내역 없음 (data 내부 code 130). rfidUid: {}, storeId: {}",
+                    rfidUid, store.getId());
+                return AttendTagResult.rejected(innerMessage);
             }
 
             String attGn = extractAttGn(response);
@@ -149,18 +159,67 @@ public class DsaAttendanceService {
         }
     }
 
+    /**
+     * data가 이중 배열([[{...}], {...}])일 때 첫 번째 내부 리스트의 첫 Map을 꺼낸다.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> extractFirstDataMap(DsaResponse response) {
+        Object data = response.getData();
+        if (!(data instanceof List<?> outerList) || outerList.isEmpty()) {
+            return null;
+        }
+        Object first = outerList.get(0);
+        // 이중 배열: [[{...}]]
+        if (first instanceof List<?> innerList && !innerList.isEmpty()
+                && innerList.get(0) instanceof Map) {
+            return (Map<String, Object>) innerList.get(0);
+        }
+        // 단일 배열: [{...}]
+        if (first instanceof Map) {
+            return (Map<String, Object>) first;
+        }
+        return null;
+    }
+
+    private Integer extractInnerCode(DsaResponse response) {
+        Map<String, Object> dataMap = extractFirstDataMap(response);
+        if (dataMap == null) {
+            return null;
+        }
+        Object code = dataMap.get("code");
+        if (code instanceof Number num) {
+            return num.intValue();
+        }
+        return null;
+    }
+
+    private String extractInnerMessage(DsaResponse response) {
+        Map<String, Object> dataMap = extractFirstDataMap(response);
+        if (dataMap == null) {
+            return null;
+        }
+        Object msg = dataMap.get("message");
+        if (msg != null) {
+            return msg.toString().replace("\n", " ");
+        }
+        return null;
+    }
+
     private String extractAttGn(DsaResponse response) {
         // extra 필드에서 먼저 확인
-        Object attGn = response.getExtra().get("att_gn");
-        if (attGn != null) {
-            return attGn.toString().trim();
+        if (response.getExtra() != null) {
+            Object attGn = response.getExtra().get("att_gn");
+            if (attGn != null) {
+                return attGn.toString().trim();
+            }
         }
 
-        // data 리스트에서 확인
-        if (response.getDataAsList() != null && !response.getDataAsList().isEmpty()) {
-            Object dataAttGn = response.getDataAsList().get(0).get("att_gn");
-            if (dataAttGn != null) {
-                return dataAttGn.toString().trim();
+        // data에서 확인
+        Map<String, Object> dataMap = extractFirstDataMap(response);
+        if (dataMap != null) {
+            Object attGn = dataMap.get("att_gn");
+            if (attGn != null) {
+                return attGn.toString().trim();
             }
         }
 

@@ -323,18 +323,17 @@ public class SeatChangeRequestService {
 
     public List<SeatWaitingStatusResponse> findSeatWaitingStatus(Long storeId) {
         List<Seat> allSeats = seatRepository.findAllByStoreIdWithStore(storeId);
-        List<Student> allStudents = studentRepository.findAllByStoreIdWithStore(storeId);
         List<SeatChangeRequest> pendingRequests =
             seatChangeRequestRepository.findAllByStoreIdAndStatusWithStudent(
                 storeId, SeatChangeRequestStatus.PENDING);
 
-        Map<Long, String> seatIdToStudentName = allStudents.stream()
-            .filter(s -> s.getAssignedSeat() != null)
-            .collect(Collectors.toMap(
-                s -> s.getAssignedSeat().getId(),
-                Student::getName,
-                (a, b) -> a
-            ));
+        Map<Long, String> seatIdToStudentName =
+            studentRepository.findAllWithAssignedSeatByStoreId(storeId).stream()
+                .collect(Collectors.toMap(
+                    s -> s.getAssignedSeat().getId(),
+                    Student::getName,
+                    (a, b) -> a
+                ));
 
         return allSeats.stream()
             .filter(Seat::isActive)
