@@ -222,7 +222,18 @@ public class TagService {
         AttendTagResult result = dsaAttendanceService.sendAttendTag(
             student.getRfidUid(), store);
         if (result.rejected()) {
-            throw new AttendanceException(ErrorCode.DSA_REJECTED);
+            String rejectMsg = result.rejectMessage() != null
+                ? result.rejectMessage()
+                : "사전조퇴/사전외출 승인 내역이 없습니다. 선생님께 문의해주세요.";
+            return TagResponse.builder()
+                .processed(true)
+                .studentId(student.getId())
+                .studentName(student.getName())
+                .studentNumber(student.getStudentNumber())
+                .seatLabel(getSeatLabel(student))
+                .dsaSynced(true)
+                .messages(List.of(rejectMsg))
+                .build();
         }
         TagResponse response = handleCheckOut(
             AttendAction.T, student, storeId, result.dsaSynced());
@@ -781,8 +792,9 @@ public class TagService {
             seatUsageRepository.save(seatUsage);
         } catch (Exception e) {
             seatRedisService.releaseSeat(storeId, seatId);
-            log.warn("[Tag] 좌석 DB 저장 실패, Redis 롤백 (studentId={}, seatId={})",
+            log.error("[Tag] 좌석 DB 저장 실패, Redis 롤백 (studentId={}, seatId={})",
                 student.getId(), seatId, e);
+            throw e;
         }
     }
 

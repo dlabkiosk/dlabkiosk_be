@@ -54,5 +54,18 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     long countByStoreId(Long storeId);
 
+    @Query("SELECT s FROM Student s"
+        + " WHERE s.store.id = :storeId AND s.assignedSeat IS NOT NULL")
+    List<Student> findAllWithAssignedSeatByStoreId(@Param("storeId") Long storeId);
+
+    @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
+        + " WHERE s.store.id = :storeId"
+        + " AND (:name IS NULL OR s.name LIKE %:name%)"
+        + " AND (:studentNumber IS NULL OR s.studentNumber = :studentNumber)")
+    List<Student> findAllByStoreIdAndFilter(
+        @Param("storeId") Long storeId,
+        @Param("name") String name,
+        @Param("studentNumber") String studentNumber);
+
     List<Student> findAllByStoreId(Long storeId);
 }

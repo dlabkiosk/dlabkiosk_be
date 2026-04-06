@@ -50,6 +50,10 @@ public final class DsaMealService {
                 return true;
             }
 
+            if (response.getExtra() == null) {
+                log.warn("DSA 응답에 extra 없음. storeId: {}", store.getId());
+                return true;
+            }
             Object mealYn = response.getExtra().get("meal_yn");
             if (mealYn == null) {
                 log.warn("DSA 응답에 meal_yn 없음. storeId: {}", store.getId());
