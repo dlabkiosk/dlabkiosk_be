@@ -109,7 +109,9 @@ public class AttendanceAdminService {
             case "S" -> "등원";
             case "D" -> "외출";
             case "T" -> "하원";
-            case "N", "B", "E" -> "미출석";
+            case "N" -> "미출석";
+            case "B" -> "공석";
+            case "E" -> "통로";
             default -> "미확인";
         };
     }
