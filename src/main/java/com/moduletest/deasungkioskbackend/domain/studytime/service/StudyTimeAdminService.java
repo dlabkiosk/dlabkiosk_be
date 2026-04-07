@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class StudyTimeAdminService {
 
     private static final Pattern TIME_PATTERN =
-        Pattern.compile("(\\d+)시간\\s*(\\d+)분");
+        Pattern.compile("(\\d+)\\s*시간\\s*(\\d+)\\s*분");
     private static final String ZERO_TIME = "0시간 0분";
 
     private final DsaApiClient dsaApiClient;
@@ -115,15 +115,15 @@ public class StudyTimeAdminService {
             for (Map<String, Object> item : response.getDataAsList()) {
                 String stdNo = getStringValue(item, "std_no");
                 String studyDt = getStringValue(item, "study_dt");
-                String attTm = getStringValue(item, "att_tm");
+                String studyTm = getStringValue(item, "study_tm");
 
                 if (stdNo == null || studyDt == null) {
                     continue;
                 }
 
                 LocalDate date = LocalDate.parse(studyDt);
-                int minutes = parseStudyTimeMinutes(attTm);
-                String timeStr = attTm != null ? attTm : ZERO_TIME;
+                int minutes = parseStudyTimeMinutes(studyTm);
+                String timeStr = studyTm != null ? studyTm : ZERO_TIME;
 
                 result.computeIfAbsent(stdNo, k -> new HashMap<>())
                     .put(date, new DsaStudyRecord(minutes, timeStr));
