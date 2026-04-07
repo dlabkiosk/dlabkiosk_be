@@ -293,7 +293,7 @@ public class TagService {
 
         boolean hasMatchingApproval = approved.stream()
             .anyMatch(req -> matchesAction(req.regGn(), action)
-                && (action == AttendAction.C || isWithin30Minutes(req.regDt())));
+                && (action == AttendAction.C ? isToday(req.regDt()) : isWithin30Minutes(req.regDt())));
 
         if (!hasMatchingApproval) {
             throw new AttendanceException(ErrorCode.OUTING_NOT_APPROVED);
@@ -328,6 +328,19 @@ public class TagService {
             return minutesUntil <= 30;
         } catch (Exception e) {
             log.warn("reg_dt 파싱 실패: {}", regDt);
+            return true;
+        }
+    }
+
+    private boolean isToday(String regDt) {
+        if (regDt == null || regDt.isBlank()) {
+            return true;
+        }
+        try {
+            LocalDate requestedDate = LocalDate.parse(regDt.substring(0, 10));
+            return requestedDate.equals(LocalDate.now());
+        } catch (Exception e) {
+            log.warn("reg_dt 날짜 파싱 실패: {}", regDt);
             return true;
         }
     }
@@ -473,8 +486,8 @@ public class TagService {
             boolean isEarlyLeave = "6".equals(regGn)
                 || "C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn);
 
-            // 조퇴: 오늘 이미 했으면 제외
-            if (isEarlyLeave && hadEarlyLeaveToday) {
+            // 조퇴: 당일 신청만 + 오늘 이미 했으면 제외
+            if (isEarlyLeave && (hadEarlyLeaveToday || !isToday(req.regDt()))) {
                 continue;
             }
 

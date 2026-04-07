@@ -37,8 +37,8 @@ public final class StudentDetailDsaService {
     private final ObjectMapper objectMapper;
 
     /**
-     * DSA 3.26 출결 특이사항 (결석/조퇴/외출 횟수).
-     * 당월 기준 조회.
+     * DSA 3.15 원생 출결 현황 (잔여외출/휴가, 지각/조퇴, 상벌점).
+     * 당월 기준 개인별 조회.
      */
     public DsaAttendanceSummary findAttendanceSummary(String rfidUid, Store store) {
         if (!store.hasDsaCredentials() || rfidUid == null) {
@@ -46,36 +46,37 @@ public final class StudentDetailDsaService {
         }
 
         try {
-            LocalDate today = LocalDate.now();
-            LocalDate monthStart = today.withDayOfMonth(1);
+            String month = LocalDate.now().toString().substring(0, 7);
 
             Map<String, Object> params = new HashMap<>();
             params.put("rfid_no", rfidUid);
-            params.put("st_dt", monthStart.toString());
-            params.put("ed_dt", today.toString());
+            params.put("month", month);
 
             DsaResponse response = dsaApiClient.post(
-                "/kiosk/getAttendState", params, DsaResponse.class, store);
+                "/kiosk/getAttendListStd", params, DsaResponse.class, store);
 
             if (!response.isSuccess()) {
-                log.warn("DSA 출결 특이사항 조회 실패 - code: {}", response.getCode());
+                log.warn("DSA 출결 현황 조회 실패 - code: {}", response.getCode());
                 return null;
             }
 
             Map<String, Object> extra = response.getExtra();
             if (extra == null) {
-                log.warn("DSA 출결 특이사항 응답에 extra 없음. storeId: {}", store.getId());
+                log.warn("DSA 출결 현황 응답에 extra 없음. storeId: {}", store.getId());
                 return null;
             }
 
             return DsaAttendanceSummary.builder()
-                .absenceCount(parseIntSafe(extra.get("absence_cnt")))
-                .earlyLeaveCount(parseIntSafe(extra.get("early_cnt")))
-                .outingCount(parseIntSafe(extra.get("out_cnt")))
+                .remainingOutCount(parseIntSafe(extra.get("reOut")))
+                .remainingLeaveCount(parseIntSafe(extra.get("reLeave")))
+                .lateCount(parseIntSafe(extra.get("beLate")))
+                .earlyLeaveCount(parseIntSafe(extra.get("beEarly")))
+                .plusPoint(parseIntSafe(extra.get("pPoint")))
+                .minusPoint(parseIntSafe(extra.get("mPoint")))
                 .build();
 
         } catch (Exception e) {
-            log.warn("DSA 출결 특이사항 조회 예외: {}", e.getMessage());
+            log.warn("DSA 출결 현황 조회 예외: {}", e.getMessage());
             return null;
         }
     }
