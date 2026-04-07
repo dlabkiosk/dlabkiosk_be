@@ -37,7 +37,7 @@ public class StudyRankingService {
 
     private static final String STORE_RANKING_KEY = "study-ranking:store:";
     private static final String ALL_RANKING_KEY = "study-ranking:all";
-    private static final Pattern STUDY_TIME_PATTERN = Pattern.compile("(\\d+)시간\\s*(\\d+)분");
+    private static final Pattern STUDY_TIME_PATTERN = Pattern.compile("(\\d+)\\s*시간\\s*(\\d+)\\s*분");
 
     private final DsaApiClient dsaApiClient;
     private final StoreRepository storeRepository;
