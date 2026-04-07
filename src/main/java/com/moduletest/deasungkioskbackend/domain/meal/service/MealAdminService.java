@@ -12,6 +12,7 @@ import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -118,10 +119,24 @@ public class MealAdminService {
 
                 if (response.isSuccess() && response.getDataAsList() != null) {
                     for (Map<String, Object> item : response.getDataAsList()) {
-                        String stdNo = String.valueOf(item.get("std_no"));
-                        String day = String.valueOf(item.get("day"));
-                        String mealGb = String.valueOf(item.get("meal_gb"));
-                        LocalDate date = month.atDay(Integer.parseInt(day.trim()));
+                        String stdNo = getStringValue(item, "std_no");
+                        String day = getStringValue(item, "day");
+                        String mealGb = getStringValue(item, "meal_gb");
+
+                        if (stdNo == null || day == null || mealGb == null) {
+                            log.warn("DSA 급식 신청 레코드 필드 누락 - month: {}, item: {}",
+                                month, item);
+                            continue;
+                        }
+
+                        LocalDate date;
+                        try {
+                            date = month.atDay(Integer.parseInt(day));
+                        } catch (NumberFormatException | DateTimeException e) {
+                            log.warn("DSA 급식 신청 day 파싱 실패 - month: {}, day: {}",
+                                month, day);
+                            continue;
+                        }
 
                         String key = stdNo + ":" + date;
                         appliedMap.computeIfAbsent(key, k -> new HashSet<>());
@@ -164,6 +179,14 @@ public class MealAdminService {
 
     private String buildTagKey(Long studentId, LocalDate date, MealType mealType) {
         return studentId + ":" + date + ":" + mealType;
+    }
+
+    private String getStringValue(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        if (value == null || "null".equals(String.valueOf(value))) {
+            return null;
+        }
+        return String.valueOf(value).trim();
     }
 
 }

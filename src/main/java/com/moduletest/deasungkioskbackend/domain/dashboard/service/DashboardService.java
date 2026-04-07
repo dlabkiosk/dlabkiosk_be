@@ -101,7 +101,6 @@ public class DashboardService {
 
         try {
             String month = today.toString().substring(0, 7);
-            String todayDay = String.valueOf(today.getDayOfMonth());
 
             Map<String, Object> params = new HashMap<>();
             params.put("month", month);
@@ -113,8 +112,19 @@ public class DashboardService {
                 return null;
             }
 
+            int todayDayInt = today.getDayOfMonth();
             long count = response.getDataAsList().stream()
-                .filter(item -> todayDay.equals(String.valueOf(item.get("day"))))
+                .filter(item -> {
+                    Object dayObj = item.get("day");
+                    if (dayObj == null) {
+                        return false;
+                    }
+                    try {
+                        return Integer.parseInt(String.valueOf(dayObj).trim()) == todayDayInt;
+                    } catch (NumberFormatException e) {
+                        return false;
+                    }
+                })
                 .count();
 
             redisTemplate.opsForValue().set(
