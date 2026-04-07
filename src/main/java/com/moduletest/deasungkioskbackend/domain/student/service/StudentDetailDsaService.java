@@ -37,7 +37,7 @@ public final class StudentDetailDsaService {
     private final ObjectMapper objectMapper;
 
     /**
-     * DSA 3.15 원생 출결 현황 (잔여외출/휴가, 지각/조퇴, 상벌점).
+     * DSA 3.26 학생별 출결 특이사항 (결석/조퇴/외출) + 3.15 출결 현황 (지각).
      * 당월 기준 개인별 조회.
      */
     public DsaAttendanceSummary findAttendanceSummary(String rfidUid, Store store) {
@@ -45,6 +45,37 @@ public final class StudentDetailDsaService {
             return null;
         }
 
+        int absenceCount = 0;
+        int earlyLeaveCount = 0;
+        int outingCount = 0;
+        int lateCount = 0;
+
+        // 3.26 getStdAttendState — 결석/조퇴/외출
+        try {
+            LocalDate today = LocalDate.now();
+            LocalDate monthStart = today.withDayOfMonth(1);
+
+            Map<String, Object> params = new HashMap<>();
+            params.put("rfid_no", rfidUid);
+            params.put("st_dt", monthStart.toString());
+            params.put("ed_dt", today.toString());
+
+            DsaResponse response = dsaApiClient.post(
+                "/kiosk/getStdAttendState", params, DsaResponse.class, store);
+
+            if (response.isSuccess() && response.getExtra() != null) {
+                Map<String, Object> extra = response.getExtra();
+                absenceCount = parseIntSafe(extra.get("absence_cnt"));
+                earlyLeaveCount = parseIntSafe(extra.get("early_cnt"));
+                outingCount = parseIntSafe(extra.get("out_cnt"));
+            } else {
+                log.warn("DSA 3.26 출결 특이사항 조회 실패 - code: {}", response.getCode());
+            }
+        } catch (Exception e) {
+            log.warn("DSA 3.26 출결 특이사항 조회 예외: {}", e.getMessage());
+        }
+
+        // 3.15 getAttendListStd — 지각
         try {
             String month = LocalDate.now().toString().substring(0, 7);
 
@@ -55,30 +86,21 @@ public final class StudentDetailDsaService {
             DsaResponse response = dsaApiClient.post(
                 "/kiosk/getAttendListStd", params, DsaResponse.class, store);
 
-            if (!response.isSuccess()) {
-                log.warn("DSA 출결 현황 조회 실패 - code: {}", response.getCode());
-                return null;
+            if (response.isSuccess() && response.getExtra() != null) {
+                lateCount = parseIntSafe(response.getExtra().get("beLate"));
+            } else {
+                log.warn("DSA 3.15 출결 현황 조회 실패 - code: {}", response.getCode());
             }
-
-            Map<String, Object> extra = response.getExtra();
-            if (extra == null) {
-                log.warn("DSA 출결 현황 응답에 extra 없음. storeId: {}", store.getId());
-                return null;
-            }
-
-            return DsaAttendanceSummary.builder()
-                .remainingOutCount(parseIntSafe(extra.get("reOut")))
-                .remainingLeaveCount(parseIntSafe(extra.get("reLeave")))
-                .lateCount(parseIntSafe(extra.get("beLate")))
-                .earlyLeaveCount(parseIntSafe(extra.get("beEarly")))
-                .plusPoint(parseIntSafe(extra.get("pPoint")))
-                .minusPoint(parseIntSafe(extra.get("mPoint")))
-                .build();
-
         } catch (Exception e) {
-            log.warn("DSA 출결 현황 조회 예외: {}", e.getMessage());
-            return null;
+            log.warn("DSA 3.15 출결 현황 조회 예외: {}", e.getMessage());
         }
+
+        return DsaAttendanceSummary.builder()
+            .absenceCount(absenceCount)
+            .earlyLeaveCount(earlyLeaveCount)
+            .outingCount(outingCount)
+            .lateCount(lateCount)
+            .build();
     }
 
     /**

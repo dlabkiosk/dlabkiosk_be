@@ -293,7 +293,8 @@ public class TagService {
 
         boolean hasMatchingApproval = approved.stream()
             .anyMatch(req -> matchesAction(req.regGn(), action)
-                && (action == AttendAction.C ? isToday(req.regDt()) : isWithin30Minutes(req.regDt())));
+                && isToday(req.regDt())
+                && (action == AttendAction.C || isWithin30Minutes(req.regDt())));
 
         if (!hasMatchingApproval) {
             throw new AttendanceException(ErrorCode.OUTING_NOT_APPROVED);
@@ -491,8 +492,8 @@ public class TagService {
                 continue;
             }
 
-            // 외출: 30분 제한 + 오늘 이미 다녀왔으면 제외
-            if (!isEarlyLeave && (hadOutingToday || !isWithin30Minutes(req.regDt()))) {
+            // 외출: 당일 신청만 + 30분 제한 + 오늘 이미 다녀왔으면 제외
+            if (!isEarlyLeave && (hadOutingToday || !isToday(req.regDt()) || !isWithin30Minutes(req.regDt()))) {
                 continue;
             }
 

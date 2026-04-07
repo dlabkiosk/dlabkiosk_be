@@ -40,7 +40,7 @@ public record StudentKioskResponse(
     @Schema(description = "수납 현황 (DSA 3.29)")
     List<DsaReceiptRecord> receipts,
 
-    @Schema(description = "당월 출결 현황 (DSA 3.15 - 잔여외출/휴가, 지각/조퇴, 상벌점)")
+    @Schema(description = "당월 출결 특이사항 (DSA 3.26 결석/조퇴/외출 + 3.15 지각)")
     DsaAttendanceSummary attendanceSummary,
 
     @Schema(description = "당월 상벌점 내역 (DSA 3.28)")
