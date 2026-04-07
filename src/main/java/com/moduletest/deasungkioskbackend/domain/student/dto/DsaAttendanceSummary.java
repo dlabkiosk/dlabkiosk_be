@@ -5,22 +5,16 @@ import lombok.Builder;
 
 @Builder
 public record DsaAttendanceSummary(
-    @Schema(description = "잔여외출 횟수")
-    int remainingOutCount,
+    @Schema(description = "결석 횟수")
+    int absenceCount,
 
-    @Schema(description = "잔여휴가 횟수")
-    int remainingLeaveCount,
-
-    @Schema(description = "무단지각 횟수")
-    int lateCount,
-
-    @Schema(description = "무단조퇴 횟수")
+    @Schema(description = "조퇴 횟수")
     int earlyLeaveCount,
 
-    @Schema(description = "상점")
-    int plusPoint,
+    @Schema(description = "외출 횟수")
+    int outingCount,
 
-    @Schema(description = "벌점")
-    int minusPoint
+    @Schema(description = "무단지각 횟수")
+    int lateCount
 ) {
 }
