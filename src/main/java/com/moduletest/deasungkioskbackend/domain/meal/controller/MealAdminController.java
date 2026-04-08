@@ -2,15 +2,20 @@ package com.moduletest.deasungkioskbackend.domain.meal.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
+import com.moduletest.deasungkioskbackend.domain.meal.dto.MealCheckRequest;
 import com.moduletest.deasungkioskbackend.domain.meal.dto.MealStatusResponse;
 import com.moduletest.deasungkioskbackend.domain.meal.service.MealAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -52,5 +57,28 @@ public final class MealAdminController {
             resolvedStoreId, startDate, endDate, studentName, studentNumber);
 
         return CommonResponse.success(result);
+    }
+
+    @Operation(summary = "관리자 수동 급식 체크",
+        description = "급식 신청은 했으나 키오스크에서 태깅하지 않은 학생을 관리자가 수동으로 체크합니다. "
+            + "DSA 신청 여부를 검증하며, 미신청 학생은 거부됩니다(MEAL_NOT_APPLIED).\n\n"
+            + "MANAGER는 자기 지점 학생만, ADMIN은 전 지점 가능.")
+    @PostMapping("/check")
+    public CommonResponse<MealStatusResponse> markMealAsTagged(
+        @Valid @RequestBody MealCheckRequest request) {
+        MealStatusResponse response = mealAdminService.markMealAsTagged(
+            request.studentId(), request.date(), request.mealType());
+        return CommonResponse.success(response);
+    }
+
+    @Operation(summary = "관리자 급식 체크 해제",
+        description = "관리자가 수동으로 체크한(또는 키오스크 태깅된) 급식 기록을 해제합니다. "
+            + "MANAGER는 자기 지점 학생만, ADMIN은 전 지점 가능.")
+    @DeleteMapping("/check")
+    public CommonResponse<MealStatusResponse> unmarkMealAsTagged(
+        @Valid @RequestBody MealCheckRequest request) {
+        MealStatusResponse response = mealAdminService.unmarkMealAsTagged(
+            request.studentId(), request.date(), request.mealType());
+        return CommonResponse.success(response);
     }
 }

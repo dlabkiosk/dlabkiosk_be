@@ -27,6 +27,7 @@ public class DsaAttendanceService {
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final DsaApiClient dsaApiClient;
+    private final DsaAnomalyLogService dsaAnomalyLogService;
 
     /**
      * DSA 3.14 setAttendStd 호출.
@@ -85,7 +86,12 @@ public class DsaAttendanceService {
                         conGn, rfidUid, store.getId());
                     return AttendTagResult.success(AttendAction.fromCode(conGn));
                 }
-                log.warn("DSA 응답에 att_gn 없음. storeId: {}", store.getId());
+                log.warn("DSA 응답에 att_gn 없음. storeId: {}, raw: {}",
+                    store.getId(), response);
+                dsaAnomalyLogService.log(
+                    store.getId(), rfidUid, SET_ATTEND_STD_PATH,
+                    "ATT_GN_MISSING", params, response,
+                    "DSA 응답이 success인데 att_gn 필드 없음 → 처리 보류");
                 return AttendTagResult.noDsa();
             }
 
