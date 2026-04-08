@@ -4,6 +4,7 @@ import com.moduletest.deasungkioskbackend.common.dsa.client.DsaApiClient;
 import com.moduletest.deasungkioskbackend.common.dsa.dto.DsaResponse;
 import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.meal.dto.MealStatusResponse;
 import com.moduletest.deasungkioskbackend.domain.meal.entity.MealTag;
 import com.moduletest.deasungkioskbackend.domain.meal.entity.MealType;
@@ -14,6 +15,7 @@ import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,6 +27,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -187,6 +190,112 @@ public class MealAdminService {
             return null;
         }
         return String.valueOf(value).trim();
+    }
+
+    /**
+     * 관리자가 학생의 급식을 수동으로 체크 처리한다.
+     * DSA 신청 여부 검증 후 MealTag row를 생성한다.
+     */
+    @Transactional(propagation = Propagation.REQUIRED)
+    public MealStatusResponse markMealAsTagged(Long studentId, LocalDate date,
+                                                MealType mealType) {
+        Student student = studentRepository.findByIdWithStore(studentId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_NOT_FOUND));
+        validateStoreAccess(student);
+
+        if (mealTagRepository.existsByStudentIdAndMealDateAndMealType(
+                studentId, date, mealType)) {
+            throw new BusinessException(ErrorCode.ALREADY_MEAL_TAGGED);
+        }
+
+        // DSA 신청 검증
+        Store store = student.getStore();
+        Map<String, Set<String>> appliedMap = fetchDsaMealApplied(store, date, date);
+        String mealLabel = mealType == MealType.LUNCH ? "점심" : "저녁";
+        if (!isDsaMealApplied(appliedMap, student.getStudentNumber(), date, mealLabel)) {
+            throw new BusinessException(ErrorCode.MEAL_NOT_APPLIED);
+        }
+
+        MealTag mealTag = MealTag.builder()
+            .student(student)
+            .store(store)
+            .mealType(mealType)
+            .mealDate(date)
+            .taggedAt(LocalDateTime.now())
+            .build();
+        mealTagRepository.save(mealTag);
+
+        log.info("관리자 수동 급식 체크 - studentId: {}, date: {}, mealType: {}",
+            studentId, date, mealType);
+
+        return buildSingleStatus(student, date, appliedMap);
+    }
+
+    /**
+     * 관리자가 학생의 급식 체크를 해제(취소)한다.
+     */
+    @Transactional(propagation = Propagation.REQUIRED)
+    public MealStatusResponse unmarkMealAsTagged(Long studentId, LocalDate date,
+                                                  MealType mealType) {
+        Student student = studentRepository.findByIdWithStore(studentId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_NOT_FOUND));
+        validateStoreAccess(student);
+
+        MealTag tag = mealTagRepository
+            .findByStudentIdAndMealDateAndMealType(studentId, date, mealType)
+            .orElseThrow(() -> new BusinessException(ErrorCode.MEAL_TAG_NOT_FOUND));
+
+        mealTagRepository.delete(tag);
+
+        log.info("관리자 수동 급식 체크 해제 - studentId: {}, date: {}, mealType: {}",
+            studentId, date, mealType);
+
+        Map<String, Set<String>> appliedMap = fetchDsaMealApplied(
+            student.getStore(), date, date);
+        return buildSingleStatus(student, date, appliedMap);
+    }
+
+    private void validateStoreAccess(Student student) {
+        if (!SecurityUtil.isAdmin()) {
+            Long currentStoreId = SecurityUtil.getCurrentStoreId();
+            if (!student.getStore().getId().equals(currentStoreId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+        }
+    }
+
+    private MealStatusResponse buildSingleStatus(Student student, LocalDate date,
+                                                  Map<String, Set<String>> appliedMap) {
+        String seatLabel = student.getAssignedSeat() != null
+            ? student.getAssignedSeat().getSeatLabel() : null;
+
+        boolean lunchApplied = isDsaMealApplied(
+            appliedMap, student.getStudentNumber(), date, "점심");
+        boolean dinnerApplied = isDsaMealApplied(
+            appliedMap, student.getStudentNumber(), date, "저녁");
+
+        MealTag lunchTag = mealTagRepository
+            .findByStudentIdAndMealDateAndMealType(student.getId(), date, MealType.LUNCH)
+            .orElse(null);
+        MealTag dinnerTag = mealTagRepository
+            .findByStudentIdAndMealDateAndMealType(student.getId(), date, MealType.DINNER)
+            .orElse(null);
+
+        return MealStatusResponse.builder()
+            .studentId(student.getId())
+            .studentName(student.getName())
+            .studentNumber(student.getStudentNumber())
+            .seatLabel(seatLabel)
+            .date(date)
+            .lunchApplied(lunchApplied)
+            .lunchChecked(lunchTag != null)
+            .lunchCheckedTime(lunchTag != null
+                ? lunchTag.getTaggedAt().toLocalTime() : null)
+            .dinnerApplied(dinnerApplied)
+            .dinnerChecked(dinnerTag != null)
+            .dinnerCheckedTime(dinnerTag != null
+                ? dinnerTag.getTaggedAt().toLocalTime() : null)
+            .build();
     }
 
 }

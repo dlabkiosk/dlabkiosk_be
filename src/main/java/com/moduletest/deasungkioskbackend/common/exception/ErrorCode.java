@@ -131,6 +131,8 @@ public enum ErrorCode {
     // Meal
     NOT_MEAL_TIME("ML001", "현재 식사시간이 아닙니다", HttpStatus.BAD_REQUEST),
     ALREADY_MEAL_TAGGED("ML002", "이미 급식 태그가 완료되었습니다", HttpStatus.CONFLICT),
+    MEAL_NOT_APPLIED("ML003", "해당 학생은 급식을 신청하지 않았습니다", HttpStatus.BAD_REQUEST),
+    MEAL_TAG_NOT_FOUND("ML004", "급식 태그 기록이 없습니다", HttpStatus.NOT_FOUND),
 
     // Meal Menu
     MEAL_MENU_NOT_FOUND("MM001", "식단을 찾을 수 없습니다", HttpStatus.NOT_FOUND),

@@ -232,8 +232,30 @@ public class TagService {
                 .messages(List.of(rejectMsg))
                 .build();
         }
-        TagResponse response = handleCheckOut(
-            AttendAction.T, student, storeId, result.dsaSynced());
+
+        // DSA 판별 실패(noDsa) — action 못 받음 → 처리 보류 (이전엔 T로 강제 처리하던 버그)
+        if (!result.dsaSynced() || result.action() == null) {
+            log.warn("DSA 출결 판별 실패 - 처리 보류. studentId: {}, storeId: {}",
+                student.getId(), storeId);
+            return TagResponse.builder()
+                .processed(false)
+                .studentId(student.getId())
+                .studentName(student.getName())
+                .studentNumber(student.getStudentNumber())
+                .seatLabel(getSeatLabel(student))
+                .dsaSynced(false)
+                .messages(List.of("출결 처리 실패. 잠시 후 다시 시도해주세요."))
+                .build();
+        }
+
+        // DSA가 명시한 액션대로 처리
+        TagResponse response = switch (result.action()) {
+            case T -> handleCheckOut(AttendAction.T, student, storeId, true);
+            case C -> handleCheckOut(AttendAction.C, student, storeId, true);
+            case D, N -> handleOutingStart(result.action(), student, storeId, true);
+            case R -> handleOutingEnd(AttendAction.R, student, storeId, true);
+            default -> throw new AttendanceException(ErrorCode.DSA_SYNC_FAILED);
+        };
         return withMealInfo(response, mealInfo);
     }
 
