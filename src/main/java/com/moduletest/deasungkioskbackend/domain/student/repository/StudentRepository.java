@@ -26,6 +26,10 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
         + " WHERE s.id = :id")
     Optional<Student> findByIdWithStore(@Param("id") Long id);
 
+    @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
+        + " WHERE s.id IN :ids")
+    List<Student> findAllByIdsWithStore(@Param("ids") List<Long> ids);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Student s WHERE s.id = :id")
     Optional<Student> findByIdForUpdate(@Param("id") Long id);

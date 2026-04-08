@@ -157,19 +157,23 @@ public class StudentService {
     }
 
     /**
-     * 지점 학생 전원의 QR 코드를 ZIP으로 묶어 반환한다.
+     * 지정된 학생 ID 리스트의 QR 코드를 ZIP으로 묶어 반환한다.
      * 파일명: qr-{학번}-{이름}.png
      */
-    public byte[] generateStudentQrCodesZip(Long storeId) {
-        List<Student> students;
-        if (storeId != null) {
-            students = studentRepository.findAllByStoreIdWithStore(storeId);
-        } else {
-            students = studentRepository.findAllWithStore();
+    public byte[] generateStudentQrCodesZip(List<Long> studentIds) {
+        if (studentIds == null || studentIds.isEmpty()) {
+            throw new StudentException(ErrorCode.STUDENT_NOT_FOUND);
         }
+
+        List<Student> students = studentRepository.findAllByIdsWithStore(studentIds);
 
         if (students.isEmpty()) {
             throw new StudentException(ErrorCode.STUDENT_NOT_FOUND);
+        }
+
+        // MANAGER는 자기 지점 학생만 가능
+        for (Student student : students) {
+            validateStoreAccess(student);
         }
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();

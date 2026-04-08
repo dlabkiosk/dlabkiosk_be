@@ -82,13 +82,13 @@ public class StudentAdminController {
     }
 
     @Operation(summary = "QR 코드 일괄 다운로드 (ZIP)",
-        description = "지점 학생 전원의 QR 코드를 ZIP으로 묶어 다운로드한다. "
-            + "MANAGER: 자기 지점만. ADMIN: storeId 미입력 시 전체, 입력 시 해당 지점.")
+        description = "지정한 학생들의 QR 코드를 ZIP으로 묶어 다운로드한다. "
+            + "studentIds 쿼리 파라미터로 학생 ID 리스트를 전달한다. "
+            + "MANAGER는 자기 지점 학생만 가능하며, 타 지점 학생 포함 시 ACCESS_DENIED.")
     @GetMapping("/qr/bulk")
     public ResponseEntity<byte[]> downloadStudentQrCodesBulk(
-        @RequestParam(required = false) Long storeId) {
-        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
-        byte[] zipBytes = studentService.generateStudentQrCodesZip(resolvedStoreId);
+        @RequestParam List<Long> studentIds) {
+        byte[] zipBytes = studentService.generateStudentQrCodesZip(studentIds);
         String fileName = "students-qr-" + LocalDate.now() + ".zip";
         String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8)
             .replace("+", "%20");
