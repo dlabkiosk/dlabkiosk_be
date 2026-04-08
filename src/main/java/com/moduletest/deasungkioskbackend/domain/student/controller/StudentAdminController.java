@@ -3,16 +3,17 @@ package com.moduletest.deasungkioskbackend.domain.student.controller;
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentCreateRequest;
+import com.moduletest.deasungkioskbackend.domain.student.dto.StudentQrBulkRequest;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentResponse;
 import com.moduletest.deasungkioskbackend.domain.student.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.List;
-import lombok.RequiredArgsConstructor;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -83,12 +84,12 @@ public class StudentAdminController {
 
     @Operation(summary = "QR 코드 일괄 다운로드 (ZIP)",
         description = "지정한 학생들의 QR 코드를 ZIP으로 묶어 다운로드한다. "
-            + "studentIds 쿼리 파라미터로 학생 ID 리스트를 전달한다. "
+            + "Body로 학생 ID 리스트를 전달한다. "
             + "MANAGER는 자기 지점 학생만 가능하며, 타 지점 학생 포함 시 ACCESS_DENIED.")
     @GetMapping("/qr/bulk")
     public ResponseEntity<byte[]> downloadStudentQrCodesBulk(
-        @RequestParam List<Long> studentIds) {
-        byte[] zipBytes = studentService.generateStudentQrCodesZip(studentIds);
+        @Valid @RequestBody StudentQrBulkRequest request) {
+        byte[] zipBytes = studentService.generateStudentQrCodesZip(request.studentIds());
         String fileName = "students-qr-" + LocalDate.now() + ".zip";
         String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8)
             .replace("+", "%20");
