@@ -23,9 +23,15 @@ import com.moduletest.deasungkioskbackend.domain.student.dto.StudentResponse;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.exception.StudentException;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -148,6 +154,56 @@ public class StudentService {
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
         validateStoreAccess(student);
         return QrCodeService.generateQrCodePng(student.getRfidUid());
+    }
+
+    /**
+     * 지점 학생 전원의 QR 코드를 ZIP으로 묶어 반환한다.
+     * 파일명: qr-{학번}-{이름}.png
+     */
+    public byte[] generateStudentQrCodesZip(Long storeId) {
+        List<Student> students;
+        if (storeId != null) {
+            students = studentRepository.findAllByStoreIdWithStore(storeId);
+        } else {
+            students = studentRepository.findAllWithStore();
+        }
+
+        if (students.isEmpty()) {
+            throw new StudentException(ErrorCode.STUDENT_NOT_FOUND);
+        }
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ZipOutputStream zos = new ZipOutputStream(baos)) {
+            Set<String> usedNames = new HashSet<>();
+            for (Student student : students) {
+                if (student.getRfidUid() == null || student.getRfidUid().isBlank()) {
+                    continue;
+                }
+                byte[] qrPng = QrCodeService.generateQrCodePng(student.getRfidUid());
+                String entryName = buildUniqueQrFileName(student, usedNames);
+                zos.putNextEntry(new ZipEntry(entryName));
+                zos.write(qrPng);
+                zos.closeEntry();
+            }
+            zos.finish();
+            return baos.toByteArray();
+        } catch (IOException e) {
+            throw new StudentException(ErrorCode.QR_CODE_GENERATION_FAILED);
+        }
+    }
+
+    private String buildUniqueQrFileName(Student student, Set<String> usedNames) {
+        String studentNumber = student.getStudentNumber() != null
+            ? student.getStudentNumber() : String.valueOf(student.getId());
+        String name = student.getName() != null ? student.getName() : "unknown";
+        String safeName = name.replaceAll("[\\\\/:*?\"<>|]", "_");
+        String baseName = "qr-" + studentNumber + "-" + safeName;
+        String fileName = baseName + ".png";
+        int suffix = 1;
+        while (!usedNames.add(fileName)) {
+            fileName = baseName + "(" + suffix++ + ").png";
+        }
+        return fileName;
     }
 
     private void validateStoreAccess(Student student) {

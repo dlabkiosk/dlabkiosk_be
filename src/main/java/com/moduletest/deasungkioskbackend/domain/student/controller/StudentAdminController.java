@@ -10,6 +10,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -76,5 +79,23 @@ public class StudentAdminController {
             .header(HttpHeaders.CONTENT_DISPOSITION,
                 "attachment; filename=\"qr-" + studentId + ".png\"")
             .body(qrPng);
+    }
+
+    @Operation(summary = "QR 코드 일괄 다운로드 (ZIP)",
+        description = "지점 학생 전원의 QR 코드를 ZIP으로 묶어 다운로드한다. "
+            + "MANAGER: 자기 지점만. ADMIN: storeId 미입력 시 전체, 입력 시 해당 지점.")
+    @GetMapping("/qr/bulk")
+    public ResponseEntity<byte[]> downloadStudentQrCodesBulk(
+        @RequestParam(required = false) Long storeId) {
+        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
+        byte[] zipBytes = studentService.generateStudentQrCodesZip(resolvedStoreId);
+        String fileName = "students-qr-" + LocalDate.now() + ".zip";
+        String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8)
+            .replace("+", "%20");
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType("application/zip"))
+            .header(HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"" + fileName + "\"; filename*=UTF-8''" + encoded)
+            .body(zipBytes);
     }
 }
