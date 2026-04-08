@@ -86,7 +86,7 @@ public class StudentAdminController {
         description = "지정한 학생들의 QR 코드를 ZIP으로 묶어 다운로드한다. "
             + "Body로 학생 ID 리스트를 전달한다. "
             + "MANAGER는 자기 지점 학생만 가능하며, 타 지점 학생 포함 시 ACCESS_DENIED.")
-    @GetMapping("/qr/bulk")
+    @PostMapping("/qr/bulk")
     public ResponseEntity<byte[]> downloadStudentQrCodesBulk(
         @Valid @RequestBody StudentQrBulkRequest request) {
         byte[] zipBytes = studentService.generateStudentQrCodesZip(request.studentIds());
