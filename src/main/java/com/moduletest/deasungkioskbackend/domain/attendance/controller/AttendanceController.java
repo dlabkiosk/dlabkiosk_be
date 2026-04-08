@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.attendance.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.attendance.dto.AttendanceResponse;
 import com.moduletest.deasungkioskbackend.domain.attendance.dto.CheckInRequest;
 import com.moduletest.deasungkioskbackend.domain.attendance.dto.CheckOutRequest;
@@ -9,7 +10,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,7 +34,7 @@ public class AttendanceController {
     @PostMapping("/check-in")
     public CommonResponse<AttendanceResponse> checkIn(
         @Valid @RequestBody CheckInRequest request) {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         AttendanceResponse attendance = attendanceService.checkIn(request, storeId);
         return CommonResponse.success(attendance);
     }
@@ -49,13 +49,9 @@ public class AttendanceController {
     @PostMapping("/check-out")
     public CommonResponse<AttendanceResponse> checkOut(
         @Valid @RequestBody CheckOutRequest request) {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         AttendanceResponse attendance = attendanceService.checkOut(request, storeId);
         return CommonResponse.success(attendance);
     }
 
-    private Long getStoreIdFromToken() {
-        return Long.valueOf(
-            SecurityContextHolder.getContext().getAuthentication().getName());
-    }
 }

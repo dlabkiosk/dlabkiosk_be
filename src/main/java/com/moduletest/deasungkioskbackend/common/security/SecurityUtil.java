@@ -12,8 +12,29 @@ public final class SecurityUtil {
     }
 
     public static Long getCurrentUserId() {
-        return Long.valueOf(
-            SecurityContextHolder.getContext().getAuthentication().getName());
+        return parseSubjectAsLong();
+    }
+
+    /**
+     * 키오스크 토큰의 subject(storeId)를 Long으로 반환한다.
+     * 어드민 토큰에서는 userId가 반환되므로 사용처 주의.
+     */
+    public static Long getStoreIdFromToken() {
+        return parseSubjectAsLong();
+    }
+
+    private static Long parseSubjectAsLong() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getName())) {
+            throw new BusinessException(ErrorCode.UNAUTHENTICATED);
+        }
+        try {
+            return Long.valueOf(authentication.getName());
+        } catch (NumberFormatException e) {
+            throw new BusinessException(ErrorCode.UNAUTHENTICATED);
+        }
     }
 
     public static String getCurrentRole() {

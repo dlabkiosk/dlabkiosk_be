@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.seat.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.service.SeatService;
@@ -8,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -31,7 +31,7 @@ public class SeatController {
     @GetMapping
     public CommonResponse<List<SeatStatusResponse>> findSeatStatus(
         @RequestParam String areaCd) {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         List<SeatStatusResponse> seats = seatService.findSeatStatusByArea(storeId, areaCd);
         return CommonResponse.success(seats);
     }
@@ -40,13 +40,9 @@ public class SeatController {
         description = "로그인한 지점의 구역 목록을 조회한다. 좌석 현황 조회 전 구역 선택에 사용.")
     @GetMapping("/areas")
     public CommonResponse<List<AreaResponse>> findAreas() {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         List<AreaResponse> areas = seatService.findAreasByStoreId(storeId);
         return CommonResponse.success(areas);
     }
 
-    private Long getStoreIdFromToken() {
-        return Long.valueOf(
-            SecurityContextHolder.getContext().getAuthentication().getName());
-    }
 }

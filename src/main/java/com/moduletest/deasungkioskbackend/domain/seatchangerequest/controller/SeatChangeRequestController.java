@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.seatchangerequest.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.AreaAvailableSeatResponse;
@@ -14,7 +15,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,7 +45,7 @@ public class SeatChangeRequestController {
     @PostMapping
     public CommonResponse<SeatChangeRequestResponse> createRequest(
             @Valid @RequestBody SeatChangeRequestCreateRequest request) {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         SeatChangeRequestResponse response =
             seatChangeRequestService.createRequest(request, storeId);
         return CommonResponse.success(response);
@@ -63,7 +63,7 @@ public class SeatChangeRequestController {
     public CommonResponse<SeatChangeRequestResponse> findMyPendingRequest(
             @RequestParam String identifier,
             @RequestParam(required = false) InputMethod inputMethod) {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         SeatChangeRequestResponse response =
             seatChangeRequestService.findMyPendingRequest(
                 identifier, storeId, inputMethod);
@@ -74,7 +74,7 @@ public class SeatChangeRequestController {
         description = "현재 지점의 전체 활성 좌석을 구역별로 그룹핑하여 조회한다.")
     @GetMapping("/seats-by-area")
     public CommonResponse<List<AreaAvailableSeatResponse>> findAvailableSeatsByArea() {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         List<AreaAvailableSeatResponse> seats =
             seatChangeRequestService.findAvailableSeatsByArea(storeId);
         return CommonResponse.success(seats);
@@ -85,7 +85,7 @@ public class SeatChangeRequestController {
             + "각 좌석의 현재 배정자 이름과 빈 좌석 여부를 포함한다.")
     @GetMapping("/available-seats")
     public CommonResponse<List<AvailableSeatResponse>> findAvailableSeats() {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         List<AvailableSeatResponse> seats =
             seatChangeRequestService.findAvailableSeats(storeId);
         return CommonResponse.success(seats);
@@ -104,15 +104,11 @@ public class SeatChangeRequestController {
             @PathVariable Long requestId,
             @RequestParam String identifier,
             @RequestParam(required = false) InputMethod inputMethod) {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         Student student = studentResolverService.resolveAuto(
             identifier, storeId, inputMethod);
         seatChangeRequestService.cancelRequest(requestId, student.getId());
         return CommonResponse.success(null);
     }
 
-    private Long getStoreIdFromToken() {
-        return Long.valueOf(
-            SecurityContextHolder.getContext().getAuthentication().getName());
-    }
 }

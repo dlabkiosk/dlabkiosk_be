@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.outing.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.outing.dto.OutingEndRequest;
 import com.moduletest.deasungkioskbackend.domain.outing.dto.OutingResponse;
 import com.moduletest.deasungkioskbackend.domain.outing.dto.OutingStartRequest;
@@ -9,7 +10,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,7 +34,7 @@ public class OutingController {
     @PostMapping("/start")
     public CommonResponse<OutingResponse> startOuting(
         @Valid @RequestBody OutingStartRequest request) {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         OutingResponse response = outingService.startOuting(request, storeId);
         return CommonResponse.success(response);
     }
@@ -50,13 +50,9 @@ public class OutingController {
     @PostMapping("/end")
     public CommonResponse<OutingResponse> endOuting(
         @Valid @RequestBody OutingEndRequest request) {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         OutingResponse response = outingService.endOuting(request, storeId);
         return CommonResponse.success(response);
     }
 
-    private Long getStoreIdFromToken() {
-        return Long.valueOf(
-            SecurityContextHolder.getContext().getAuthentication().getName());
-    }
 }

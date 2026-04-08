@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.tag.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.tag.dto.TagConfirmRequest;
 import com.moduletest.deasungkioskbackend.domain.tag.dto.TagRequest;
 import com.moduletest.deasungkioskbackend.domain.tag.dto.TagResponse;
@@ -9,7 +10,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,7 +43,7 @@ public class TagController {
     @PostMapping
     public CommonResponse<TagResponse> processTag(
         @Valid @RequestBody TagRequest request) {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         return CommonResponse.success(tagService.processTag(request, storeId));
     }
 
@@ -61,7 +61,7 @@ public class TagController {
     @PostMapping("/confirm")
     public CommonResponse<TagResponse> confirmTag(
         @Valid @RequestBody TagConfirmRequest request) {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         return CommonResponse.success(tagService.confirmTag(request, storeId));
     }
 
@@ -77,14 +77,10 @@ public class TagController {
     @PostMapping("/meal-confirm")
     public CommonResponse<TagResponse> confirmMealTag(
         @Valid @RequestBody TagRequest request) {
-        Long storeId = getStoreIdFromToken();
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         return CommonResponse.success(
             tagService.confirmMealTag(
                 request.identifier(), storeId, request.inputMethod()));
     }
 
-    private Long getStoreIdFromToken() {
-        return Long.valueOf(
-            SecurityContextHolder.getContext().getAuthentication().getName());
-    }
 }
