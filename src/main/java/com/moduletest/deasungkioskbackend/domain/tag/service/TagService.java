@@ -156,15 +156,15 @@ public class TagService {
         List<ApprovedRequest> approvedRequests = dsaRequestService
             .findApprovedRequests(student.getRfidUid(), store);
 
-        boolean hadOutingToday = outingRepository.existsCompletedOutingToday(
+        long completedOutingCount = outingRepository.countCompletedOutingToday(
             student.getId(), startOfDay, endOfDay);
-        boolean hadEarlyLeaveToday = attendanceRepository.existsEarlyLeaveToday(
+        long completedEarlyLeaveCount = attendanceRepository.countEarlyLeaveToday(
             student.getId(), startOfDay, endOfDay);
 
         List<PendingAction> pendingActions = new ArrayList<>();
         if (!approvedRequests.isEmpty()) {
             pendingActions.addAll(
-                buildPendingActions(approvedRequests, hadOutingToday, hadEarlyLeaveToday));
+                buildPendingActions(approvedRequests, completedOutingCount, completedEarlyLeaveCount));
         }
 
         return TagResponse.builder()
@@ -185,14 +185,14 @@ public class TagService {
         List<ApprovedRequest> approvedRequests = dsaRequestService
             .findApprovedRequests(student.getRfidUid(), store);
 
-        boolean hadOutingToday = outingRepository.existsCompletedOutingToday(
+        long completedOutingCount = outingRepository.countCompletedOutingToday(
             student.getId(), startOfDay, endOfDay);
-        boolean hadEarlyLeaveToday = attendanceRepository.existsEarlyLeaveToday(
+        long completedEarlyLeaveCount = attendanceRepository.countEarlyLeaveToday(
             student.getId(), startOfDay, endOfDay);
 
         // 승인된 신청 중 유효한 건 필터링
         List<PendingAction> validActions = buildPendingActions(
-            approvedRequests, hadOutingToday, hadEarlyLeaveToday);
+            approvedRequests, completedOutingCount, completedEarlyLeaveCount);
 
         // 유효한 승인 1건 → 바로 처리
         if (validActions.size() == 1) {
@@ -306,15 +306,28 @@ public class TagService {
             return true;
         }
         if (action == AttendAction.C) {
-            return "6".equals(regGn) || "C".equalsIgnoreCase(regGn)
-                || "조퇴".equals(regGn);
+            return isEarlyLeaveType(regGn);
         }
         if (action == AttendAction.D || action == AttendAction.N) {
-            return "4".equals(regGn) || "7".equals(regGn)
-                || "D".equalsIgnoreCase(regGn) || "N".equalsIgnoreCase(regGn)
-                || "외출".equals(regGn);
+            return isOutingType(regGn);
         }
         return true;
+    }
+
+    private boolean isEarlyLeaveType(String regGn) {
+        if (regGn == null) {
+            return false;
+        }
+        return "6".equals(regGn) || "C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn);
+    }
+
+    private boolean isOutingType(String regGn) {
+        if (regGn == null) {
+            return false;
+        }
+        return "4".equals(regGn) || "7".equals(regGn)
+            || "D".equalsIgnoreCase(regGn) || "N".equalsIgnoreCase(regGn)
+            || "외출".equals(regGn);
     }
 
     private boolean isWithin30Minutes(String regDt) {
@@ -479,21 +492,31 @@ public class TagService {
     }
 
     private List<PendingAction> buildPendingActions(List<ApprovedRequest> requests,
-                                                     boolean hadOutingToday,
-                                                     boolean hadEarlyLeaveToday) {
+                                                     long completedOutingCount,
+                                                     long completedEarlyLeaveCount) {
+        // 당일 승인된 외출/조퇴 신청 카운트 (이미 사용한 건 차감 비교용)
+        long approvedOutingCount = requests.stream()
+            .filter(r -> isOutingType(r.regGn()) && isToday(r.regDt()))
+            .count();
+        long approvedEarlyLeaveCount = requests.stream()
+            .filter(r -> isEarlyLeaveType(r.regGn()) && isToday(r.regDt()))
+            .count();
+
         List<PendingAction> actions = new ArrayList<>();
         for (ApprovedRequest req : requests) {
             String regGn = req.regGn();
-            boolean isEarlyLeave = "6".equals(regGn)
-                || "C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn);
+            boolean isEarlyLeave = isEarlyLeaveType(regGn);
 
-            // 조퇴: 당일 신청만 + 오늘 이미 했으면 제외
-            if (isEarlyLeave && (hadEarlyLeaveToday || !isToday(req.regDt()))) {
+            // 조퇴: 당일 신청만 + 사용한 조퇴 수가 승인 수 이상이면 제외
+            if (isEarlyLeave && (completedEarlyLeaveCount >= approvedEarlyLeaveCount
+                    || !isToday(req.regDt()))) {
                 continue;
             }
 
-            // 외출: 당일 신청만 + 30분 제한 + 오늘 이미 다녀왔으면 제외
-            if (!isEarlyLeave && (hadOutingToday || !isToday(req.regDt()) || !isWithin30Minutes(req.regDt()))) {
+            // 외출: 당일 신청만 + 30분 제한 + 사용한 외출 수가 승인 수 이상이면 제외
+            if (!isEarlyLeave && (completedOutingCount >= approvedOutingCount
+                    || !isToday(req.regDt())
+                    || !isWithin30Minutes(req.regDt()))) {
                 continue;
             }
 
