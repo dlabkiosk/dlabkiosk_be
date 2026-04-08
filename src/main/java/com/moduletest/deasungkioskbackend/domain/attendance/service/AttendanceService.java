@@ -110,10 +110,10 @@ public class AttendanceService {
         // 사용 중인 좌석이 있으면 자동 퇴실
         seatCheckOut(student, storeId);
 
-        // 순공시간 계산: (하원 - 등원) - 외출시간 - 좌석이탈시간
+        // 순공시간 계산: (하원 - 등원) - 외출시간
         long totalMinutes = Duration.between(
             attendance.getCheckInAt(), checkOutTime).toMinutes();
-        long deductionMinutes = studyTimeRedisService.getTotalDeduction(
+        long deductionMinutes = studyTimeRedisService.getOutingDeduction(
             storeId, student.getId());
         long studyTimeMinutes = Math.max(totalMinutes - deductionMinutes, 0);
 

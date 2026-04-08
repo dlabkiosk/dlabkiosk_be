@@ -633,11 +633,10 @@ public class TagService {
 
         long totalMinutes = Duration.between(
             attendance.getCheckInAt(), checkOutTime).toMinutes();
-        long deductionMinutes = studyTimeRedisService.getTotalDeduction(
+        long deductionMinutes = studyTimeRedisService.getOutingDeduction(
             storeId, student.getId());
         long mealDeduction = calculateMealDeduction(
-            student.getId(), attendance.getCheckInAt().toLocalTime(),
-            checkOutTime.toLocalTime(), today);
+            student.getId(), attendance.getCheckInAt(), checkOutTime, today);
         long studyTimeMinutes = Math.max(
             totalMinutes - deductionMinutes - mealDeduction, 0);
 
@@ -766,19 +765,19 @@ public class TagService {
 
     // ── 급식 차감 계산 ──
 
-    private long calculateMealDeduction(Long studentId, LocalTime checkInTime,
-                                         LocalTime checkOutTime, LocalDate today) {
+    private long calculateMealDeduction(Long studentId, LocalDateTime checkInAt,
+                                         LocalDateTime checkOutAt, LocalDate today) {
         List<MealTag> mealTags = mealTagRepository.findAllByStudentIdAndMealDate(
             studentId, today);
 
         long totalDeduction = 0;
         for (MealTag tag : mealTags) {
             MealType type = tag.getMealType();
-            LocalTime mealStart = type.getStartTime();
-            LocalTime mealEnd = type.getEndTime();
+            LocalDateTime mealStart = LocalDateTime.of(today, type.getStartTime());
+            LocalDateTime mealEnd = LocalDateTime.of(today, type.getEndTime());
 
-            LocalTime overlapStart = checkInTime.isAfter(mealStart) ? checkInTime : mealStart;
-            LocalTime overlapEnd = checkOutTime.isBefore(mealEnd) ? checkOutTime : mealEnd;
+            LocalDateTime overlapStart = checkInAt.isAfter(mealStart) ? checkInAt : mealStart;
+            LocalDateTime overlapEnd = checkOutAt.isBefore(mealEnd) ? checkOutAt : mealEnd;
 
             if (overlapStart.isBefore(overlapEnd)) {
                 totalDeduction += Duration.between(overlapStart, overlapEnd).toMinutes();

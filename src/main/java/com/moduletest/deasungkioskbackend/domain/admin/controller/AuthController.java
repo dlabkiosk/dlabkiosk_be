@@ -4,6 +4,7 @@ package com.moduletest.deasungkioskbackend.domain.admin.controller;
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.security.JwtTokenProvider;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.common.util.CookieUtil;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserResponse;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.LoginRequest;
@@ -16,8 +17,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "관리자 인증", description = "관리자 회원가입 및 로그인 (JWT 쿠키 발급)")
 @RestController
-@RequestMapping("/api/admin/auth")
+@RequestMapping("/api/v1/admin/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -70,8 +69,7 @@ public class AuthController {
         description = "현재 로그인된 관리자의 정보를 반환한다.")
     @GetMapping("/me")
     public CommonResponse<AdminUserResponse> me() {
-        Long userId = Long.valueOf(
-            SecurityContextHolder.getContext().getAuthentication().getName());
+        Long userId = SecurityUtil.getCurrentUserId();
         return CommonResponse.success(authService.findCurrentUser(userId));
     }
 
@@ -80,13 +78,10 @@ public class AuthController {
     @PostMapping("/logout")
     public CommonResponse<Void> logout(HttpServletRequest request,
                                        HttpServletResponse response) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
-            Long userId = Long.valueOf(authentication.getName());
-            String accessToken = CookieUtil.extractCookie(request, "accessToken");
-            String refreshToken = CookieUtil.extractCookie(request, "refreshToken");
-            authService.logout(userId, accessToken, refreshToken);
-        }
+        Long userId = SecurityUtil.getCurrentUserId();
+        String accessToken = CookieUtil.extractCookie(request, "accessToken");
+        String refreshToken = CookieUtil.extractCookie(request, "refreshToken");
+        authService.logout(userId, accessToken, refreshToken);
         CookieUtil.clearAccessToken(response);
         CookieUtil.clearRefreshToken(response);
         return CommonResponse.success(null);
