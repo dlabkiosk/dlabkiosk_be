@@ -153,10 +153,6 @@ public class StudentMessageService {
         if (storeId != null && !message.getStore().getId().equals(storeId)) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED);
         }
-        if (message.isTemplateBased()) {
-            throw new StudentMessageException(
-                ErrorCode.STUDENT_MESSAGE_TEMPLATE_BASED_NOT_EDITABLE);
-        }
         return message;
     }
 
