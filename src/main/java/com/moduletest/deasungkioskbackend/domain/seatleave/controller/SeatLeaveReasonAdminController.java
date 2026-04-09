@@ -38,11 +38,11 @@ public class SeatLeaveReasonAdminController {
     @Operation(summary = "이탈 사유 등록",
         description = "MANAGER: 자기 지점에 자동 등록. ADMIN: storeId 필수 — 등록할 지점 지정. "
             + "multipart/form-data로 아이콘 파일과 설정을 함께 전송. "
-            + "지점당 최대 9개까지 등록 가능, 아이콘 파일 필수.")
+            + "지점당 최대 9개까지 등록 가능. 아이콘 파일은 선택 사항.")
     @PostMapping(consumes = "multipart/form-data")
     public CommonResponse<SeatLeaveReasonResponse> createReason(
         @RequestParam(required = false) Long storeId,
-        @RequestParam("iconFile") MultipartFile iconFile,
+        @RequestParam(value = "iconFile", required = false) MultipartFile iconFile,
         @RequestParam String reasonName,
         @RequestParam(defaultValue = "0") int displayOrder,
         @RequestParam(defaultValue = "true") boolean active) {

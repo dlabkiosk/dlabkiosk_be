@@ -55,11 +55,9 @@ public class SeatLeaveReasonService {
         if (seatLeaveReasonRepository.countByStoreId(storeId) >= MAX_REASONS_PER_STORE) {
             throw new SeatLeaveException(ErrorCode.SEAT_LEAVE_REASON_LIMIT_EXCEEDED);
         }
-        if (iconFile == null || iconFile.isEmpty()) {
-            throw new SeatLeaveException(ErrorCode.SEAT_LEAVE_REASON_ICON_REQUIRED);
-        }
 
-        String iconUrl = s3Service.upload(iconFile);
+        String iconUrl = (iconFile != null && !iconFile.isEmpty())
+            ? s3Service.upload(iconFile) : null;
 
         SeatLeaveReason reason = SeatLeaveReason.builder()
             .store(store)
