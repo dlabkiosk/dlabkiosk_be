@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -77,7 +78,8 @@ public class MessageTemplateAdminController {
     @GetMapping("/{id}/eligible-students")
     public CommonResponse<PageResponse<TemplateEligibleStudentResponse>> findEligibleStudents(
         @PathVariable Long id,
-        @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
+        @ParameterObject @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC)
+        Pageable pageable) {
         return CommonResponse.success(
             messageTemplateService.findEligibleStudents(id, pageable));
     }
