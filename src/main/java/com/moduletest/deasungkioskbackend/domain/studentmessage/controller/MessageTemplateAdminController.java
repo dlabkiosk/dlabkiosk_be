@@ -7,6 +7,7 @@ import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.MessageTempl
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.MessageTemplateResponse;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.MessageTemplateUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.TemplateEligibleStudentResponse;
+import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.TemplateRecipientResponse;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.service.MessageTemplateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -69,6 +70,20 @@ public class MessageTemplateAdminController {
     public CommonResponse<Void> deleteTemplate(@PathVariable Long id) {
         messageTemplateService.deleteTemplate(id);
         return CommonResponse.success(null);
+    }
+
+    @Operation(summary = "템플릿 수신 학생 목록 조회",
+        description = "해당 템플릿으로 발송된 학생 리스트를 페이지로 반환한다. "
+            + "MANAGER는 자기 지점 템플릿만 조회 가능. "
+            + "정렬 기본값: createdAt DESC.")
+    @GetMapping("/{id}/recipients")
+    public CommonResponse<PageResponse<TemplateRecipientResponse>> findRecipients(
+        @PathVariable Long id,
+        @ParameterObject @PageableDefault(size = 20, sort = "createdAt",
+            direction = Sort.Direction.DESC)
+        Pageable pageable) {
+        return CommonResponse.success(
+            messageTemplateService.findRecipients(id, pageable));
     }
 
     @Operation(summary = "템플릿 미수신 학생 목록 조회",
