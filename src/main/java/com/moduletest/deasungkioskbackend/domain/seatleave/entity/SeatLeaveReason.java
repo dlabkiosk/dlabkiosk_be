@@ -39,17 +39,26 @@ public class SeatLeaveReason extends BaseTimeEntity {
     @Column(name = "is_active", nullable = false)
     private boolean active;
 
+    @Column(name = "icon_url", length = 500)
+    private String iconUrl;
+
     @Builder
-    public SeatLeaveReason(Store store, String reasonName, int displayOrder, boolean active) {
+    public SeatLeaveReason(Store store, String reasonName, int displayOrder, boolean active,
+        String iconUrl) {
         this.store = store;
         this.reasonName = reasonName;
         this.displayOrder = displayOrder;
         this.active = active;
+        this.iconUrl = iconUrl;
     }
 
     public void updateInfo(String reasonName, int displayOrder, boolean active) {
         this.reasonName = reasonName;
         this.displayOrder = displayOrder;
         this.active = active;
+    }
+
+    public void replaceIcon(String newIconUrl) {
+        this.iconUrl = newIconUrl;
     }
 }

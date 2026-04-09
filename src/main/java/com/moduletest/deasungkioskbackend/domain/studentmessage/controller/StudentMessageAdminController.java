@@ -2,6 +2,7 @@ package com.moduletest.deasungkioskbackend.domain.studentmessage.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
+import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.StudentMessageBulkDeleteRequest;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.StudentMessageCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.StudentMessageResponse;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.StudentMessageUpdateRequest;
@@ -66,11 +67,22 @@ public class StudentMessageAdminController {
     }
 
     @Operation(summary = "학생별 메시지 삭제",
-        description = "MANAGER는 자기 지점 메시지만 삭제 가능.")
+        description = "MANAGER는 자기 지점 메시지만 삭제 가능. 템플릿 기반 메시지는 삭제 불가 (템플릿 자체 삭제 시 CASCADE).")
     @DeleteMapping("/{id}")
     public CommonResponse<Void> deleteMessage(@PathVariable Long id) {
         Long storeId = SecurityUtil.resolveStoreId(null);
         studentMessageService.deleteMessage(id, storeId);
+        return CommonResponse.success(null);
+    }
+
+    @Operation(summary = "학생별 메시지 일괄 삭제",
+        description = "메시지 ID 리스트를 받아 한 번에 삭제한다. "
+            + "MANAGER는 자기 지점 메시지만 삭제 가능. 템플릿 기반 메시지가 포함되면 전체 롤백.")
+    @PostMapping("/bulk-delete")
+    public CommonResponse<Void> deleteMessagesBulk(
+        @Valid @RequestBody StudentMessageBulkDeleteRequest request) {
+        Long storeId = SecurityUtil.resolveStoreId(null);
+        studentMessageService.deleteMessages(request.messageIds(), storeId);
         return CommonResponse.success(null);
     }
 }

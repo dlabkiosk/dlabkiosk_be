@@ -14,8 +14,12 @@ public record MealStatusResponse(
     boolean lunchApplied,
     boolean lunchChecked,
     LocalTime lunchCheckedTime,
+    boolean lunchUnappliedDetected,
+    LocalTime lunchUnappliedDetectedAt,
     boolean dinnerApplied,
     boolean dinnerChecked,
-    LocalTime dinnerCheckedTime
+    LocalTime dinnerCheckedTime,
+    boolean dinnerUnappliedDetected,
+    LocalTime dinnerUnappliedDetectedAt
 ) {
 }
