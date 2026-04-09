@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.phonesubmission.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.dto.PageResponse;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionResponse;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.dto.PhoneSubmissionUpdateRequest;
@@ -42,7 +43,7 @@ public class PhoneSubmissionAdminController {
             + "페이지네이션: ?page=0&size=20&sort=submittedAt,desc. "
             + "신청 유형 — DAILY: 당일, PERIOD: 기간 설정, NO_PHONE: 휴대폰 미보유(무기한).")
     @GetMapping
-    public CommonResponse<Page<PhoneSubmissionResponse>> findAllPhoneSubmissions(
+    public CommonResponse<PageResponse<PhoneSubmissionResponse>> findAllPhoneSubmissions(
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
         LocalDate startDate,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -53,8 +54,9 @@ public class PhoneSubmissionAdminController {
         Long storeId = SecurityUtil.resolveStoreId(null);
         LocalDate start = startDate != null ? startDate : LocalDate.now();
         LocalDate end = endDate != null ? endDate : LocalDate.now();
-        return CommonResponse.success(
-            phoneSubmissionService.findAllByPeriod(storeId, start, end, pageable));
+        Page<PhoneSubmissionResponse> page = phoneSubmissionService
+            .findAllByPeriod(storeId, start, end, pageable);
+        return CommonResponse.success(PageResponse.from(page));
     }
 
     @Operation(summary = "휴대폰 미소지 수정",

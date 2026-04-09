@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.seatchangerequest.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.dto.PageResponse;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.SeatChangeRequestResponse;
 import com.moduletest.deasungkioskbackend.domain.seatchangerequest.dto.SeatWaitingStatusResponse;
@@ -32,13 +33,13 @@ public class SeatChangeRequestAdminController {
     @Operation(summary = "좌석 변경 신청 목록 조회",
         description = "MANAGER: 자기 지점만. ADMIN: 전체. 상태별 필터링 가능. 기본 PENDING.")
     @GetMapping
-    public CommonResponse<Page<SeatChangeRequestResponse>> findAllRequests(
+    public CommonResponse<PageResponse<SeatChangeRequestResponse>> findAllRequests(
             @RequestParam(defaultValue = "PENDING") SeatChangeRequestStatus status,
             @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
         Long storeId = SecurityUtil.resolveStoreId(null);
-        Page<SeatChangeRequestResponse> responses =
+        Page<SeatChangeRequestResponse> page =
             seatChangeRequestService.findAllRequests(storeId, status, pageable);
-        return CommonResponse.success(responses);
+        return CommonResponse.success(PageResponse.from(page));
     }
 
     @Operation(summary = "좌석별 대기 현황 조회",

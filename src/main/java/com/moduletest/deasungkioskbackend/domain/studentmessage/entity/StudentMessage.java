@@ -13,7 +13,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -35,21 +34,44 @@ public class StudentMessage extends BaseTimeEntity {
     @JoinColumn(name = "store_id", nullable = false)
     private Store store;
 
-    @Column(nullable = false, length = 500)
+    @Column(length = 500)
     private String content;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "template_id")
+    private MessageTemplate template;
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
-    @Builder
-    public StudentMessage(Student student, Store store, String content) {
+    protected StudentMessage(Student student, Store store, String content, MessageTemplate template) {
         this.student = student;
         this.store = store;
         this.content = content;
+        this.template = template;
         this.active = true;
     }
 
-    public void updateInfo(String content, boolean active) {
+    public static StudentMessage ofCustom(Student student, Store store, String content) {
+        return new StudentMessage(student, store, content, null);
+    }
+
+    public static StudentMessage ofTemplate(Student student, Store store, MessageTemplate template) {
+        return new StudentMessage(student, store, null, template);
+    }
+
+    public boolean isTemplateBased() {
+        return template != null;
+    }
+
+    public String resolveContent() {
+        if (template != null) {
+            return template.getContent();
+        }
+        return content;
+    }
+
+    public void updateCustomContent(String content, boolean active) {
         this.content = content;
         this.active = active;
     }

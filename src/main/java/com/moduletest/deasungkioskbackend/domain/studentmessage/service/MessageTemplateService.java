@@ -1,19 +1,23 @@
 package com.moduletest.deasungkioskbackend.domain.studentmessage.service;
 
+import com.moduletest.deasungkioskbackend.common.dto.PageResponse;
 import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
+import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.MessageTemplateCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.MessageTemplateResponse;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.MessageTemplateUpdateRequest;
+import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.TemplateEligibleStudentResponse;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.entity.MessageTemplate;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.exception.StudentMessageException;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.repository.MessageTemplateRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +28,7 @@ public class MessageTemplateService {
 
     private final MessageTemplateRepository messageTemplateRepository;
     private final StoreRepository storeRepository;
+    private final StudentRepository studentRepository;
 
     public List<MessageTemplateResponse> findAllTemplates(Long storeId) {
         if (storeId != null) {
@@ -72,6 +77,19 @@ public class MessageTemplateService {
                 ErrorCode.MESSAGE_TEMPLATE_NOT_FOUND));
         validateStoreAccess(template);
         messageTemplateRepository.delete(template);
+    }
+
+    public PageResponse<TemplateEligibleStudentResponse> findEligibleStudents(Long templateId,
+        Pageable pageable) {
+        MessageTemplate template = messageTemplateRepository.findByIdWithStore(templateId)
+            .orElseThrow(() -> new StudentMessageException(
+                ErrorCode.MESSAGE_TEMPLATE_NOT_FOUND));
+        validateStoreAccess(template);
+
+        return PageResponse.from(
+            studentRepository.findEligibleStudentsForTemplate(
+                template.getStore().getId(), templateId, pageable)
+                .map(TemplateEligibleStudentResponse::fromEntity));
     }
 
     private void validateStoreAccess(MessageTemplate template) {

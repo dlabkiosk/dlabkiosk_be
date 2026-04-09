@@ -12,8 +12,10 @@ public record StudentMessageResponse(
     Long studentId,
     @Schema(description = "학생 이름", example = "이민희")
     String studentName,
-    @Schema(description = "메시지 내용", example = "식비가 미납입니다.")
+    @Schema(description = "메시지 내용 (템플릿 발송이면 템플릿 content)", example = "식비가 미납입니다.")
     String content,
+    @Schema(description = "템플릿 ID (커스텀 발송이면 null)", example = "1")
+    Long templateId,
     @Schema(description = "활성 여부", example = "true")
     boolean active,
     @Schema(description = "생성일시")
@@ -25,7 +27,8 @@ public record StudentMessageResponse(
             message.getId(),
             message.getStudent().getId(),
             message.getStudent().getName(),
-            message.getContent(),
+            message.resolveContent(),
+            message.getTemplate() != null ? message.getTemplate().getId() : null,
             message.isActive(),
             message.getCreatedAt()
         );

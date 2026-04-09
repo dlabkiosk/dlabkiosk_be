@@ -107,6 +107,12 @@ public enum ErrorCode {
 
     // Student Message
     STUDENT_MESSAGE_NOT_FOUND("SM001", "학생 메시지를 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+    STUDENT_MESSAGE_INVALID_REQUEST("SM002",
+        "메시지 내용(content) 또는 템플릿 ID(templateId) 중 하나만 지정해야 합니다",
+        HttpStatus.BAD_REQUEST),
+    STUDENT_MESSAGE_TEMPLATE_BASED_NOT_EDITABLE("SM003",
+        "템플릿 기반 메시지는 개별 수정/삭제할 수 없습니다",
+        HttpStatus.BAD_REQUEST),
     MESSAGE_TEMPLATE_NOT_FOUND("MT001", "메시지 템플릿을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
 
     // Seat Change Request
