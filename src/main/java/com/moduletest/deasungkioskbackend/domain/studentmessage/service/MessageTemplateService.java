@@ -12,9 +12,11 @@ import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.MessageTempl
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.MessageTemplateResponse;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.MessageTemplateUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.TemplateEligibleStudentResponse;
+import com.moduletest.deasungkioskbackend.domain.studentmessage.dto.TemplateRecipientResponse;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.entity.MessageTemplate;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.exception.StudentMessageException;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.repository.MessageTemplateRepository;
+import com.moduletest.deasungkioskbackend.domain.studentmessage.repository.StudentMessageRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +31,7 @@ public class MessageTemplateService {
     private final MessageTemplateRepository messageTemplateRepository;
     private final StoreRepository storeRepository;
     private final StudentRepository studentRepository;
+    private final StudentMessageRepository studentMessageRepository;
 
     public List<MessageTemplateResponse> findAllTemplates(Long storeId) {
         if (storeId != null) {
@@ -77,6 +80,18 @@ public class MessageTemplateService {
                 ErrorCode.MESSAGE_TEMPLATE_NOT_FOUND));
         validateStoreAccess(template);
         messageTemplateRepository.delete(template);
+    }
+
+    public PageResponse<TemplateRecipientResponse> findRecipients(Long templateId,
+        Pageable pageable) {
+        MessageTemplate template = messageTemplateRepository.findByIdWithStore(templateId)
+            .orElseThrow(() -> new StudentMessageException(
+                ErrorCode.MESSAGE_TEMPLATE_NOT_FOUND));
+        validateStoreAccess(template);
+
+        return PageResponse.from(
+            studentMessageRepository.findAllByTemplateIdWithStudent(templateId, pageable)
+                .map(TemplateRecipientResponse::fromEntity));
     }
 
     public PageResponse<TemplateEligibleStudentResponse> findEligibleStudents(Long templateId,
