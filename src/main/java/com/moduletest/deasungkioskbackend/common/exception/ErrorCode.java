@@ -84,6 +84,10 @@ public enum ErrorCode {
     FILE_DELETE_FAILED("FD001", "파일 삭제에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
 
     SEAT_LEAVE_REASON_NOT_FOUND("SLR001", "좌석이탈 사유를 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+    SEAT_LEAVE_REASON_LIMIT_EXCEEDED("SLR002",
+        "지점당 이탈 사유는 최대 9개까지 등록 가능합니다", HttpStatus.BAD_REQUEST),
+    SEAT_LEAVE_REASON_ICON_REQUIRED("SLR003",
+        "이탈 사유 등록 시 아이콘 파일이 필요합니다", HttpStatus.BAD_REQUEST),
     ALREADY_ON_SEAT_LEAVE("SL001", "이미 좌석이탈 중입니다", HttpStatus.CONFLICT),
     NOT_ON_SEAT_LEAVE("SL002", "진행 중인 좌석이탈이 없습니다", HttpStatus.BAD_REQUEST),
     NO_ACTIVE_SEAT("SL003", "사용 중인 좌석이 없습니다", HttpStatus.BAD_REQUEST),

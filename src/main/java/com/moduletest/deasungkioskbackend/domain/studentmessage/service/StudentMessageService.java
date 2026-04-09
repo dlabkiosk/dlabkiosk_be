@@ -133,6 +133,19 @@ public class StudentMessageService {
 
     @Transactional
     public void deleteMessage(Long id, Long storeId) {
+        StudentMessage message = loadDeletableMessage(id, storeId);
+        studentMessageRepository.delete(message);
+    }
+
+    @Transactional
+    public void deleteMessages(List<Long> ids, Long storeId) {
+        for (Long id : ids) {
+            StudentMessage message = loadDeletableMessage(id, storeId);
+            studentMessageRepository.delete(message);
+        }
+    }
+
+    private StudentMessage loadDeletableMessage(Long id, Long storeId) {
         StudentMessage message = studentMessageRepository.findByIdWithDetails(id)
             .orElseThrow(() -> new StudentMessageException(
                 ErrorCode.STUDENT_MESSAGE_NOT_FOUND));
@@ -144,8 +157,7 @@ public class StudentMessageService {
             throw new StudentMessageException(
                 ErrorCode.STUDENT_MESSAGE_TEMPLATE_BASED_NOT_EDITABLE);
         }
-
-        studentMessageRepository.delete(message);
+        return message;
     }
 
     private void validateStudentBelongsToStore(Long studentId, Long storeId) {

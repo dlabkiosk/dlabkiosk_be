@@ -7,7 +7,8 @@ public record SeatLeaveReasonResponse(
     Long storeId,
     String reasonName,
     int displayOrder,
-    boolean active
+    boolean active,
+    String iconUrl
 ) {
 
     public static SeatLeaveReasonResponse fromEntity(SeatLeaveReason reason) {
@@ -16,7 +17,8 @@ public record SeatLeaveReasonResponse(
             reason.getStore().getId(),
             reason.getReasonName(),
             reason.getDisplayOrder(),
-            reason.isActive()
+            reason.isActive(),
+            reason.getIconUrl()
         );
     }
 }

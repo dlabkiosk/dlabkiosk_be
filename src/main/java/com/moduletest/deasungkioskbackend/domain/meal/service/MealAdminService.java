@@ -8,7 +8,9 @@ import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.meal.dto.MealStatusResponse;
 import com.moduletest.deasungkioskbackend.domain.meal.entity.MealTag;
 import com.moduletest.deasungkioskbackend.domain.meal.entity.MealType;
+import com.moduletest.deasungkioskbackend.domain.meal.entity.MealUnappliedLog;
 import com.moduletest.deasungkioskbackend.domain.meal.repository.MealTagRepository;
+import com.moduletest.deasungkioskbackend.domain.meal.repository.MealUnappliedLogRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
@@ -40,6 +42,7 @@ public class MealAdminService {
     private final StoreRepository storeRepository;
     private final StudentRepository studentRepository;
     private final MealTagRepository mealTagRepository;
+    private final MealUnappliedLogRepository mealUnappliedLogRepository;
 
     public List<MealStatusResponse> findMealStatusList(
             Long storeId, LocalDate startDate, LocalDate endDate,
@@ -59,6 +62,8 @@ public class MealAdminService {
         List<MealTag> mealTags = mealTagRepository.findAllByStoreIdAndPeriod(
             storeId, startDate, endDate);
         Map<String, MealTag> mealTagMap = buildMealTagMap(mealTags);
+        Map<String, MealUnappliedLog> unappliedMap = buildUnappliedMap(
+            mealUnappliedLogRepository.findAllByStoreIdAndPeriod(storeId, startDate, endDate));
 
         List<MealStatusResponse> results = new ArrayList<>();
 
@@ -78,6 +83,11 @@ public class MealAdminService {
                 MealTag dinnerTag = mealTagMap.get(
                     buildTagKey(student.getId(), date, MealType.DINNER));
 
+                MealUnappliedLog lunchUnapplied = unappliedMap.get(
+                    buildTagKey(student.getId(), date, MealType.LUNCH));
+                MealUnappliedLog dinnerUnapplied = unappliedMap.get(
+                    buildTagKey(student.getId(), date, MealType.DINNER));
+
                 results.add(MealStatusResponse.builder()
                     .studentId(student.getId())
                     .studentName(student.getName())
@@ -88,15 +98,29 @@ public class MealAdminService {
                     .lunchChecked(lunchTag != null)
                     .lunchCheckedTime(lunchTag != null
                         ? lunchTag.getTaggedAt().toLocalTime() : null)
+                    .lunchUnappliedDetected(lunchUnapplied != null)
+                    .lunchUnappliedDetectedAt(lunchUnapplied != null
+                        ? lunchUnapplied.getDetectedAt().toLocalTime() : null)
                     .dinnerApplied(dinnerApplied)
                     .dinnerChecked(dinnerTag != null)
                     .dinnerCheckedTime(dinnerTag != null
                         ? dinnerTag.getTaggedAt().toLocalTime() : null)
+                    .dinnerUnappliedDetected(dinnerUnapplied != null)
+                    .dinnerUnappliedDetectedAt(dinnerUnapplied != null
+                        ? dinnerUnapplied.getDetectedAt().toLocalTime() : null)
                     .build());
             }
         }
 
         return results;
+    }
+
+    private Map<String, MealUnappliedLog> buildUnappliedMap(List<MealUnappliedLog> logs) {
+        return logs.stream()
+            .collect(Collectors.toMap(
+                log -> buildTagKey(log.getStudent().getId(), log.getMealDate(), log.getMealType()),
+                log -> log,
+                (existing, duplicate) -> existing));
     }
 
     private Map<String, Set<String>> fetchDsaMealApplied(
@@ -281,6 +305,13 @@ public class MealAdminService {
             .findByStudentIdAndMealDateAndMealType(student.getId(), date, MealType.DINNER)
             .orElse(null);
 
+        MealUnappliedLog lunchUnapplied = mealUnappliedLogRepository
+            .findByStudentIdAndMealDateAndMealType(student.getId(), date, MealType.LUNCH)
+            .orElse(null);
+        MealUnappliedLog dinnerUnapplied = mealUnappliedLogRepository
+            .findByStudentIdAndMealDateAndMealType(student.getId(), date, MealType.DINNER)
+            .orElse(null);
+
         return MealStatusResponse.builder()
             .studentId(student.getId())
             .studentName(student.getName())
@@ -291,10 +322,16 @@ public class MealAdminService {
             .lunchChecked(lunchTag != null)
             .lunchCheckedTime(lunchTag != null
                 ? lunchTag.getTaggedAt().toLocalTime() : null)
+            .lunchUnappliedDetected(lunchUnapplied != null)
+            .lunchUnappliedDetectedAt(lunchUnapplied != null
+                ? lunchUnapplied.getDetectedAt().toLocalTime() : null)
             .dinnerApplied(dinnerApplied)
             .dinnerChecked(dinnerTag != null)
             .dinnerCheckedTime(dinnerTag != null
                 ? dinnerTag.getTaggedAt().toLocalTime() : null)
+            .dinnerUnappliedDetected(dinnerUnapplied != null)
+            .dinnerUnappliedDetectedAt(dinnerUnapplied != null
+                ? dinnerUnapplied.getDetectedAt().toLocalTime() : null)
             .build();
     }
 

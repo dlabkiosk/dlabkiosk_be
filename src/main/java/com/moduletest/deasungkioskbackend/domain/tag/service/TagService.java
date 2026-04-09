@@ -16,6 +16,7 @@ import com.moduletest.deasungkioskbackend.domain.kiosk.exception.KioskException;
 import com.moduletest.deasungkioskbackend.domain.meal.entity.MealTag;
 import com.moduletest.deasungkioskbackend.domain.meal.entity.MealType;
 import com.moduletest.deasungkioskbackend.domain.meal.repository.MealTagRepository;
+import com.moduletest.deasungkioskbackend.domain.meal.service.MealUnappliedLogService;
 import com.moduletest.deasungkioskbackend.domain.outing.entity.Outing;
 import com.moduletest.deasungkioskbackend.domain.outing.repository.OutingRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
@@ -68,6 +69,7 @@ public class TagService {
     private final DsaMealService dsaMealService;
     private final DsaRequestService dsaRequestService;
     private final MealTagRepository mealTagRepository;
+    private final MealUnappliedLogService mealUnappliedLogService;
     private final SeatLeaveRepository seatLeaveRepository;
 
     @Transactional
@@ -101,6 +103,7 @@ public class TagService {
             }
             TagResponse response = handleOutingEnd(
                 AttendAction.R, student, storeId, true);
+            recordMealUnappliedIfNeeded(student, store, mealType, mealInfo, today, "R");
             return withMealInfo(response, mealInfo);
         }
 
@@ -110,6 +113,7 @@ public class TagService {
         if (activeSeatLeave.isPresent()) {
             TagResponse response = handleSeatLeaveEnd(
                 activeSeatLeave.get(), student, storeId);
+            recordMealUnappliedIfNeeded(student, store, mealType, mealInfo, today, "R");
             return withMealInfo(response, mealInfo);
         }
 
@@ -137,11 +141,13 @@ public class TagService {
             }
             TagResponse response = handleCheckIn(
                 action, student, storeId, dsaResult.dsaSynced());
+            recordMealUnappliedIfNeeded(student, store, mealType, mealInfo, today, action.name());
             return withMealInfo(response, mealInfo);
         }
 
         // 3. 등원 상태 + 식사시간 → 급식 체크 우선, 외출/조퇴/하원은 pendingActions로
         if (mealType != null) {
+            recordMealUnappliedIfNeeded(student, store, mealType, mealInfo, today, null);
             return handleMealTimeTag(mealType, mealInfo, student, store, storeId,
                 startOfDay, endOfDay);
         }
@@ -294,6 +300,16 @@ public class TagService {
             throw new AttendanceException(ErrorCode.DSA_SYNC_FAILED);
         }
 
+        // 외출/조퇴 확정 시 식사 미신청 재원 로그 삭제 (매장 떠난 거라 의미 없음)
+        if (request.action() == AttendAction.D || request.action() == AttendAction.N
+                || request.action() == AttendAction.C) {
+            MealType mealType = MealType.fromCurrentTime(LocalTime.now());
+            if (mealType != null) {
+                mealUnappliedLogService.removeIfExists(
+                    student.getId(), LocalDate.now(), mealType);
+            }
+        }
+
         return switch (request.action()) {
             case D, N -> handleOutingStart(
                 request.action(), student, storeId, true);
@@ -438,6 +454,17 @@ public class TagService {
     }
 
     // ── 급식 헬퍼 ──
+
+    private void recordMealUnappliedIfNeeded(Student student, Store store, MealType mealType,
+        MealInfo mealInfo, LocalDate mealDate, String tagAction) {
+        if (mealType == null || mealInfo == null) {
+            return;
+        }
+        if (mealInfo.applied()) {
+            return;
+        }
+        mealUnappliedLogService.recordIfUnapplied(student, store, mealType, mealDate, tagAction);
+    }
 
     private MealInfo buildMealInfo(MealType mealType, Student student,
                                    Store store, LocalDate today) {

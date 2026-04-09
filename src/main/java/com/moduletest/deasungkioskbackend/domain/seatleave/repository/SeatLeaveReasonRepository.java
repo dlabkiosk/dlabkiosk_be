@@ -20,4 +20,5 @@ public interface SeatLeaveReasonRepository extends JpaRepository<SeatLeaveReason
         + "WHERE r.store.id = :storeId AND r.active = true ORDER BY r.displayOrder ASC")
     List<SeatLeaveReason> findAllActiveByStoreId(@Param("storeId") Long storeId);
 
+    long countByStoreId(Long storeId);
 }
