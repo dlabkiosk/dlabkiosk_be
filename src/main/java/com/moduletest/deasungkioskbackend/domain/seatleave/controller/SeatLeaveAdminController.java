@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.seatleave.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
+import com.moduletest.deasungkioskbackend.common.dto.PageResponse;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.seatleave.dto.SeatLeaveResponse;
 import com.moduletest.deasungkioskbackend.domain.seatleave.service.SeatLeaveService;
@@ -37,7 +38,7 @@ public class SeatLeaveAdminController {
             + "MANAGER: 자기 지점만. ADMIN: 전체 지점. "
             + "페이지네이션: ?page=0&size=20&sort=startedAt,desc")
     @GetMapping
-    public CommonResponse<Page<SeatLeaveResponse>> findAllSeatLeaves(
+    public CommonResponse<PageResponse<SeatLeaveResponse>> findAllSeatLeaves(
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
         LocalDate startDate,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -48,8 +49,9 @@ public class SeatLeaveAdminController {
         Long storeId = SecurityUtil.resolveStoreId(null);
         LocalDate start = startDate != null ? startDate : LocalDate.now();
         LocalDate end = endDate != null ? endDate : LocalDate.now();
-        return CommonResponse.success(
-            seatLeaveService.findAllByPeriod(storeId, start, end, pageable));
+        Page<SeatLeaveResponse> page = seatLeaveService
+            .findAllByPeriod(storeId, start, end, pageable);
+        return CommonResponse.success(PageResponse.from(page));
     }
 
     @Operation(summary = "좌석이탈 강제 복귀처리",

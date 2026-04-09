@@ -4,6 +4,8 @@ import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -72,4 +74,22 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
         @Param("studentNumber") String studentNumber);
 
     List<Student> findAllByStoreId(Long storeId);
+
+    @Query(value = "SELECT s FROM Student s"
+        + " LEFT JOIN FETCH s.assignedSeat"
+        + " WHERE s.store.id = :storeId"
+        + " AND s.id NOT IN ("
+        + "   SELECT sm.student.id FROM StudentMessage sm"
+        + "   WHERE sm.template.id = :templateId"
+        + " )",
+        countQuery = "SELECT COUNT(s) FROM Student s"
+            + " WHERE s.store.id = :storeId"
+            + " AND s.id NOT IN ("
+            + "   SELECT sm.student.id FROM StudentMessage sm"
+            + "   WHERE sm.template.id = :templateId"
+            + " )")
+    Page<Student> findEligibleStudentsForTemplate(
+        @Param("storeId") Long storeId,
+        @Param("templateId") Long templateId,
+        Pageable pageable);
 }
