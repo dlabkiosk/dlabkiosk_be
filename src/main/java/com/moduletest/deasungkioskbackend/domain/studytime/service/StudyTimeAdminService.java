@@ -138,7 +138,7 @@ public class StudyTimeAdminService {
                     .put(date, new DsaStudyRecord(minutes, timeStr));
             }
         } catch (Exception e) {
-            log.warn("DSA getStudyTimeList 호출 실패: {}", e.getMessage());
+            log.warn("DSA getStudyTimeList 호출 실패. storeId: {} - {}", store.getId(), e.getMessage());
         }
 
         return result;

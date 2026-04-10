@@ -177,8 +177,8 @@ public class MealAdminService {
                     }
                 }
             } catch (Exception e) {
-                log.warn("DSA getMealApplyStdInfo 호출 실패 (month: {}): {}",
-                    month, e.getMessage());
+                log.warn("DSA getMealApplyStdInfo 호출 실패 (month: {}). storeId: {} - {}",
+                    month, store.getId(), e.getMessage());
             }
         }
 

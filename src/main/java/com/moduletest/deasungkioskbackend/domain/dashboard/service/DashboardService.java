@@ -133,7 +133,7 @@ public class DashboardService {
 
             return count;
         } catch (Exception e) {
-            log.warn("DSA getMealApplyStdInfo 호출 실패: {}", e.getMessage());
+            log.warn("DSA getMealApplyStdInfo 호출 실패. storeId: {} - {}", store.getId(), e.getMessage());
             return null;
         }
     }
@@ -173,7 +173,7 @@ public class DashboardService {
             return dsaApiClient.post(
                 "/kiosk/getAttendState", params, DsaResponse.class, store);
         } catch (Exception e) {
-            log.warn("DSA getAttendState 호출 실패: {}", e.getMessage());
+            log.warn("DSA getAttendState 호출 실패. storeId: {} - {}", store.getId(), e.getMessage());
             return null;
         }
     }
@@ -266,7 +266,7 @@ public class DashboardService {
         try {
             return dsaApiClient.post(path, buildParams(), DsaResponse.class, store);
         } catch (Exception e) {
-            log.warn("DSA API 호출 실패 [{}]: {}", path, e.getMessage());
+            log.warn("DSA API 호출 실패 [{}]. storeId: {} - {}", path, store.getId(), e.getMessage());
             return null;
         }
     }

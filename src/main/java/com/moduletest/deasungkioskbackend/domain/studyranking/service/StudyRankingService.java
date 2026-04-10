@@ -163,7 +163,7 @@ public class StudyRankingService {
         try {
             return dsaApiClient.post(path, buildParams(), DsaResponse.class, store);
         } catch (Exception e) {
-            log.warn("DSA API 호출 실패 [{}]: {}", path, e.getMessage());
+            log.warn("DSA API 호출 실패 [{}]. storeId: {} - {}", path, store.getId(), e.getMessage());
             return null;
         }
     }

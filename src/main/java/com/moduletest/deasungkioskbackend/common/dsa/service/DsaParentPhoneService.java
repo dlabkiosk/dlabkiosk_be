@@ -52,10 +52,12 @@ public final class DsaParentPhoneService {
             return joiner.toString();
 
         } catch (DsaApiException e) {
-            log.warn("DSA getParentHpList 호출 실패 - {}. rfidUid: {}", e.getMessage(), rfidUid);
+            log.warn("DSA getParentHpList 호출 실패. storeId: {}, rfidUid: {} - {}",
+                store.getId(), rfidUid, e.getMessage());
             return null;
         } catch (Exception e) {
-            log.warn("DSA getParentHpList 예외. rfidUid: {}", rfidUid, e);
+            log.warn("DSA getParentHpList 예외. storeId: {}, rfidUid: {}",
+                store.getId(), rfidUid, e);
             return null;
         }
     }
