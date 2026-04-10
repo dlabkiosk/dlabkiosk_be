@@ -124,9 +124,8 @@ public class AttendanceAdminService {
     }
 
     private Set<Long> findPhoneSubmittedStudentIds(Long storeId) {
-        LocalDate today = LocalDate.now();
         return phoneSubmissionRepository
-            .findAllByStoreIdToday(storeId, today.atStartOfDay())
+            .findActiveByStoreIdAndDate(storeId, LocalDate.now())
             .stream()
             .map(ps -> ps.getStudent().getId())
             .collect(Collectors.toSet());

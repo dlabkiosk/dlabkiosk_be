@@ -43,6 +43,7 @@ public interface SeatLeaveRepository extends JpaRepository<SeatLeave, Long> {
 
     @Query("SELECT sl FROM SeatLeave sl "
         + "JOIN FETCH sl.student JOIN FETCH sl.seat JOIN FETCH sl.reason "
+        + "JOIN FETCH sl.store "
         + "WHERE sl.store.id = :storeId "
         + "AND sl.startedAt >= :startDate AND sl.startedAt < :endDate "
         + "ORDER BY sl.startedAt DESC")
@@ -53,6 +54,7 @@ public interface SeatLeaveRepository extends JpaRepository<SeatLeave, Long> {
 
     @Query("SELECT sl FROM SeatLeave sl "
         + "JOIN FETCH sl.student JOIN FETCH sl.seat JOIN FETCH sl.reason "
+        + "JOIN FETCH sl.store "
         + "WHERE sl.startedAt >= :startDate AND sl.startedAt < :endDate "
         + "ORDER BY sl.startedAt DESC")
     List<SeatLeave> findAllByPeriod(
@@ -61,6 +63,7 @@ public interface SeatLeaveRepository extends JpaRepository<SeatLeave, Long> {
 
     @Query(value = "SELECT sl FROM SeatLeave sl "
         + "JOIN FETCH sl.student JOIN FETCH sl.seat JOIN FETCH sl.reason "
+        + "JOIN FETCH sl.store "
         + "WHERE sl.store.id = :storeId "
         + "AND sl.startedAt >= :startDate AND sl.startedAt < :endDate",
         countQuery = "SELECT COUNT(sl) FROM SeatLeave sl "
@@ -74,6 +77,7 @@ public interface SeatLeaveRepository extends JpaRepository<SeatLeave, Long> {
 
     @Query(value = "SELECT sl FROM SeatLeave sl "
         + "JOIN FETCH sl.student JOIN FETCH sl.seat JOIN FETCH sl.reason "
+        + "JOIN FETCH sl.store "
         + "WHERE sl.startedAt >= :startDate AND sl.startedAt < :endDate",
         countQuery = "SELECT COUNT(sl) FROM SeatLeave sl "
             + "WHERE sl.startedAt >= :startDate AND sl.startedAt < :endDate")

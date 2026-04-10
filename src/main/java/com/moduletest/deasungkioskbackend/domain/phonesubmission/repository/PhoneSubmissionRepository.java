@@ -24,6 +24,15 @@ public interface PhoneSubmissionRepository extends JpaRepository<PhoneSubmission
 
     @Query("SELECT ps FROM PhoneSubmission ps "
         + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
+        + "WHERE ps.store.id = :storeId "
+        + "AND ps.startDate <= :date "
+        + "AND (ps.endDate IS NULL OR ps.endDate >= :date)")
+    List<PhoneSubmission> findActiveByStoreIdAndDate(
+        @Param("storeId") Long storeId,
+        @Param("date") LocalDate date);
+
+    @Query("SELECT ps FROM PhoneSubmission ps "
+        + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
         + "WHERE ps.submittedAt >= :startOfDay "
         + "ORDER BY ps.submittedAt DESC")
     List<PhoneSubmission> findAllToday(
@@ -73,6 +82,7 @@ public interface PhoneSubmissionRepository extends JpaRepository<PhoneSubmission
 
     @Query("SELECT ps FROM PhoneSubmission ps "
         + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
+        + "JOIN FETCH ps.store "
         + "WHERE ps.store.id = :storeId "
         + "AND ps.submittedAt >= :startDate AND ps.submittedAt < :endDate "
         + "ORDER BY ps.submittedAt DESC")
@@ -83,6 +93,7 @@ public interface PhoneSubmissionRepository extends JpaRepository<PhoneSubmission
 
     @Query("SELECT ps FROM PhoneSubmission ps "
         + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
+        + "JOIN FETCH ps.store "
         + "WHERE ps.submittedAt >= :startDate AND ps.submittedAt < :endDate "
         + "ORDER BY ps.submittedAt DESC")
     List<PhoneSubmission> findAllByPeriod(
@@ -91,6 +102,7 @@ public interface PhoneSubmissionRepository extends JpaRepository<PhoneSubmission
 
     @Query(value = "SELECT ps FROM PhoneSubmission ps "
         + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
+        + "JOIN FETCH ps.store "
         + "WHERE ps.store.id = :storeId "
         + "AND ps.submittedAt >= :startDate AND ps.submittedAt < :endDate",
         countQuery = "SELECT COUNT(ps) FROM PhoneSubmission ps "
@@ -104,6 +116,7 @@ public interface PhoneSubmissionRepository extends JpaRepository<PhoneSubmission
 
     @Query(value = "SELECT ps FROM PhoneSubmission ps "
         + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
+        + "JOIN FETCH ps.store "
         + "WHERE ps.submittedAt >= :startDate AND ps.submittedAt < :endDate",
         countQuery = "SELECT COUNT(ps) FROM PhoneSubmission ps "
             + "WHERE ps.submittedAt >= :startDate AND ps.submittedAt < :endDate")

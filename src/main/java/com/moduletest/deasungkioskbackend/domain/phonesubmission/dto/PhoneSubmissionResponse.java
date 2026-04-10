@@ -10,6 +10,10 @@ import java.time.LocalDateTime;
 public record PhoneSubmissionResponse(
     @Schema(description = "신청 ID", example = "1")
     Long id,
+    @Schema(description = "지점 ID", example = "1")
+    Long storeId,
+    @Schema(description = "지점명", example = "대성학원 강남점")
+    String storeName,
     @Schema(description = "학생 ID", example = "3")
     Long studentId,
     @Schema(description = "학생 이름", example = "김민준")
@@ -44,6 +48,8 @@ public record PhoneSubmissionResponse(
         String parentPhoneNumber) {
         return new PhoneSubmissionResponse(
             ps.getId(),
+            ps.getStore().getId(),
+            ps.getStore().getStoreName(),
             ps.getStudent().getId(),
             ps.getStudent().getName(),
             ps.getStudent().getStudentNumber(),
