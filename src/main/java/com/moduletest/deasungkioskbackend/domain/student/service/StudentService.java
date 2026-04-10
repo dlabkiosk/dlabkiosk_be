@@ -52,12 +52,12 @@ public class StudentService {
 
     public List<StudentResponse> findAllStudents(Long storeId) {
         if (storeId != null) {
-            return studentRepository.findAllByStoreIdWithStore(storeId)
+            return studentRepository.findAllByStoreIdAndActive(storeId, true)
                 .stream()
                 .map(StudentResponse::fromEntity)
                 .toList();
         }
-        return studentRepository.findAllWithStore()
+        return studentRepository.findAllByActive(true)
             .stream()
             .map(StudentResponse::fromEntity)
             .toList();

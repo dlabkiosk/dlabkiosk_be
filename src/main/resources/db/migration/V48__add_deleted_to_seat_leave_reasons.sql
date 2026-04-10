@@ -1,0 +1,1 @@
+ALTER TABLE seat_leave_reasons ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE;

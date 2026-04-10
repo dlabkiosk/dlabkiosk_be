@@ -35,7 +35,8 @@ public class StudentAdminController {
     private final StudentService studentService;
 
     @Operation(summary = "학생 목록 조회",
-        description = "MANAGER: 자기 지점 학생만 조회. ADMIN: 전체 학생 조회.")
+        description = "MANAGER: 자기 지점 학생만 조회. ADMIN: 전체 학생 조회. "
+            + "활성(active=true) 학생만 반환.")
     @GetMapping
     public CommonResponse<List<StudentResponse>> findAllStudents() {
         Long storeId = SecurityUtil.resolveStoreId(null);
