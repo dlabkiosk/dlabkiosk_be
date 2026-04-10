@@ -13,19 +13,18 @@ public interface SeatLeaveReasonRepository extends JpaRepository<SeatLeaveReason
     Optional<SeatLeaveReason> findByIdWithStore(@Param("id") Long id);
 
     @Query("SELECT r FROM SeatLeaveReason r JOIN FETCH r.store "
-        + "WHERE r.store.id = :storeId AND r.deleted = false ORDER BY r.displayOrder ASC")
+        + "WHERE r.store.id = :storeId AND r.active = true ORDER BY r.displayOrder ASC")
     List<SeatLeaveReason> findAllByStoreIdWithStore(@Param("storeId") Long storeId);
 
     @Query("SELECT r FROM SeatLeaveReason r JOIN FETCH r.store "
-        + "WHERE r.store.id = :storeId AND r.active = true AND r.deleted = false "
-        + "ORDER BY r.displayOrder ASC")
+        + "WHERE r.store.id = :storeId AND r.active = true ORDER BY r.displayOrder ASC")
     List<SeatLeaveReason> findAllActiveByStoreId(@Param("storeId") Long storeId);
 
     @Query("SELECT COUNT(r) FROM SeatLeaveReason r "
-        + "WHERE r.store.id = :storeId AND r.deleted = false")
+        + "WHERE r.store.id = :storeId AND r.active = true")
     long countByStoreId(@Param("storeId") Long storeId);
 
     @Query("SELECT r FROM SeatLeaveReason r JOIN FETCH r.store "
-        + "WHERE r.deleted = false ORDER BY r.displayOrder ASC")
+        + "WHERE r.active = true ORDER BY r.displayOrder ASC")
     List<SeatLeaveReason> findAllNotDeleted();
 }

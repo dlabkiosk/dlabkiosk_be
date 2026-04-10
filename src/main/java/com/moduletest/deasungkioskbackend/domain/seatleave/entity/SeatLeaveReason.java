@@ -42,9 +42,6 @@ public class SeatLeaveReason extends BaseTimeEntity {
     @Column(name = "icon_url", length = 500)
     private String iconUrl;
 
-    @Column(name = "is_deleted", nullable = false)
-    private boolean deleted;
-
     @Builder
     public SeatLeaveReason(Store store, String reasonName, int displayOrder, boolean active,
         String iconUrl) {
@@ -66,7 +63,6 @@ public class SeatLeaveReason extends BaseTimeEntity {
     }
 
     public void softDelete() {
-        this.deleted = true;
         this.active = false;
     }
 }
