@@ -102,6 +102,19 @@ public class SeatLeaveReasonService {
         reason.softDelete();
     }
 
+    @Transactional
+    public SeatLeaveReasonResponse deleteReasonIcon(Long id) {
+        SeatLeaveReason reason = seatLeaveReasonRepository.findByIdWithStore(id)
+            .orElseThrow(() -> new SeatLeaveException(ErrorCode.SEAT_LEAVE_REASON_NOT_FOUND));
+        validateStoreAccess(reason);
+
+        if (reason.getIconUrl() != null) {
+            s3Service.delete(reason.getIconUrl());
+            reason.replaceIcon(null);
+        }
+        return SeatLeaveReasonResponse.fromEntity(reason);
+    }
+
     private void validateStoreAccess(SeatLeaveReason reason) {
         if (!SecurityUtil.isAdmin()) {
             Long storeId = SecurityUtil.getCurrentStoreId();
