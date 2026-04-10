@@ -66,6 +66,14 @@ public class SeatLeaveReasonAdminController {
             seatLeaveReasonService.updateReason(id, iconFile, reasonName, displayOrder, active));
     }
 
+    @Operation(summary = "이탈 사유 아이콘 삭제",
+        description = "사유의 아이콘 이미지만 S3에서 삭제하고 iconUrl을 null로 초기화한다.")
+    @DeleteMapping("/{id}/icon")
+    public CommonResponse<SeatLeaveReasonResponse> deleteReasonIcon(@PathVariable Long id) {
+        return CommonResponse.success(
+            seatLeaveReasonService.deleteReasonIcon(id));
+    }
+
     @Operation(summary = "이탈 사유 삭제",
         description = "사유 삭제 시 등록된 아이콘 파일도 S3에서 함께 삭제된다.")
     @DeleteMapping("/{id}")
