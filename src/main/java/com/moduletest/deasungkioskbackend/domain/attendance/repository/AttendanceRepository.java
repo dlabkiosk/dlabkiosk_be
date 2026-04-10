@@ -3,6 +3,7 @@ package com.moduletest.deasungkioskbackend.domain.attendance.repository;
 import com.moduletest.deasungkioskbackend.domain.attendance.entity.Attendance;
 import com.moduletest.deasungkioskbackend.domain.attendance.entity.AttendanceStatus;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -53,6 +54,17 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         + "AND a.status = 'CHECKED_OUT' "
         + "AND a.checkOutAction = 'C'")
     long countEarlyLeaveToday(
+        @Param("studentId") Long studentId,
+        @Param("startOfDay") LocalDateTime startOfDay,
+        @Param("endOfDay") LocalDateTime endOfDay
+    );
+
+    @Query("SELECT a FROM Attendance a "
+        + "WHERE a.student.id = :studentId "
+        + "AND a.checkInAt >= :startOfDay "
+        + "AND a.checkInAt < :endOfDay "
+        + "AND a.status = 'CHECKED_OUT'")
+    List<Attendance> findCompletedTodayByStudentId(
         @Param("studentId") Long studentId,
         @Param("startOfDay") LocalDateTime startOfDay,
         @Param("endOfDay") LocalDateTime endOfDay
