@@ -5,6 +5,7 @@ import static com.moduletest.deasungkioskbackend.common.util.CookieUtil.clearAcc
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.security.JwtTokenProvider;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.kiosk.dto.KioskLoginRequest;
 import com.moduletest.deasungkioskbackend.domain.kiosk.dto.KioskLoginResponse;
 import com.moduletest.deasungkioskbackend.domain.kiosk.service.KioskAuthService;
@@ -15,8 +16,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -47,8 +46,7 @@ public class KioskAuthController {
         description = "현재 로그인된 키오스크의 지점 정보를 반환한다. 페이지 새로고침 시 상태 복구에 사용한다.")
     @GetMapping("/me")
     public CommonResponse<KioskLoginResponse> me() {
-        Long storeId = Long.valueOf(
-            SecurityContextHolder.getContext().getAuthentication().getName());
+        Long storeId = SecurityUtil.getStoreIdFromToken();
         return CommonResponse.success(kioskAuthService.findCurrentStore(storeId));
     }
 
@@ -56,12 +54,9 @@ public class KioskAuthController {
         description = "Redis에서 해당 키오스크의 토큰만 삭제하고 쿠키를 초기화한다. 다른 키오스크의 세션에는 영향 없음.")
     @PostMapping("/logout")
     public CommonResponse<Void> logout(HttpServletRequest request, HttpServletResponse response) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
-            Long storeId = Long.valueOf(authentication.getName());
-            String token = resolveTokenFromCookie(request);
-            kioskAuthService.logout(storeId, token);
-        }
+        Long storeId = SecurityUtil.getStoreIdFromToken();
+        String token = resolveTokenFromCookie(request);
+        kioskAuthService.logout(storeId, token);
         clearAccessToken(response);
         return CommonResponse.success(null);
     }

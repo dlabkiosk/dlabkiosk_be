@@ -37,7 +37,7 @@ public class SecurityConfig {
                     "/api/v1/admin/auth/signup",
                     "/api/v1/admin/auth/refresh").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "MANAGER")
-                .requestMatchers("/api/v1/kiosk/auth/**").permitAll()
+                .requestMatchers("/api/v1/kiosk/auth/login").permitAll()
                 .requestMatchers("/api/v1/kiosk/**").hasRole("KIOSK")
                 .anyRequest().permitAll())
             .exceptionHandling(exception -> exception
