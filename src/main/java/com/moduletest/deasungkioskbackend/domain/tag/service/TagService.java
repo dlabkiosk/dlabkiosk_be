@@ -696,12 +696,20 @@ public class TagService {
 
         seatCheckOut(student, storeId);
 
-        long totalMinutes = Duration.between(
+        long currentMinutes = Duration.between(
             attendance.getCheckInAt(), checkOutTime).toMinutes();
+
+        long previousMinutes = attendanceRepository
+            .findCompletedTodayByStudentId(student.getId(), startOfDay, endOfDay)
+            .stream()
+            .mapToLong(a -> Duration.between(a.getCheckInAt(), a.getCheckOutAt()).toMinutes())
+            .sum();
+
+        long totalMinutes = currentMinutes + previousMinutes;
         long deductionMinutes = studyTimeRedisService.getOutingDeduction(
             storeId, student.getId());
         long mealDeduction = calculateMealDeduction(
-            student.getId(), attendance.getCheckInAt(), checkOutTime, today);
+            student.getId(), today);
         long studyTimeMinutes = Math.max(
             totalMinutes - deductionMinutes - mealDeduction, 0);
 
@@ -830,23 +838,14 @@ public class TagService {
 
     // ── 급식 차감 계산 ──
 
-    private long calculateMealDeduction(Long studentId, LocalDateTime checkInAt,
-                                         LocalDateTime checkOutAt, LocalDate today) {
+    private long calculateMealDeduction(Long studentId, LocalDate today) {
         List<MealTag> mealTags = mealTagRepository.findAllByStudentIdAndMealDate(
             studentId, today);
 
         long totalDeduction = 0;
         for (MealTag tag : mealTags) {
             MealType type = tag.getMealType();
-            LocalDateTime mealStart = LocalDateTime.of(today, type.getStartTime());
-            LocalDateTime mealEnd = LocalDateTime.of(today, type.getEndTime());
-
-            LocalDateTime overlapStart = checkInAt.isAfter(mealStart) ? checkInAt : mealStart;
-            LocalDateTime overlapEnd = checkOutAt.isBefore(mealEnd) ? checkOutAt : mealEnd;
-
-            if (overlapStart.isBefore(overlapEnd)) {
-                totalDeduction += Duration.between(overlapStart, overlapEnd).toMinutes();
-            }
+            totalDeduction += Duration.between(type.getStartTime(), type.getEndTime()).toMinutes();
         }
         return totalDeduction;
     }
