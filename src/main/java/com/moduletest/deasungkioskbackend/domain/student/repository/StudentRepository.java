@@ -13,7 +13,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface StudentRepository extends JpaRepository<Student, Long> {
 
-    Optional<Student> findByRfidUid(String rfidUid);
+    @Query("SELECT s FROM Student s WHERE s.rfidUid = :rfidUid AND s.active = true")
+    Optional<Student> findByRfidUid(@Param("rfidUid") String rfidUid);
 
     Optional<Student> findByStudentNumber(String studentNumber);
 
@@ -23,6 +24,16 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat")
     List<Student> findAllWithStore();
+
+    @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
+        + " WHERE s.store.id = :storeId AND s.active = :active")
+    List<Student> findAllByStoreIdAndActive(
+        @Param("storeId") Long storeId,
+        @Param("active") boolean active);
+
+    @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
+        + " WHERE s.active = :active")
+    List<Student> findAllByActive(@Param("active") boolean active);
 
     @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
         + " WHERE s.id = :id")
@@ -37,19 +48,22 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     Optional<Student> findByIdForUpdate(@Param("id") Long id);
 
     @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
-        + " WHERE s.assignedSeat.seatLabel = :seatLabel AND s.store.id = :storeId")
+        + " WHERE s.assignedSeat.seatLabel = :seatLabel AND s.store.id = :storeId"
+        + " AND s.active = true")
     Optional<Student> findBySeatLabelAndStoreId(
         @Param("seatLabel") String seatLabel,
         @Param("storeId") Long storeId);
 
     @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
-        + " WHERE s.phoneLast4 = :phoneLast4 AND s.store.id = :storeId")
+        + " WHERE s.phoneLast4 = :phoneLast4 AND s.store.id = :storeId"
+        + " AND s.active = true")
     List<Student> findAllByPhoneLast4AndStoreId(
         @Param("phoneLast4") String phoneLast4,
         @Param("storeId") Long storeId);
 
     @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
-        + " WHERE s.phone = :phone AND s.store.id = :storeId")
+        + " WHERE s.phone = :phone AND s.store.id = :storeId"
+        + " AND s.active = true")
     List<Student> findAllByPhoneAndStoreId(
         @Param("phone") String phone,
         @Param("storeId") Long storeId);

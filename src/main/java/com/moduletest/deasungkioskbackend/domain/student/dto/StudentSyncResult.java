@@ -9,6 +9,7 @@ public record StudentSyncResult(
     int created,
     int updated,
     int unchanged,
+    int deactivated,
     int failed,
     List<String> errors
 ) {

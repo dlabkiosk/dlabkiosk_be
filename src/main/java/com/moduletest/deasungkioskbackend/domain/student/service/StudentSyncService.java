@@ -13,9 +13,11 @@ import com.moduletest.deasungkioskbackend.domain.student.dto.StudentSyncResult;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +50,7 @@ public class StudentSyncService {
                     store.getId(), store.getStoreName(), e);
                 results.add(new StudentSyncResult(
                     store.getId(), store.getStoreName(),
-                    0, 0, 0, 0, 0, List.of(e.getMessage())));
+                    0, 0, 0, 0, 0, 0, List.of(e.getMessage())));
             }
         }
 
@@ -82,7 +84,7 @@ public class StudentSyncService {
             log.info("DSA 학생 데이터 없음. storeId: {}", store.getId());
             return new StudentSyncResult(
                 store.getId(), store.getStoreName(),
-                0, 0, 0, 0, 0, List.of());
+                0, 0, 0, 0, 0, 0, List.of());
         }
 
         List<Student> existingStudents = studentRepository.findAllByStoreId(store.getId());
@@ -94,8 +96,10 @@ public class StudentSyncService {
         int created = 0;
         int updated = 0;
         int unchanged = 0;
+        int deactivated = 0;
         int failed = 0;
         List<String> errors = new ArrayList<>();
+        Set<Long> syncedStudentIds = new HashSet<>();
 
         for (DsaStudentData dsaStudent : dsaStudents) {
             try {
@@ -105,6 +109,7 @@ public class StudentSyncService {
                 Student matched = findMatchingStudent(dsaStudent, byRfidUid);
 
                 if (matched != null) {
+                    syncedStudentIds.add(matched.getId());
                     // DSA 3.24 실패 시 기존 전화번호 유지
                     String resolvedPhone = phone != null ? phone : matched.getPhone();
                     if (hasChanges(matched, dsaStudent, seat, resolvedPhone)) {
@@ -132,6 +137,7 @@ public class StudentSyncService {
                         .build();
                     studentRepository.save(newStudent);
 
+                    syncedStudentIds.add(newStudent.getId());
                     byRfidUid.put(newStudent.getRfidUid(), newStudent);
                     created++;
                 }
@@ -144,9 +150,18 @@ public class StudentSyncService {
             }
         }
 
+        for (Student existing : existingStudents) {
+            if (existing.isActive() && !syncedStudentIds.contains(existing.getId())) {
+                existing.deactivate();
+                deactivated++;
+                log.info("DSA 목록에 없는 학생 비활성화. studentId: {}, name: {}, storeId: {}",
+                    existing.getId(), existing.getName(), store.getId());
+            }
+        }
+
         return new StudentSyncResult(
             store.getId(), store.getStoreName(),
-            dsaStudents.size(), created, updated, unchanged, failed, errors);
+            dsaStudents.size(), created, updated, unchanged, deactivated, failed, errors);
     }
 
     private Student findMatchingStudent(DsaStudentData dsaStudent,

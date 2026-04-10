@@ -80,10 +80,10 @@ public final class StudentSyncScheduler {
             int totalFromDsa = 0;
 
             for (StudentSyncResult result : results) {
-                log.info("[스케줄러] {} - DSA: {}명, 생성: {}, 수정: {}, 변경없음: {}, 실패: {}",
+                log.info("[스케줄러] {} - DSA: {}명, 생성: {}, 수정: {}, 변경없음: {}, 비활성화: {}, 실패: {}",
                     result.storeName(), result.totalFromDsa(),
                     result.created(), result.updated(),
-                    result.unchanged(), result.failed());
+                    result.unchanged(), result.deactivated(), result.failed());
 
                 totalFromDsa += result.totalFromDsa();
                 totalCreated += result.created();

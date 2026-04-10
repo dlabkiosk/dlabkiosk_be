@@ -27,7 +27,9 @@ public record StudentResponse(
     @Schema(description = "생성일시")
     LocalDateTime createdAt,
     @Schema(description = "수정일시")
-    LocalDateTime updatedAt
+    LocalDateTime updatedAt,
+    @Schema(description = "활성 여부 (false면 퇴원/비활성)", example = "true")
+    boolean active
 ) {
 
     public static StudentResponse fromEntity(Student student) {
@@ -48,7 +50,8 @@ public record StudentResponse(
             seatId,
             seatLabel,
             student.getCreatedAt(),
-            student.getUpdatedAt()
+            student.getUpdatedAt(),
+            student.isActive()
         );
     }
 }

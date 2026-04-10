@@ -35,7 +35,7 @@ public class SeatLeaveReasonService {
             return seatLeaveReasonRepository.findAllByStoreIdWithStore(storeId).stream()
                 .map(SeatLeaveReasonResponse::fromEntity).toList();
         }
-        return seatLeaveReasonRepository.findAll().stream()
+        return seatLeaveReasonRepository.findAllNotDeleted().stream()
             .map(SeatLeaveReasonResponse::fromEntity).toList();
     }
 
@@ -99,7 +99,7 @@ public class SeatLeaveReasonService {
         if (reason.getIconUrl() != null) {
             s3Service.delete(reason.getIconUrl());
         }
-        seatLeaveReasonRepository.delete(reason);
+        reason.softDelete();
     }
 
     private void validateStoreAccess(SeatLeaveReason reason) {

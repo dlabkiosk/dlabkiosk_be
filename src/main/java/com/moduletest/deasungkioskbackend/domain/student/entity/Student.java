@@ -53,6 +53,9 @@ public class Student extends BaseTimeEntity {
     @Column(name = "is_dsa_synced", nullable = false)
     private boolean dsaSynced;
 
+    @Column(name = "is_active", nullable = false)
+    private boolean active;
+
     @Builder
     public Student(Store store, String name, String rfidUid,
                    String studentNumber, String phoneLast4, String phone,
@@ -65,6 +68,7 @@ public class Student extends BaseTimeEntity {
         this.phone = phone;
         this.assignedSeat = assignedSeat;
         this.dsaSynced = dsaSynced;
+        this.active = true;
     }
 
     public void assignSeat(Seat seat) {
@@ -80,5 +84,10 @@ public class Student extends BaseTimeEntity {
         this.phone = phone;
         this.assignedSeat = assignedSeat;
         this.dsaSynced = true;
+        this.active = true;
+    }
+
+    public void deactivate() {
+        this.active = false;
     }
 }
