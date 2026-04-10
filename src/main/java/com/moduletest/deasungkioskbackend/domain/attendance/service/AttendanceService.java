@@ -17,7 +17,6 @@ import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageReposi
 import com.moduletest.deasungkioskbackend.domain.seat.service.SeatRedisService;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
-import com.moduletest.deasungkioskbackend.domain.studentmessage.entity.StudentMessage;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.repository.StudentMessageRepository;
 import com.moduletest.deasungkioskbackend.domain.studytime.service.StudyTimeRedisService;
 import java.time.Duration;
@@ -78,12 +77,8 @@ public class AttendanceService {
         // 배정된 좌석이 있으면 자동 입실
         seatCheckIn(student, storeId);
 
-        // 활성 학생 메시지 조회
         List<String> messages = studentMessageRepository
-            .findAllActiveByStudentId(student.getId())
-            .stream()
-            .map(StudentMessage::getContent)
-            .toList();
+            .findActiveMessageContents(student.getId());
 
         return AttendanceResponse.fromEntityWithMessages(savedAttendance, messages);
     }
