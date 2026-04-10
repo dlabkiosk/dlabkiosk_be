@@ -33,6 +33,12 @@ public interface StudentMessageRepository extends JpaRepository<StudentMessage, 
         + " WHERE sm.id = :id")
     Optional<StudentMessage> findByIdWithDetails(@Param("id") Long id);
 
+    @Query("SELECT COALESCE(t.content, sm.content) FROM StudentMessage sm"
+        + " LEFT JOIN sm.template t"
+        + " WHERE sm.student.id = :studentId AND sm.active = true"
+        + " ORDER BY sm.createdAt DESC")
+    List<String> findActiveMessageContents(@Param("studentId") Long studentId);
+
     boolean existsByStudentIdAndTemplateId(Long studentId, Long templateId);
 
     @Query(value = "SELECT sm FROM StudentMessage sm"

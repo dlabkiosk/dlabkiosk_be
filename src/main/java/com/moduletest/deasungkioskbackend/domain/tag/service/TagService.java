@@ -30,7 +30,6 @@ import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
-import com.moduletest.deasungkioskbackend.domain.studentmessage.entity.StudentMessage;
 import com.moduletest.deasungkioskbackend.domain.studentmessage.repository.StudentMessageRepository;
 import com.moduletest.deasungkioskbackend.domain.studytime.service.StudyTimeRedisService;
 import com.moduletest.deasungkioskbackend.domain.tag.dto.TagConfirmRequest;
@@ -614,10 +613,7 @@ public class TagService {
         seatCheckIn(student, storeId);
 
         List<String> messages = studentMessageRepository
-            .findAllActiveByStudentId(student.getId())
-            .stream()
-            .map(StudentMessage::getContent)
-            .toList();
+            .findActiveMessageContents(student.getId());
 
         return TagResponse.builder()
             .processed(true)
@@ -658,10 +654,7 @@ public class TagService {
         seatCheckIn(student, storeId);
 
         List<String> messages = studentMessageRepository
-            .findAllActiveByStudentId(student.getId())
-            .stream()
-            .map(StudentMessage::getContent)
-            .toList();
+            .findActiveMessageContents(student.getId());
 
         return TagResponse.builder()
             .processed(true)
