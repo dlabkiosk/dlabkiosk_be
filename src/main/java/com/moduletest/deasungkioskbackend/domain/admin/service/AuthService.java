@@ -10,8 +10,6 @@ import com.moduletest.deasungkioskbackend.domain.admin.dto.LoginRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.entity.AdminUser;
 import com.moduletest.deasungkioskbackend.domain.admin.exception.AdminException;
 import com.moduletest.deasungkioskbackend.domain.admin.repository.AdminUserRepository;
-import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
-import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,24 +27,24 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final TokenRedisService tokenRedisService;
 
-    @Transactional
-    public void signup(SignupRequest request) {
-        if (adminUserRepository.findByLoginId(request.loginId()).isPresent()) {
-            throw new AdminException(ErrorCode.DUPLICATE_LOGIN_ID);
-        }
-
-        Store store = storeRepository.findById(request.storeId())
-            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
-
-        AdminUser adminUser = AdminUser.builder()
-            .loginId(request.loginId())
-            .password(passwordEncoder.encode(request.password()))
-            .name(request.name())
-            .role("MANAGER")
-            .store(store)
-            .build();
-        adminUserRepository.save(adminUser);
-    }
+    // @Transactional
+    // public void signup(SignupRequest request) {
+    //     if (adminUserRepository.findByLoginId(request.loginId()).isPresent()) {
+    //         throw new AdminException(ErrorCode.DUPLICATE_LOGIN_ID);
+    //     }
+    //
+    //     Store store = storeRepository.findById(request.storeId())
+    //         .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
+    //
+    //     AdminUser adminUser = AdminUser.builder()
+    //         .loginId(request.loginId())
+    //         .password(passwordEncoder.encode(request.password()))
+    //         .name(request.name())
+    //         .role("MANAGER")
+    //         .store(store)
+    //         .build();
+    //     adminUserRepository.save(adminUser);
+    // }
 
     public String[] login(LoginRequest loginRequest) {
         AdminUser adminUser = adminUserRepository.findByLoginIdWithStore(loginRequest.userId())
