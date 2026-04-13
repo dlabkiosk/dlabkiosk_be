@@ -8,7 +8,6 @@ import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.common.util.CookieUtil;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserResponse;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.LoginRequest;
-import com.moduletest.deasungkioskbackend.domain.admin.dto.SignupRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.exception.AdminException;
 import com.moduletest.deasungkioskbackend.domain.admin.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
