@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.common.dsa.dto;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -32,10 +33,12 @@ public class DsaResponse {
         extra.put(key, value);
     }
 
+    @JsonIgnore
     public boolean isSuccess() {
         return code == 0;
     }
 
+    @JsonIgnore
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> getDataAsList() {
         if (data == null) {
