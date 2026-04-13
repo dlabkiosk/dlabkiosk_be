@@ -67,10 +67,14 @@ public class AdminUserService {
     }
 
     @Transactional
-    public AdminUserResponse promoteToAdmin(Long id) {
+    public AdminUserResponse changeRole(Long id, String role) {
+        if (!VALID_ROLES.contains(role)) {
+            throw new AdminException(ErrorCode.INVALID_ROLE);
+        }
+
         AdminUser adminUser = adminUserRepository.findByIdWithStore(id)
             .orElseThrow(() -> new AdminException(ErrorCode.ADMIN_NOT_FOUND));
-        adminUser.promoteToAdmin();
+        adminUser.changeRole(role);
         return AdminUserResponse.fromEntity(adminUser);
     }
 }

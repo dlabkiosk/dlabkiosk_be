@@ -7,6 +7,7 @@ import com.moduletest.deasungkioskbackend.common.security.JwtTokenProvider;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.common.util.CookieUtil;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserResponse;
+import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserUpdateMeRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.LoginRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.exception.AdminException;
 import com.moduletest.deasungkioskbackend.domain.admin.service.AuthService;
@@ -17,6 +18,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -70,6 +72,15 @@ public class AuthController {
     public CommonResponse<AdminUserResponse> me() {
         Long userId = SecurityUtil.getCurrentUserId();
         return CommonResponse.success(authService.findCurrentUser(userId));
+    }
+
+    @Operation(summary = "내 정보 수정",
+        description = "현재 로그인된 관리자의 이름, 비밀번호를 수정한다. null인 필드는 변경하지 않는다.")
+    @PatchMapping("/me")
+    public CommonResponse<AdminUserResponse> updateMe(
+            @Valid @RequestBody AdminUserUpdateMeRequest request) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        return CommonResponse.success(authService.updateMe(userId, request));
     }
 
     @Operation(summary = "관리자 로그아웃",

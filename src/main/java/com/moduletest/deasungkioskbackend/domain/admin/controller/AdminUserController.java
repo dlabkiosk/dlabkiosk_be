@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "[관리자] 관리자 관리", description = "관리자 목록 조회, 삭제, 역할 승격 (ADMIN 전용)")
@@ -55,12 +56,14 @@ public class AdminUserController {
         return CommonResponse.success(null);
     }
 
-    @Operation(summary = "매니저 → 관리자 승격",
-        description = "매니저를 관리자(ADMIN)로 승격한다. ADMIN 전용.")
+    @Operation(summary = "관리자 역할 변경",
+        description = "역할을 변경한다 (MANAGER ↔ ADMIN). ADMIN 전용.")
     @PatchMapping("/{id}/role")
-    public CommonResponse<AdminUserResponse> promoteToAdmin(@PathVariable Long id) {
+    public CommonResponse<AdminUserResponse> changeRole(
+            @PathVariable Long id,
+            @RequestParam String role) {
         requireAdmin();
-        return CommonResponse.success(adminUserService.promoteToAdmin(id));
+        return CommonResponse.success(adminUserService.changeRole(id, role));
     }
 
     private void requireAdmin() {
