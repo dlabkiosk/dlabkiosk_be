@@ -1,12 +1,18 @@
 package com.moduletest.deasungkioskbackend.domain.admin.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserResponse;
 import com.moduletest.deasungkioskbackend.domain.admin.entity.AdminUser;
 import com.moduletest.deasungkioskbackend.domain.admin.exception.AdminException;
 import com.moduletest.deasungkioskbackend.domain.admin.repository.AdminUserRepository;
+import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
+import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
+import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +21,36 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AdminUserService {
 
+    private static final Set<String> VALID_ROLES = Set.of("MANAGER", "ADMIN");
+
     private final AdminUserRepository adminUserRepository;
+    private final StoreRepository storeRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    @Transactional
+    public AdminUserResponse createAdminUser(AdminUserCreateRequest request) {
+        if (!VALID_ROLES.contains(request.role())) {
+            throw new AdminException(ErrorCode.INVALID_ROLE);
+        }
+
+        if (adminUserRepository.findByLoginId(request.loginId()).isPresent()) {
+            throw new AdminException(ErrorCode.DUPLICATE_LOGIN_ID);
+        }
+
+        Store store = storeRepository.findById(request.storeId())
+            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
+
+        AdminUser adminUser = AdminUser.builder()
+            .loginId(request.loginId())
+            .password(passwordEncoder.encode(request.password()))
+            .name(request.name())
+            .role(request.role())
+            .store(store)
+            .build();
+        adminUserRepository.save(adminUser);
+
+        return AdminUserResponse.fromEntity(adminUser);
+    }
 
     public List<AdminUserResponse> findAllAdminUsers() {
         return adminUserRepository.findAllWithStore()

@@ -8,7 +8,6 @@ import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.common.util.CookieUtil;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserResponse;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.LoginRequest;
-import com.moduletest.deasungkioskbackend.domain.admin.dto.SignupRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.exception.AdminException;
 import com.moduletest.deasungkioskbackend.domain.admin.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,12 +31,12 @@ public class AuthController {
     private final AuthService authService;
     private final JwtTokenProvider jwtTokenProvider;
 
-    @Operation(summary = "관리자 회원가입", description = "loginId, password, name으로 관리자 계정을 생성한다.")
-    @PostMapping("/signup")
-    public CommonResponse<Void> signup(@Valid @RequestBody SignupRequest signupRequest) {
-        authService.signup(signupRequest);
-        return CommonResponse.success(null);
-    }
+    // @Operation(summary = "관리자 회원가입", description = "loginId, password, name으로 관리자 계정을 생성한다.")
+    // @PostMapping("/signup")
+    // public CommonResponse<Void> signup(@Valid @RequestBody SignupRequest signupRequest) {
+    //     authService.signup(signupRequest);
+    //     return CommonResponse.success(null);
+    // }
 
     @Operation(summary = "관리자 로그인",
         description = "로그인 성공 시 accessToken, refreshToken을 HttpOnly 쿠키로 설정한다.")
