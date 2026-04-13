@@ -2,7 +2,6 @@ package com.moduletest.deasungkioskbackend.domain.store.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
-import com.moduletest.deasungkioskbackend.domain.store.dto.StoreCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.store.dto.StoreResponse;
 import com.moduletest.deasungkioskbackend.domain.store.dto.StoreUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.store.service.StoreService;
@@ -11,10 +10,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
