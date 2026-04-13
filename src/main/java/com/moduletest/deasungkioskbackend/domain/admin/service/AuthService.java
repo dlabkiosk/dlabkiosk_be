@@ -5,13 +5,11 @@ import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.security.JwtTokenProvider;
 import com.moduletest.deasungkioskbackend.common.security.TokenRedisService;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserResponse;
+import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserUpdateMeRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.LoginRequest;
-import com.moduletest.deasungkioskbackend.domain.admin.dto.SignupRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.entity.AdminUser;
 import com.moduletest.deasungkioskbackend.domain.admin.exception.AdminException;
 import com.moduletest.deasungkioskbackend.domain.admin.repository.AdminUserRepository;
-import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
-import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,24 +27,24 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final TokenRedisService tokenRedisService;
 
-    @Transactional
-    public void signup(SignupRequest request) {
-        if (adminUserRepository.findByLoginId(request.loginId()).isPresent()) {
-            throw new AdminException(ErrorCode.DUPLICATE_LOGIN_ID);
-        }
-
-        Store store = storeRepository.findById(request.storeId())
-            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
-
-        AdminUser adminUser = AdminUser.builder()
-            .loginId(request.loginId())
-            .password(passwordEncoder.encode(request.password()))
-            .name(request.name())
-            .role("MANAGER")
-            .store(store)
-            .build();
-        adminUserRepository.save(adminUser);
-    }
+    // @Transactional
+    // public void signup(SignupRequest request) {
+    //     if (adminUserRepository.findByLoginId(request.loginId()).isPresent()) {
+    //         throw new AdminException(ErrorCode.DUPLICATE_LOGIN_ID);
+    //     }
+    //
+    //     Store store = storeRepository.findById(request.storeId())
+    //         .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
+    //
+    //     AdminUser adminUser = AdminUser.builder()
+    //         .loginId(request.loginId())
+    //         .password(passwordEncoder.encode(request.password()))
+    //         .name(request.name())
+    //         .role("MANAGER")
+    //         .store(store)
+    //         .build();
+    //     adminUserRepository.save(adminUser);
+    // }
 
     public String[] login(LoginRequest loginRequest) {
         AdminUser adminUser = adminUserRepository.findByLoginIdWithStore(loginRequest.userId())
@@ -100,6 +98,21 @@ public class AuthService {
     public AdminUserResponse findCurrentUser(Long userId) {
         AdminUser adminUser = adminUserRepository.findByIdWithStore(userId)
             .orElseThrow(() -> new AdminException(ErrorCode.ADMIN_NOT_FOUND));
+        return AdminUserResponse.fromEntity(adminUser);
+    }
+
+    @Transactional
+    public AdminUserResponse updateMe(Long userId, AdminUserUpdateMeRequest request) {
+        AdminUser adminUser = adminUserRepository.findByIdWithStore(userId)
+            .orElseThrow(() -> new AdminException(ErrorCode.ADMIN_NOT_FOUND));
+
+        if (request.name() != null && !request.name().isBlank()) {
+            adminUser.updateName(request.name());
+        }
+        if (request.password() != null && !request.password().isBlank()) {
+            adminUser.updatePassword(passwordEncoder.encode(request.password()));
+        }
+
         return AdminUserResponse.fromEntity(adminUser);
     }
 

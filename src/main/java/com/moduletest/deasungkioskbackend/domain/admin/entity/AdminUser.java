@@ -51,7 +51,19 @@ public class AdminUser extends BaseTimeEntity {
         this.store = store;
     }
 
-    public void promoteToAdmin() {
-        this.role = "ADMIN";
+    public void changeRole(String role) {
+        this.role = role;
+    }
+
+    public void updateName(String name) {
+        this.name = name;
+    }
+
+    public void updatePassword(String password) {
+        this.password = password;
+    }
+
+    public void updateStore(Store store) {
+        this.store = store;
     }
 }
