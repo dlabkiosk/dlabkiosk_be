@@ -3,7 +3,7 @@ package com.moduletest.deasungkioskbackend.domain.meal.entity;
 import java.time.LocalTime;
 
 public enum MealType {
-    LUNCH("점심식사", "L", LocalTime.of(12, 10), LocalTime.of(13, 10)),
+    LUNCH("점심식사", "L", LocalTime.of(12, 10), LocalTime.of(16, 0)),
     DINNER("저녁식사", "D", LocalTime.of(18, 0), LocalTime.of(19, 0));
 
     private final String label;
