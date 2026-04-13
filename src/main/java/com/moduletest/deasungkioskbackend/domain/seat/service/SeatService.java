@@ -107,11 +107,13 @@ public class SeatService {
         // seatCd → 학생명 매핑 (upsert 뒤에 수행해야 seatCd 반영됨)
         List<Student> students = studentRepository.findAllByStoreIdWithStore(storeId);
         Map<String, String> seatCdToStudentName = new HashMap<>();
+        Map<String, String> seatCdToStudentNumber = new HashMap<>();
         for (Student student : students) {
             if (student.getAssignedSeat() != null
                 && student.getAssignedSeat().getSeatCd() != null) {
-                seatCdToStudentName.put(
-                    student.getAssignedSeat().getSeatCd(), student.getName());
+                String seatCd = student.getAssignedSeat().getSeatCd();
+                seatCdToStudentName.put(seatCd, student.getName());
+                seatCdToStudentNumber.put(seatCd, student.getStudentNumber());
             }
         }
 
@@ -119,6 +121,7 @@ public class SeatService {
         return dsaSeats.stream()
             .map(s -> {
                 String studentName = seatCdToStudentName.get(s.seatCd());
+                String studentNumber = seatCdToStudentNumber.get(s.seatCd());
                 boolean away = awaySeatCds.containsKey(s.seatCd());
                 if (away) {
                     Seat seat = seatCdMap.get(s.seatCd());
@@ -126,11 +129,13 @@ public class SeatService {
                         ? seatIdToReasonName.get(seat.getId()) : null;
                     return new SeatStatusResponse(
                         s.seatCd(), s.seatNm(), s.xPos(), s.yPos(),
-                        s.seatGn(), "A", true, studentName, reasonName);
+                        s.seatGn(), "A", true, studentName, studentNumber,
+                        reasonName);
                 }
                 return new SeatStatusResponse(
                     s.seatCd(), s.seatNm(), s.xPos(), s.yPos(),
-                    s.seatGn(), s.state(), false, studentName, null);
+                    s.seatGn(), s.state(), false, studentName, studentNumber,
+                    null);
             })
             .toList();
     }

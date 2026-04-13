@@ -123,7 +123,7 @@ public final class DsaAreaService {
 
                 result.add(new SeatStatusResponse(
                     seatCd, seatNm, xPos, yPos, seatGn, state, false,
-                    null, null));
+                    null, null, null));
             }
 
             log.info("DSA 좌석 조회 완료: {}건. areaCd: {}, storeId: {}",
