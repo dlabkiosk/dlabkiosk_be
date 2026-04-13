@@ -62,4 +62,8 @@ public class AdminUser extends BaseTimeEntity {
     public void updatePassword(String password) {
         this.password = password;
     }
+
+    public void updateStore(Store store) {
+        this.store = store;
+    }
 }

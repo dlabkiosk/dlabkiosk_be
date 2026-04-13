@@ -3,6 +3,7 @@ package com.moduletest.deasungkioskbackend.domain.admin.service;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserCreateRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserResponse;
+import com.moduletest.deasungkioskbackend.domain.admin.dto.AdminUserUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.admin.entity.AdminUser;
 import com.moduletest.deasungkioskbackend.domain.admin.exception.AdminException;
 import com.moduletest.deasungkioskbackend.domain.admin.repository.AdminUserRepository;
@@ -52,6 +53,12 @@ public class AdminUserService {
         return AdminUserResponse.fromEntity(adminUser);
     }
 
+    public AdminUserResponse findAdminUserById(Long id) {
+        AdminUser adminUser = adminUserRepository.findByIdWithStore(id)
+            .orElseThrow(() -> new AdminException(ErrorCode.ADMIN_NOT_FOUND));
+        return AdminUserResponse.fromEntity(adminUser);
+    }
+
     public List<AdminUserResponse> findAllAdminUsers() {
         return adminUserRepository.findAllWithStore()
             .stream()
@@ -64,6 +71,32 @@ public class AdminUserService {
         AdminUser adminUser = adminUserRepository.findById(id)
             .orElseThrow(() -> new AdminException(ErrorCode.ADMIN_NOT_FOUND));
         adminUserRepository.delete(adminUser);
+    }
+
+    @Transactional
+    public AdminUserResponse updateAdminUser(Long id, AdminUserUpdateRequest request) {
+        AdminUser adminUser = adminUserRepository.findByIdWithStore(id)
+            .orElseThrow(() -> new AdminException(ErrorCode.ADMIN_NOT_FOUND));
+
+        if (request.name() != null && !request.name().isBlank()) {
+            adminUser.updateName(request.name());
+        }
+        if (request.password() != null && !request.password().isBlank()) {
+            adminUser.updatePassword(passwordEncoder.encode(request.password()));
+        }
+        if (request.storeId() != null) {
+            Store store = storeRepository.findById(request.storeId())
+                .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
+            adminUser.updateStore(store);
+        }
+        if (request.role() != null && !request.role().isBlank()) {
+            if (!VALID_ROLES.contains(request.role())) {
+                throw new AdminException(ErrorCode.INVALID_ROLE);
+            }
+            adminUser.changeRole(request.role());
+        }
+
+        return AdminUserResponse.fromEntity(adminUser);
     }
 
     @Transactional
