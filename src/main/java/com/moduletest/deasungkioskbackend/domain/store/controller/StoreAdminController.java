@@ -50,12 +50,12 @@ public class StoreAdminController {
         return CommonResponse.success(store);
     }
 
-    @Operation(summary = "지점 등록", description = "새 지점을 등록한다. storeCode는 중복 불가(예: DS-001).")
-    @PostMapping
-    public CommonResponse<StoreResponse> createStore(@Valid @RequestBody StoreCreateRequest request) {
-        StoreResponse store = storeService.createStore(request);
-        return CommonResponse.success(store);
-    }
+    // @Operation(summary = "지점 등록", description = "새 지점을 등록한다. storeCode는 중복 불가(예: DS-001).")
+    // @PostMapping
+    // public CommonResponse<StoreResponse> createStore(@Valid @RequestBody StoreCreateRequest request) {
+    //     StoreResponse store = storeService.createStore(request);
+    //     return CommonResponse.success(store);
+    // }
 
     @Operation(summary = "지점 수정", description = "지점 정보를 전체 수정한다.")
     @PutMapping("/{storeId}")
@@ -65,10 +65,10 @@ public class StoreAdminController {
         return CommonResponse.success(store);
     }
 
-    @Operation(summary = "지점 삭제", description = "지점을 삭제한다.")
-    @DeleteMapping("/{storeId}")
-    public CommonResponse<Void> deleteStore(@PathVariable Long storeId) {
-        storeService.deleteStore(storeId);
-        return CommonResponse.success(null);
-    }
+    // @Operation(summary = "지점 삭제", description = "지점을 삭제한다.")
+    // @DeleteMapping("/{storeId}")
+    // public CommonResponse<Void> deleteStore(@PathVariable Long storeId) {
+    //     storeService.deleteStore(storeId);
+    //     return CommonResponse.success(null);
+    // }
 }

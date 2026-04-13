@@ -366,6 +366,54 @@ public class SeatChangeRequestService {
             .toList();
     }
 
+    public SeatWaitingStatusResponse findSeatWaitingStatusBySeatId(Long seatId) {
+        Seat seat = seatRepository.findByIdWithStore(seatId)
+            .orElseThrow(() -> new SeatException(ErrorCode.SEAT_NOT_FOUND));
+
+        if (!SecurityUtil.isAdmin()) {
+            Long storeId = SecurityUtil.getCurrentStoreId();
+            if (!seat.getStore().getId().equals(storeId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+        }
+
+        List<SeatChangeRequest> pendingRequests =
+            seatChangeRequestRepository.findAllByStoreIdAndStatusWithStudent(
+                seat.getStore().getId(), SeatChangeRequestStatus.PENDING);
+
+        String assignedStudentName = studentRepository
+            .findAllWithAssignedSeatByStoreId(seat.getStore().getId()).stream()
+            .filter(s -> s.getAssignedSeat().getId().equals(seatId))
+            .map(Student::getName)
+            .findFirst()
+            .orElse(null);
+
+        List<SeatWaitingStatusResponse.WaitingStudent> waitingList = new ArrayList<>();
+        for (SeatChangeRequest req : pendingRequests) {
+            int priority = getPriorityForSeat(req, seatId);
+            if (priority > 0) {
+                waitingList.add(new SeatWaitingStatusResponse.WaitingStudent(
+                    req.getId(),
+                    req.getStudent().getName(),
+                    req.getStudent().getStudentNumber(),
+                    priority,
+                    req.getCreatedAt()
+                ));
+            }
+        }
+        waitingList.sort((a, b) -> a.createdAt().compareTo(b.createdAt()));
+
+        return new SeatWaitingStatusResponse(
+            seat.getId(),
+            seat.getSeatCd(),
+            seat.getSeatLabel(),
+            seat.getSeatType().name(),
+            assignedStudentName,
+            waitingList.size(),
+            waitingList
+        );
+    }
+
     private int getPriorityForSeat(SeatChangeRequest request, Long seatId) {
         if (request.getDesiredSeat1() != null
                 && request.getDesiredSeat1().getId().equals(seatId)) {

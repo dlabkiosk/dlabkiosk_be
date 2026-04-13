@@ -55,6 +55,16 @@ public class SeatChangeRequestAdminController {
         return CommonResponse.success(responses);
     }
 
+    @Operation(summary = "좌석별 대기 인원 조회",
+        description = "특정 좌석의 현재 배정자와 PENDING 대기자 목록을 반환한다.")
+    @GetMapping("/seat-status/{seatId}")
+    public CommonResponse<SeatWaitingStatusResponse> findSeatWaitingStatusBySeatId(
+            @PathVariable Long seatId) {
+        SeatWaitingStatusResponse response =
+            seatChangeRequestService.findSeatWaitingStatusBySeatId(seatId);
+        return CommonResponse.success(response);
+    }
+
     @Operation(summary = "좌석 변경 신청 단건 조회", description = "신청 ID로 상세 정보를 조회한다.")
     @GetMapping("/{requestId}")
     public CommonResponse<SeatChangeRequestResponse> findRequestById(
