@@ -19,7 +19,13 @@ public record NoticeUpdateRequest(
     Boolean pinned,
 
     @Schema(description = "활성화 여부", example = "true")
-    Boolean active
+    Boolean active,
+
+    @Schema(description = "말머리 ID (null이면 말머리 해제, 미전송 시 변경 없음)", example = "1")
+    Long categoryId,
+
+    @Schema(description = "말머리 변경 여부 (true면 categoryId 적용, false면 무시)", example = "false")
+    Boolean updateCategory
 ) {
 
 }

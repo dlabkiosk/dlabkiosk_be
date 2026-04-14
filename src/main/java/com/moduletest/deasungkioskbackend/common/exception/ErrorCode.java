@@ -70,6 +70,11 @@ public enum ErrorCode {
 
     // Notice
     NOTICE_NOT_FOUND("NTC001", "공지사항을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+    NOTICE_CATEGORY_NOT_FOUND("NTC002", "공지 말머리를 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+    NOTICE_CATEGORY_DUPLICATE_NAME("NTC003", "이미 존재하는 말머리 이름입니다", HttpStatus.CONFLICT),
+    NOTICE_CATEGORY_IN_USE("NTC004", "사용 중인 말머리는 삭제할 수 없습니다", HttpStatus.CONFLICT),
+    NOTICE_CATEGORY_STORE_MISMATCH("NTC005", "말머리와 공지의 지점이 일치하지 않습니다",
+        HttpStatus.BAD_REQUEST),
 
 
     // Advertisement

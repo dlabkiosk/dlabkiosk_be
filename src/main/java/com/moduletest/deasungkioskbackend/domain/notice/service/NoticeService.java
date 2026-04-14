@@ -9,6 +9,9 @@ import com.moduletest.deasungkioskbackend.domain.notice.dto.NoticeUpdateRequest;
 import com.moduletest.deasungkioskbackend.domain.notice.entity.Notice;
 import com.moduletest.deasungkioskbackend.domain.notice.exception.NoticeException;
 import com.moduletest.deasungkioskbackend.domain.notice.repository.NoticeRepository;
+import com.moduletest.deasungkioskbackend.domain.noticecategory.entity.NoticeCategory;
+import com.moduletest.deasungkioskbackend.domain.noticecategory.exception.NoticeCategoryException;
+import com.moduletest.deasungkioskbackend.domain.noticecategory.repository.NoticeCategoryRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
@@ -25,6 +28,7 @@ public class NoticeService {
 
     private final NoticeRepository noticeRepository;
     private final StoreRepository storeRepository;
+    private final NoticeCategoryRepository noticeCategoryRepository;
 
 
     public List<NoticeResponse> findAllNotices() {
@@ -60,12 +64,15 @@ public class NoticeService {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
+        NoticeCategory category = resolveCategory(request.categoryId(), storeId);
+
         String createdBy = SecurityUtil.isAdmin()
             ? "전체관리자"
             : store.getStoreName();
 
         Notice notice = Notice.builder()
             .store(store)
+            .category(category)
             .title(request.title())
             .content(request.content())
             .pinned(request.pinned() != null && request.pinned())
@@ -84,6 +91,13 @@ public class NoticeService {
         validateStoreAccess(notice);
 
         notice.updateInfo(request.title(), request.content(), request.pinned(), request.active());
+
+        if (Boolean.TRUE.equals(request.updateCategory())) {
+            NoticeCategory category = resolveCategory(
+                request.categoryId(), notice.getStore().getId());
+            notice.changeCategory(category);
+        }
+
         return NoticeResponse.fromEntity(notice);
     }
 
@@ -93,6 +107,19 @@ public class NoticeService {
             .orElseThrow(() -> new NoticeException(ErrorCode.NOTICE_NOT_FOUND));
         validateStoreAccess(notice);
         noticeRepository.delete(notice);
+    }
+
+    private NoticeCategory resolveCategory(Long categoryId, Long storeId) {
+        if (categoryId == null) {
+            return null;
+        }
+        NoticeCategory category = noticeCategoryRepository.findByIdWithStore(categoryId)
+            .orElseThrow(() ->
+                new NoticeCategoryException(ErrorCode.NOTICE_CATEGORY_NOT_FOUND));
+        if (!category.getStore().getId().equals(storeId)) {
+            throw new NoticeCategoryException(ErrorCode.NOTICE_CATEGORY_STORE_MISMATCH);
+        }
+        return category;
     }
 
     private void validateStoreAccess(Notice notice) {
