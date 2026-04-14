@@ -12,6 +12,10 @@ public record NoticeResponse(
     Long storeId,
     @Schema(description = "지점명", example = "대성학원 강남점")
     String storeName,
+    @Schema(description = "말머리 ID (없으면 null)", example = "1")
+    Long categoryId,
+    @Schema(description = "말머리 이름 (없으면 null)", example = "긴급")
+    String categoryName,
     @Schema(description = "제목", example = "2월 운영시간 변경 안내")
     String title,
     @Schema(description = "내용", example = "2월부터 운영시간이 변경됩니다.")
@@ -33,6 +37,8 @@ public record NoticeResponse(
             notice.getId(),
             notice.getStore().getId(),
             notice.getStore().getStoreName(),
+            notice.getCategory() != null ? notice.getCategory().getId() : null,
+            notice.getCategory() != null ? notice.getCategory().getName() : null,
             notice.getTitle(),
             notice.getContent(),
             notice.isPinned(),

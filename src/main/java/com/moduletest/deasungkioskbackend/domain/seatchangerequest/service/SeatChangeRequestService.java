@@ -248,6 +248,10 @@ public class SeatChangeRequestService {
         Student student = studentRepository.findByIdForUpdate(request.getStudent().getId())
             .orElseThrow(() -> new SeatChangeRequestException(ErrorCode.STUDENT_NOT_FOUND));
 
+        if (studentRepository.existsByAssignedSeatIdAndIdNot(approvedSeat.getId(), student.getId())) {
+            throw new SeatChangeRequestException(ErrorCode.DESIRED_SEAT_ALREADY_ASSIGNED);
+        }
+
         // DSA 3.23 좌석 변경 동기화 (DSA 먼저, 실패 시 승인 중단)
         Store store = request.getStore();
         if (approvedSeat.getSeatCd() == null) {

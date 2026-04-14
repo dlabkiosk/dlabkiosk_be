@@ -16,5 +16,8 @@ public record NoticeCreateRequest(
     String content,
 
     @Schema(description = "상단 고정 여부", example = "false")
-    Boolean pinned
+    Boolean pinned,
+
+    @Schema(description = "말머리 ID (선택)", example = "1")
+    Long categoryId
 ) { }

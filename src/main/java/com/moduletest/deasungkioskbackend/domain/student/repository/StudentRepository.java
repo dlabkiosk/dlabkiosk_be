@@ -72,6 +72,8 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     boolean existsByAssignedSeatId(Long assignedSeatId);
 
+    boolean existsByAssignedSeatIdAndIdNot(Long assignedSeatId, Long studentId);
+
     long countByStoreId(Long storeId);
 
     @Query("SELECT s FROM Student s"

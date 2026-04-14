@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.domain.notice.entity;
 
 import com.moduletest.deasungkioskbackend.common.entity.BaseTimeEntity;
+import com.moduletest.deasungkioskbackend.domain.noticecategory.entity.NoticeCategory;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,6 +30,11 @@ public class Notice extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id", nullable = false)
     private Store store;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private NoticeCategory category;
+
     @Column(nullable = false, length = 200)
     private String title;
 
@@ -45,9 +51,10 @@ public class Notice extends BaseTimeEntity {
     private String createdBy;
 
     @Builder
-    public Notice(Store store, String title, String content, boolean pinned, boolean active,
-                  String createdBy) {
+    public Notice(Store store, NoticeCategory category, String title, String content,
+                  boolean pinned, boolean active, String createdBy) {
         this.store = store;
+        this.category = category;
         this.title = title;
         this.content = content;
         this.pinned = pinned;
@@ -64,5 +71,9 @@ public class Notice extends BaseTimeEntity {
         if (active != null) {
             this.active = active;
         }
+    }
+
+    public void changeCategory(NoticeCategory category) {
+        this.category = category;
     }
 }
