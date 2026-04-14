@@ -11,6 +11,7 @@ public record StudentSyncResult(
     int unchanged,
     int deactivated,
     int failed,
+    int skipped,
     List<String> errors
 ) {
 }

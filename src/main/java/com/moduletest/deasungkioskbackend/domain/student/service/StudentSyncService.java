@@ -50,7 +50,7 @@ public class StudentSyncService {
                     store.getId(), store.getStoreName(), e);
                 results.add(new StudentSyncResult(
                     store.getId(), store.getStoreName(),
-                    0, 0, 0, 0, 0, 0, List.of(e.getMessage())));
+                    0, 0, 0, 0, 0, 0, 0, List.of(e.getMessage())));
             }
         }
 
@@ -84,13 +84,13 @@ public class StudentSyncService {
             log.info("DSA 학생 데이터 없음. storeId: {}", store.getId());
             return new StudentSyncResult(
                 store.getId(), store.getStoreName(),
-                0, 0, 0, 0, 0, 0, List.of());
+                0, 0, 0, 0, 0, 0, 0, List.of());
         }
 
         List<Student> existingStudents = studentRepository.findAllByStoreId(store.getId());
 
         Map<String, Student> byRfidUid = existingStudents.stream()
-            .filter(s -> s.getRfidUid() != null)
+            .filter(s -> s.getRfidUid() != null && !s.getRfidUid().isBlank())
             .collect(Collectors.toMap(Student::getRfidUid, Function.identity()));
 
         int created = 0;
@@ -98,10 +98,17 @@ public class StudentSyncService {
         int unchanged = 0;
         int deactivated = 0;
         int failed = 0;
+        int skipped = 0;
         List<String> errors = new ArrayList<>();
         Set<Long> syncedStudentIds = new HashSet<>();
 
         for (DsaStudentData dsaStudent : dsaStudents) {
+            if (dsaStudent.rfidNo() == null || dsaStudent.rfidNo().isBlank()) {
+                skipped++;
+                log.info("RFID 미부여 학생 동기화 skip. name: {}, stdNo: {}, storeId: {}",
+                    dsaStudent.stdNm(), dsaStudent.stdNo(), store.getId());
+                continue;
+            }
             try {
                 Seat seat = resolveSeat(dsaStudent.seatCd(), store);
                 String phone = dsaStudentService.findStudentPhone(
@@ -161,7 +168,8 @@ public class StudentSyncService {
 
         return new StudentSyncResult(
             store.getId(), store.getStoreName(),
-            dsaStudents.size(), created, updated, unchanged, deactivated, failed, errors);
+            dsaStudents.size(), created, updated, unchanged, deactivated, failed, skipped,
+            errors);
     }
 
     private Student findMatchingStudent(DsaStudentData dsaStudent,
