@@ -37,4 +37,15 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
         + "AND n.active = true "
         + "ORDER BY n.pinned DESC, n.createdAt DESC")
     List<Notice> findAllActiveByStoreIdWithStore(@Param("storeId") Long storeId);
+
+    @Query("SELECT n FROM Notice n "
+        + "JOIN FETCH n.store "
+        + "LEFT JOIN FETCH n.category "
+        + "WHERE n.store.id = :storeId "
+        + "AND n.active = true "
+        + "AND n.category.id = :categoryId "
+        + "ORDER BY n.pinned DESC, n.createdAt DESC")
+    List<Notice> findAllActiveByStoreIdAndCategoryWithStore(
+        @Param("storeId") Long storeId,
+        @Param("categoryId") Long categoryId);
 }
