@@ -28,6 +28,7 @@ public record DsaStudentData(
         if (value instanceof Number) {
             return String.valueOf(((Number) value).longValue());
         }
-        return String.valueOf(value).trim();
+        String result = String.valueOf(value).trim();
+        return result.isEmpty() ? null : result;
     }
 }
