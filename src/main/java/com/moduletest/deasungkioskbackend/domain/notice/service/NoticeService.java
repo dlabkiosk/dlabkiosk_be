@@ -46,9 +46,11 @@ public class NoticeService {
     }
 
 
-    public List<NoticeResponse> findActiveNoticesByStoreId(Long storeId) {
-        return noticeRepository.findAllActiveByStoreIdWithStore(storeId)
-            .stream()
+    public List<NoticeResponse> findActiveNoticesByStoreId(Long storeId, Long categoryId) {
+        List<Notice> notices = categoryId == null
+            ? noticeRepository.findAllActiveByStoreIdWithStore(storeId)
+            : noticeRepository.findAllActiveByStoreIdAndCategoryWithStore(storeId, categoryId);
+        return notices.stream()
             .map(NoticeResponse::fromEntity)
             .toList();
     }
