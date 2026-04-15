@@ -5,6 +5,11 @@ import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAreaService;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaStudentService;
 import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.domain.attendance.entity.Attendance;
+import com.moduletest.deasungkioskbackend.domain.attendance.entity.AttendanceStatus;
+import com.moduletest.deasungkioskbackend.domain.attendance.repository.AttendanceRepository;
+import com.moduletest.deasungkioskbackend.domain.outing.entity.Outing;
+import com.moduletest.deasungkioskbackend.domain.outing.repository.OutingRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStateSyncResult;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
@@ -17,7 +22,9 @@ import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -44,6 +51,8 @@ public class SeatStateSyncService {
     private final StudentRepository studentRepository;
     private final SeatRepository seatRepository;
     private final SeatUsageRepository seatUsageRepository;
+    private final AttendanceRepository attendanceRepository;
+    private final OutingRepository outingRepository;
     private final SeatService seatService;
     private final SeatRedisService seatRedisService;
 
@@ -81,6 +90,9 @@ public class SeatStateSyncService {
         List<String> errors = new ArrayList<>();
 
         LocalDateTime now = LocalDateTime.now();
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
 
         for (DsaStudentData dsaStudent : dsaStudents) {
             try {
@@ -118,10 +130,10 @@ public class SeatStateSyncService {
                 }
                 Seat seat = seatOpt.get();
 
-                Optional<SeatUsage> existing = seatUsageRepository.findByStudentIdAndStatus(
+                Optional<SeatUsage> existingUsage = seatUsageRepository.findByStudentIdAndStatus(
                     student.getId(), SeatUsageStatus.IN_USE);
 
-                if (existing.isEmpty()) {
+                if (existingUsage.isEmpty()) {
                     SeatUsage usage = SeatUsage.builder()
                         .seat(seat)
                         .student(student)
@@ -133,11 +145,35 @@ public class SeatStateSyncService {
                     alreadyInUse++;
                 }
 
+                Optional<Attendance> existingAttendance = attendanceRepository
+                    .findTodayAttendanceByStudentAndStatus(
+                        student.getId(), startOfDay, endOfDay, AttendanceStatus.CHECKED_IN);
+                if (existingAttendance.isEmpty()) {
+                    Attendance attendance = Attendance.builder()
+                        .student(student)
+                        .store(store)
+                        .checkInAt(now)
+                        .build();
+                    attendanceRepository.save(attendance);
+                }
+
                 if (DSA_STATE_CHECKED_IN.equals(state)) {
                     seatRedisService.markSeatInUse(
                         store.getId(), seat.getId(), student.getId(), student.getName());
                     inUseApplied++;
                 } else {
+                    Optional<Outing> existingOuting = outingRepository
+                        .findActiveOutingByStudentToday(
+                            student.getId(), startOfDay, endOfDay);
+                    if (existingOuting.isEmpty()) {
+                        Outing outing = Outing.builder()
+                            .student(student)
+                            .store(store)
+                            .startedAt(now)
+                            .build();
+                        outingRepository.save(outing);
+                    }
+
                     seatRedisService.markSeatOuting(
                         store.getId(), seat.getId(), student.getId(), student.getName());
                     outingApplied++;
