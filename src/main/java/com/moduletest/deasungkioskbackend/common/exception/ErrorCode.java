@@ -112,6 +112,9 @@ public enum ErrorCode {
         "동일한 전화번호 뒷자리를 가진 학생이 여러 명입니다. UUID으로 검색해주세요",
         HttpStatus.CONFLICT),
     STUDENT_NOT_IN_STORE("STU008", "해당 지점에 소속된 학생이 아닙니다", HttpStatus.FORBIDDEN),
+    DUPLICATE_STUDENT_REGISTRATION("STU009",
+        "동일한 학생 정보가 여러 건 등록되어 있습니다. 데스크로 문의해주세요",
+        HttpStatus.CONFLICT),
 
     // Student Message
     STUDENT_MESSAGE_NOT_FOUND("SM001", "학생 메시지를 찾을 수 없습니다", HttpStatus.NOT_FOUND),

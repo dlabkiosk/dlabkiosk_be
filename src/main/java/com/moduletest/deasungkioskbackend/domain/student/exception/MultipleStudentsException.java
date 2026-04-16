@@ -11,7 +11,7 @@ public final class MultipleStudentsException extends StudentException {
     private final List<Candidate> candidates;
 
     public MultipleStudentsException(List<Student> students) {
-        super(ErrorCode.MULTIPLE_STUDENTS_FOUND_BY_PHONE_LAST4);
+        super(ErrorCode.DUPLICATE_STUDENT_REGISTRATION);
         this.candidates = students.stream()
             .map(s -> new Candidate(
                 s.getRfidUid(),

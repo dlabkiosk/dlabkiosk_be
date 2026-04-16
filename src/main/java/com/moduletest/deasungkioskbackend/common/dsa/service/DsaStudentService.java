@@ -76,7 +76,7 @@ public final class DsaStudentService {
      * rfidNo로 학생 상세(전화번호 포함)를 조회한다.
      * p_hp 필드에서 전화번호 뒷 8자리를 추출하여 반환한다.
      */
-    public String findStudentPhone(String rfidNo, Store store) {
+    public String findStudentPhone(String rfidNo, String stdNo, Store store) {
         if (!store.hasDsaCredentials() || rfidNo == null) {
             return null;
         }
@@ -93,7 +93,17 @@ public final class DsaStudentService {
                 return null;
             }
 
-            Map<String, Object> data = response.getDataAsList().get(0);
+            List<Map<String, Object>> dataList = response.getDataAsList();
+            Map<String, Object> data = dataList.stream()
+                .filter(d -> stdNo != null
+                    && stdNo.equals(String.valueOf(d.get("std_no"))))
+                .findFirst()
+                .orElse(null);
+            if (data == null) {
+                log.warn("DSA getStdInfo std_no 매칭 실패 - rfidNo: {}, stdNo: {},"
+                    + " 응답 {}건", rfidNo, stdNo, dataList.size());
+                return null;
+            }
             Object hp = data.get("hp");
             if (hp == null) {
                 hp = data.get("p_hp");
