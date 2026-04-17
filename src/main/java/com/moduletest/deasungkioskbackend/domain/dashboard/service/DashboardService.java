@@ -25,6 +25,7 @@ import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepositor
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -100,7 +101,7 @@ public class DashboardService {
         }
 
         try {
-            String month = today.toString().substring(0, 7);
+            String month = YearMonth.from(today).toString();
 
             Map<String, Object> params = new HashMap<>();
             params.put("month", month);

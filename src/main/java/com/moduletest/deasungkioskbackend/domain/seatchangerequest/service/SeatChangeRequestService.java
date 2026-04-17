@@ -339,24 +339,14 @@ public class SeatChangeRequestService {
                     (a, b) -> a
                 ));
 
+        Map<Long, List<SeatWaitingStatusResponse.WaitingStudent>> waitingBySeatId =
+            buildWaitingBySeatId(pendingRequests);
+
         return allSeats.stream()
             .filter(Seat::isActive)
             .map(seat -> {
-                List<SeatWaitingStatusResponse.WaitingStudent> waitingList = new ArrayList<>();
-                for (SeatChangeRequest req : pendingRequests) {
-                    int priority = getPriorityForSeat(req, seat.getId());
-                    if (priority > 0) {
-                        waitingList.add(new SeatWaitingStatusResponse.WaitingStudent(
-                            req.getId(),
-                            req.getStudent().getName(),
-                            req.getStudent().getStudentNumber(),
-                            priority,
-                            req.getCreatedAt()
-                        ));
-                    }
-                }
-                waitingList.sort((a, b) -> a.createdAt().compareTo(b.createdAt()));
-
+                List<SeatWaitingStatusResponse.WaitingStudent> waitingList =
+                    waitingBySeatId.getOrDefault(seat.getId(), List.of());
                 return new SeatWaitingStatusResponse(
                     seat.getId(),
                     seat.getSeatCd(),
@@ -368,6 +358,36 @@ public class SeatChangeRequestService {
                 );
             })
             .toList();
+    }
+
+    private Map<Long, List<SeatWaitingStatusResponse.WaitingStudent>> buildWaitingBySeatId(
+            List<SeatChangeRequest> pendingRequests) {
+        Map<Long, List<SeatWaitingStatusResponse.WaitingStudent>> result = new HashMap<>();
+        for (SeatChangeRequest req : pendingRequests) {
+            addWaitingEntry(result, req, req.getDesiredSeat1(), 1);
+            addWaitingEntry(result, req, req.getDesiredSeat2(), 2);
+            addWaitingEntry(result, req, req.getDesiredSeat3(), 3);
+        }
+        for (List<SeatWaitingStatusResponse.WaitingStudent> list : result.values()) {
+            list.sort((a, b) -> a.createdAt().compareTo(b.createdAt()));
+        }
+        return result;
+    }
+
+    private void addWaitingEntry(
+            Map<Long, List<SeatWaitingStatusResponse.WaitingStudent>> result,
+            SeatChangeRequest req, Seat desiredSeat, int priority) {
+        if (desiredSeat == null) {
+            return;
+        }
+        result.computeIfAbsent(desiredSeat.getId(), k -> new ArrayList<>())
+            .add(new SeatWaitingStatusResponse.WaitingStudent(
+                req.getId(),
+                req.getStudent().getName(),
+                req.getStudent().getStudentNumber(),
+                priority,
+                req.getCreatedAt()
+            ));
     }
 
     public SeatWaitingStatusResponse findSeatWaitingStatusBySeatId(Long seatId) {

@@ -1,12 +1,6 @@
 package com.moduletest.deasungkioskbackend.domain.seat.service;
 
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -16,7 +10,6 @@ import org.springframework.stereotype.Service;
 public class SeatRedisService {
 
     private static final String SEAT_STATUS_KEY_PREFIX = "seat:status:";
-    private static final String LATE_KEY_PREFIX = "late:";
     private static final String AVAILABLE = "AVAILABLE";
 
 
@@ -87,24 +80,5 @@ public class SeatRedisService {
         String field = seatId.toString();
         String value = "AWAY:" + studentId + ":" + studentName;
         redisTemplate.opsForHash().put(key, field, value);
-    }
-
-    public void markLate(Long storeId, Long studentId) {
-        String key = LATE_KEY_PREFIX + storeId + ":" + LocalDate.now();
-        redisTemplate.opsForSet().add(key, studentId.toString());
-        Duration ttl = Duration.between(
-            LocalDateTime.now(), LocalDate.now().plusDays(1).atTime(LocalTime.MIDNIGHT));
-        redisTemplate.expire(key, ttl);
-    }
-
-    public Set<Long> findLateStudentIds(Long storeId) {
-        String key = LATE_KEY_PREFIX + storeId + ":" + LocalDate.now();
-        Set<String> members = redisTemplate.opsForSet().members(key);
-        if (members == null) {
-            return Set.of();
-        }
-        return members.stream()
-            .map(Long::valueOf)
-            .collect(Collectors.toSet());
     }
 }

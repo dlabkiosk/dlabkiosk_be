@@ -96,39 +96,22 @@ public class SeatStateSyncService {
 
         for (DsaStudentData dsaStudent : dsaStudents) {
             try {
-                if (dsaStudent.rfidNo() == null || dsaStudent.rfidNo().isBlank()) {
-                    skippedNoRfid++;
-                    continue;
-                }
-                if (dsaStudent.seatCd() == null || dsaStudent.seatCd().isBlank()) {
-                    skippedNoSeat++;
-                    continue;
-                }
-
-                String state = seatStateByCd.get(dsaStudent.seatCd());
-                if (!DSA_STATE_CHECKED_IN.equals(state) && !DSA_STATE_OUTING.equals(state)) {
-                    skippedNonActiveState++;
-                    continue;
-                }
-
-                Student student = studentsByRfid.get(dsaStudent.rfidNo());
-                if (student == null) {
-                    skippedStudentNotFound++;
-                    continue;
-                }
-                if (student.getStore() == null
-                    || !student.getStore().getId().equals(store.getId())) {
-                    skippedStoreMismatch++;
+                SyncDecision decision = decide(
+                    dsaStudent, store, seatStateByCd, studentsByRfid);
+                if (decision.isSkip()) {
+                    switch (decision.skipReason()) {
+                        case NO_RFID -> skippedNoRfid++;
+                        case NO_SEAT -> skippedNoSeat++;
+                        case NON_ACTIVE_STATE -> skippedNonActiveState++;
+                        case STUDENT_NOT_FOUND -> skippedStudentNotFound++;
+                        case STORE_MISMATCH -> skippedStoreMismatch++;
+                    }
                     continue;
                 }
 
-                Optional<Seat> seatOpt = seatRepository.findBySeatCdAndStoreId(
-                    dsaStudent.seatCd(), store.getId());
-                if (seatOpt.isEmpty()) {
-                    skippedNoSeat++;
-                    continue;
-                }
-                Seat seat = seatOpt.get();
+                Student student = decision.student();
+                Seat seat = decision.seat();
+                String state = decision.state();
 
                 Optional<SeatUsage> existingUsage = seatUsageRepository.findByStudentIdAndStatus(
                     student.getId(), SeatUsageStatus.IN_USE);
@@ -215,5 +198,60 @@ public class SeatStateSyncService {
             }
         }
         return result;
+    }
+
+    private SyncDecision decide(DsaStudentData dsa, Store store,
+        Map<String, String> seatStateByCd, Map<String, Student> studentsByRfid) {
+        if (dsa.rfidNo() == null || dsa.rfidNo().isBlank()) {
+            return SyncDecision.skip(SkipReason.NO_RFID);
+        }
+        if (dsa.seatCd() == null || dsa.seatCd().isBlank()) {
+            return SyncDecision.skip(SkipReason.NO_SEAT);
+        }
+
+        String state = seatStateByCd.get(dsa.seatCd());
+        if (!DSA_STATE_CHECKED_IN.equals(state) && !DSA_STATE_OUTING.equals(state)) {
+            return SyncDecision.skip(SkipReason.NON_ACTIVE_STATE);
+        }
+
+        Student student = studentsByRfid.get(dsa.rfidNo());
+        if (student == null) {
+            return SyncDecision.skip(SkipReason.STUDENT_NOT_FOUND);
+        }
+        if (student.getStore() == null
+                || !student.getStore().getId().equals(store.getId())) {
+            return SyncDecision.skip(SkipReason.STORE_MISMATCH);
+        }
+
+        Optional<Seat> seatOpt = seatRepository.findBySeatCdAndStoreId(
+            dsa.seatCd(), store.getId());
+        if (seatOpt.isEmpty()) {
+            return SyncDecision.skip(SkipReason.NO_SEAT);
+        }
+
+        return SyncDecision.ok(student, seatOpt.get(), state);
+    }
+
+    private enum SkipReason {
+        NO_RFID, NO_SEAT, NON_ACTIVE_STATE, STUDENT_NOT_FOUND, STORE_MISMATCH
+    }
+
+    private record SyncDecision(
+        SkipReason skipReason,
+        Student student,
+        Seat seat,
+        String state) {
+
+        static SyncDecision skip(SkipReason reason) {
+            return new SyncDecision(reason, null, null, null);
+        }
+
+        static SyncDecision ok(Student student, Seat seat, String state) {
+            return new SyncDecision(null, student, seat, state);
+        }
+
+        boolean isSkip() {
+            return skipReason != null;
+        }
     }
 }
