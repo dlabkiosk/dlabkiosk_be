@@ -2,13 +2,17 @@ package com.moduletest.deasungkioskbackend.domain.attendance.controller;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
+import com.moduletest.deasungkioskbackend.domain.attendance.dto.AdminUpdateCheckInTimeRequest;
 import com.moduletest.deasungkioskbackend.domain.attendance.dto.AttendanceStudentResponse;
 import com.moduletest.deasungkioskbackend.domain.attendance.service.AttendanceAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,6 +27,9 @@ public final class AttendanceAdminController {
 
     @Operation(summary = "출결 현황 조회",
         description = "해당 지점 학생들의 출결 현황을 DSA 좌석 상태 기준으로 조회합니다.\n\n"
+            + "응답의 checkedInAt 필드:\n"
+            + "- 값이 있으면: 우리 시스템에서 등원 처리된 시각\n"
+            + "- null이면: DSA에서 직접 등원 처리된 케이스 (우리 시스템에 기록 없음)\n\n"
             + "attendanceStatus 필터 값:\n"
             + "- 등원: DSA 좌석 상태 S\n"
             + "- 외출: DSA 좌석 상태 D\n"
@@ -46,5 +53,16 @@ public final class AttendanceAdminController {
             resolvedStoreId, studentName, studentNumber, attendanceStatus, phoneSubmitted);
 
         return CommonResponse.success(result);
+    }
+
+    @Operation(summary = "등원 시각 수정",
+        description = "이미 등원 처리된 학생의 등원 시각을 수정합니다.\n"
+            + "순공시간 보정 등의 용도로 사용합니다.")
+    @PutMapping("/check-in-time")
+    public CommonResponse<Void> updateCheckInTime(
+        @Valid @RequestBody AdminUpdateCheckInTimeRequest request) {
+
+        attendanceAdminService.updateCheckInTime(request.studentId(), request.checkInAt());
+        return CommonResponse.success(null);
     }
 }

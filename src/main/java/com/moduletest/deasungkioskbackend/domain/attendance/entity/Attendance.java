@@ -64,4 +64,8 @@ public class Attendance extends BaseTimeEntity {
         this.checkOutAt = checkOutAt;
         this.checkOutAction = action;
     }
+
+    public void updateCheckInAt(LocalDateTime checkInAt) {
+        this.checkInAt = checkInAt;
+    }
 }

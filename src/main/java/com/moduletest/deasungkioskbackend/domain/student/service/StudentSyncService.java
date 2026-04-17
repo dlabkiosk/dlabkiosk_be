@@ -97,7 +97,9 @@ public class StudentSyncService {
         Map<String, Student> byStudentNumber = existingStudents.stream()
             .filter(s -> s.getStudentNumber() != null && !s.getStudentNumber().isBlank())
             .collect(Collectors.toMap(
-                Student::getStudentNumber, Function.identity(), (a, b) -> a));
+                Student::getStudentNumber,
+                Function.identity(),
+                (a, b) -> a.isActive() ? a : b));
 
         Map<String, Long> stdNoCounts = dsaStudents.stream()
             .filter(s -> s.stdNo() != null && !s.stdNo().isBlank())
@@ -224,6 +226,11 @@ public class StudentSyncService {
 
     private boolean hasChanges(Student student, DsaStudentData dsaStudent,
         Seat seat, String phone) {
+        // Why: DSA 응답에 있는 학생은 활성 상태여야 함.
+        // 비활성인 row가 매칭되면 syncFromDsa로 복원해야 하므로 변경으로 취급.
+        if (!student.isActive()) {
+            return true;
+        }
         if (!student.getName().equals(dsaStudent.stdNm())) {
             return true;
         }

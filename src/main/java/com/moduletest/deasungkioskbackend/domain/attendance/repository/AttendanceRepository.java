@@ -69,4 +69,16 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         @Param("startOfDay") LocalDateTime startOfDay,
         @Param("endOfDay") LocalDateTime endOfDay
     );
+
+    @Query("SELECT a FROM Attendance a "
+        + "WHERE a.store.id = :storeId "
+        + "AND a.checkInAt >= :startOfDay "
+        + "AND a.checkInAt < :endOfDay "
+        + "AND a.status = :status")
+    List<Attendance> findTodayByStoreIdAndStatus(
+        @Param("storeId") Long storeId,
+        @Param("startOfDay") LocalDateTime startOfDay,
+        @Param("endOfDay") LocalDateTime endOfDay,
+        @Param("status") AttendanceStatus status
+    );
 }
