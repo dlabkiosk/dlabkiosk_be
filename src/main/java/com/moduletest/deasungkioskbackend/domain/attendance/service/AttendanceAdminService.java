@@ -7,7 +7,6 @@ import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.attendance.dto.AttendanceStudentResponse;
 import com.moduletest.deasungkioskbackend.domain.attendance.entity.Attendance;
 import com.moduletest.deasungkioskbackend.domain.attendance.entity.AttendanceStatus;
-import com.moduletest.deasungkioskbackend.domain.attendance.exception.AttendanceException;
 import com.moduletest.deasungkioskbackend.domain.attendance.repository.AttendanceRepository;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.repository.PhoneSubmissionRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
@@ -83,12 +82,20 @@ public class AttendanceAdminService {
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
 
-        Attendance attendance = attendanceRepository
+        attendanceRepository
             .findTodayAttendanceByStudentAndStatus(
                 studentId, startOfDay, endOfDay, AttendanceStatus.CHECKED_IN)
-            .orElseThrow(() -> new AttendanceException(ErrorCode.NOT_CHECKED_IN));
-
-        attendance.updateCheckInAt(checkInAt);
+            .ifPresentOrElse(
+                attendance -> attendance.updateCheckInAt(checkInAt),
+                () -> {
+                    Attendance newAttendance = Attendance.builder()
+                        .student(student)
+                        .store(student.getStore())
+                        .checkInAt(checkInAt)
+                        .build();
+                    attendanceRepository.save(newAttendance);
+                }
+            );
     }
 
     private Map<String, String> buildSeatStateMap(Store store) {
