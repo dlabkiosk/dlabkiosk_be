@@ -1,5 +1,6 @@
 package com.moduletest.deasungkioskbackend.domain.attendance.dto;
 
+import java.time.LocalDateTime;
 import lombok.Builder;
 
 @Builder
@@ -9,6 +10,7 @@ public record AttendanceStudentResponse(
     String studentNumber,
     String seatLabel,
     String attendanceStatus,
+    LocalDateTime checkedInAt,
     boolean late,
     boolean phoneSubmitted
 ) {

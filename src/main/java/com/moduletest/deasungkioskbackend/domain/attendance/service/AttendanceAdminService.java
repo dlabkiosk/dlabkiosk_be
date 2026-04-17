@@ -1,8 +1,14 @@
 package com.moduletest.deasungkioskbackend.domain.attendance.service;
 
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAreaService;
+import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.attendance.dto.AttendanceStudentResponse;
+import com.moduletest.deasungkioskbackend.domain.attendance.entity.Attendance;
+import com.moduletest.deasungkioskbackend.domain.attendance.entity.AttendanceStatus;
+import com.moduletest.deasungkioskbackend.domain.attendance.exception.AttendanceException;
+import com.moduletest.deasungkioskbackend.domain.attendance.repository.AttendanceRepository;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.repository.PhoneSubmissionRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
@@ -13,6 +19,8 @@ import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepositor
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +39,7 @@ public class AttendanceAdminService {
 
     private final StudentRepository studentRepository;
     private final StoreRepository storeRepository;
+    private final AttendanceRepository attendanceRepository;
     private final DsaAreaService dsaAreaService;
     private final PhoneSubmissionRepository phoneSubmissionRepository;
     private final SeatRedisService seatRedisService;
@@ -46,15 +55,40 @@ public class AttendanceAdminService {
         Map<String, String> seatCdToState = buildSeatStateMap(store);
         Set<Long> phoneSubmittedStudentIds = findPhoneSubmittedStudentIds(storeId);
         Set<Long> lateStudentIds = seatRedisService.findLateStudentIds(storeId);
+        Map<Long, LocalDateTime> checkedInAtMap = buildCheckedInAtMap(storeId);
 
         return students.stream()
             .map(student -> toResponse(student, seatCdToState, phoneSubmittedStudentIds,
-                lateStudentIds))
+                lateStudentIds, checkedInAtMap))
             .filter(r -> matchesStudentName(r, studentName))
             .filter(r -> matchesStudentNumber(r, studentNumber))
             .filter(r -> matchesStatus(r, status))
             .filter(r -> matchesPhoneSubmitted(r, phoneSubmitted))
             .toList();
+    }
+
+    @Transactional
+    public void updateCheckInTime(Long studentId, LocalDateTime checkInAt) {
+        Student student = studentRepository.findById(studentId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_NOT_FOUND));
+
+        if (!SecurityUtil.isAdmin()) {
+            Long currentStoreId = SecurityUtil.getCurrentStoreId();
+            if (!student.getStore().getId().equals(currentStoreId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+        }
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+
+        Attendance attendance = attendanceRepository
+            .findTodayAttendanceByStudentAndStatus(
+                studentId, startOfDay, endOfDay, AttendanceStatus.CHECKED_IN)
+            .orElseThrow(() -> new AttendanceException(ErrorCode.NOT_CHECKED_IN));
+
+        attendance.updateCheckInAt(checkInAt);
     }
 
     private Map<String, String> buildSeatStateMap(Store store) {
@@ -81,7 +115,8 @@ public class AttendanceAdminService {
     private AttendanceStudentResponse toResponse(Student student,
                                                   Map<String, String> seatCdToState,
                                                   Set<Long> phoneSubmittedStudentIds,
-                                                  Set<Long> lateStudentIds) {
+                                                  Set<Long> lateStudentIds,
+                                                  Map<Long, LocalDateTime> checkedInAtMap) {
         String seatLabel = student.getAssignedSeat() != null
             ? student.getAssignedSeat().getSeatLabel() : null;
 
@@ -95,6 +130,7 @@ public class AttendanceAdminService {
             .studentNumber(student.getStudentNumber())
             .seatLabel(seatLabel)
             .attendanceStatus(attendanceStatus)
+            .checkedInAt(checkedInAtMap.get(student.getId()))
             .late(isLate)
             .phoneSubmitted(isPhoneSubmitted)
             .build();
@@ -121,6 +157,22 @@ public class AttendanceAdminService {
             case "E" -> "통로";
             default -> "미확인";
         };
+    }
+
+    private Map<Long, LocalDateTime> buildCheckedInAtMap(Long storeId) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+
+        List<Attendance> attendances = attendanceRepository.findTodayByStoreIdAndStatus(
+            storeId, startOfDay, endOfDay, AttendanceStatus.CHECKED_IN);
+
+        return attendances.stream()
+            .collect(Collectors.toMap(
+                a -> a.getStudent().getId(),
+                Attendance::getCheckInAt,
+                (existing, replacement) -> existing
+            ));
     }
 
     private Set<Long> findPhoneSubmittedStudentIds(Long storeId) {
