@@ -109,7 +109,7 @@ public final class StudentDetailDsaService {
      */
     public List<DsaPointRecord> findPoints(String studentNumber, Store store) {
         if (!store.hasDsaCredentials() || studentNumber == null) {
-            return null;
+            return Collections.emptyList();
         }
 
         LocalDate today = LocalDate.now();
@@ -134,7 +134,7 @@ public final class StudentDetailDsaService {
 
             if (!response.isSuccess() || response.getDataAsList() == null) {
                 log.warn("DSA 상벌점 조회 실패 - code: {}", response.getCode());
-                return null;
+                return Collections.emptyList();
             }
 
             Map<String, List<DsaPointRecord>> byStudent = new HashMap<>();
@@ -159,7 +159,7 @@ public final class StudentDetailDsaService {
             return byStudent.getOrDefault(studentNumber, Collections.emptyList());
         } catch (Exception e) {
             log.warn("DSA 상벌점 조회 예외: {}", e.getMessage());
-            return null;
+            return Collections.emptyList();
         }
     }
 
@@ -169,7 +169,7 @@ public final class StudentDetailDsaService {
      */
     public List<DsaReceiptRecord> findReceipts(String rfidUid, Store store) {
         if (!store.hasDsaCredentials() || rfidUid == null) {
-            return null;
+            return Collections.emptyList();
         }
 
         try {
@@ -181,7 +181,7 @@ public final class StudentDetailDsaService {
 
             if (!response.isSuccess() || response.getDataAsList() == null) {
                 log.warn("DSA 수납 조회 실패 - code: {}", response.getCode());
-                return null;
+                return Collections.emptyList();
             }
 
             List<DsaReceiptRecord> records = new ArrayList<>();
@@ -197,7 +197,7 @@ public final class StudentDetailDsaService {
             return records;
         } catch (Exception e) {
             log.warn("DSA 수납 조회 예외: {}", e.getMessage());
-            return null;
+            return Collections.emptyList();
         }
     }
 
@@ -207,7 +207,7 @@ public final class StudentDetailDsaService {
      */
     public List<DsaMealApplication> findMealApplications(String studentNumber, Store store) {
         if (!store.hasDsaCredentials() || studentNumber == null) {
-            return null;
+            return Collections.emptyList();
         }
 
         String month = LocalDate.now().toString().substring(0, 7);
@@ -228,7 +228,7 @@ public final class StudentDetailDsaService {
 
             if (!response.isSuccess() || response.getDataAsList() == null) {
                 log.warn("DSA 급식 신청 조회 실패 - code: {}", response.getCode());
-                return null;
+                return Collections.emptyList();
             }
 
             Map<String, List<DsaMealApplication>> byStudent = new HashMap<>();
@@ -252,7 +252,7 @@ public final class StudentDetailDsaService {
             return byStudent.getOrDefault(studentNumber, Collections.emptyList());
         } catch (Exception e) {
             log.warn("DSA 급식 신청 조회 예외: {}", e.getMessage());
-            return null;
+            return Collections.emptyList();
         }
     }
 

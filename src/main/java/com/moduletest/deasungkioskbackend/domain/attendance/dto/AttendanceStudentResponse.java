@@ -11,7 +11,6 @@ public record AttendanceStudentResponse(
     String seatLabel,
     String attendanceStatus,
     LocalDateTime checkedInAt,
-    boolean late,
     boolean phoneSubmitted
 ) {
 }

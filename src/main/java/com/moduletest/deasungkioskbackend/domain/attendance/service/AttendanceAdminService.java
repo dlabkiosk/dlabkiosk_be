@@ -11,7 +11,6 @@ import com.moduletest.deasungkioskbackend.domain.attendance.repository.Attendanc
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.repository.PhoneSubmissionRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
-import com.moduletest.deasungkioskbackend.domain.seat.service.SeatRedisService;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
@@ -41,7 +40,6 @@ public class AttendanceAdminService {
     private final AttendanceRepository attendanceRepository;
     private final DsaAreaService dsaAreaService;
     private final PhoneSubmissionRepository phoneSubmissionRepository;
-    private final SeatRedisService seatRedisService;
 
     public List<AttendanceStudentResponse> findAttendanceList(
             Long storeId, String studentName, String studentNumber,
@@ -53,12 +51,11 @@ public class AttendanceAdminService {
         List<Student> students = studentRepository.findAllByStoreIdWithStore(storeId);
         Map<String, String> seatCdToState = buildSeatStateMap(store);
         Set<Long> phoneSubmittedStudentIds = findPhoneSubmittedStudentIds(storeId);
-        Set<Long> lateStudentIds = seatRedisService.findLateStudentIds(storeId);
         Map<Long, LocalDateTime> checkedInAtMap = buildCheckedInAtMap(storeId);
 
         return students.stream()
             .map(student -> toResponse(student, seatCdToState, phoneSubmittedStudentIds,
-                lateStudentIds, checkedInAtMap))
+                checkedInAtMap))
             .filter(r -> matchesStudentName(r, studentName))
             .filter(r -> matchesStudentNumber(r, studentNumber))
             .filter(r -> matchesStatus(r, status))
@@ -122,13 +119,11 @@ public class AttendanceAdminService {
     private AttendanceStudentResponse toResponse(Student student,
                                                   Map<String, String> seatCdToState,
                                                   Set<Long> phoneSubmittedStudentIds,
-                                                  Set<Long> lateStudentIds,
                                                   Map<Long, LocalDateTime> checkedInAtMap) {
         String seatLabel = student.getAssignedSeat() != null
             ? student.getAssignedSeat().getSeatLabel() : null;
 
         String attendanceStatus = resolveAttendanceStatus(student, seatCdToState);
-        boolean isLate = lateStudentIds.contains(student.getId());
         boolean isPhoneSubmitted = phoneSubmittedStudentIds.contains(student.getId());
 
         return AttendanceStudentResponse.builder()
@@ -138,7 +133,6 @@ public class AttendanceAdminService {
             .seatLabel(seatLabel)
             .attendanceStatus(attendanceStatus)
             .checkedInAt(checkedInAtMap.get(student.getId()))
-            .late(isLate)
             .phoneSubmitted(isPhoneSubmitted)
             .build();
     }
