@@ -1,6 +1,8 @@
 package com.moduletest.deasungkioskbackend.domain.seat.service;
 
+import com.moduletest.deasungkioskbackend.common.dsa.dto.DsaStudentData;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAreaService;
+import com.moduletest.deasungkioskbackend.common.dsa.service.DsaStudentService;
 import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
@@ -18,8 +20,6 @@ import com.moduletest.deasungkioskbackend.domain.seatleave.repository.SeatLeaveR
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
-import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
-import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepository;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -39,8 +39,8 @@ public class SeatService {
     private final StoreRepository storeRepository;
     private final SeatRedisService seatRedisService;
     private final SeatLeaveRepository seatLeaveRepository;
-    private final StudentRepository studentRepository;
     private final DsaAreaService dsaAreaService;
+    private final DsaStudentService dsaStudentService;
 
 
     @Transactional
@@ -104,17 +104,19 @@ public class SeatService {
             }
         }
 
-        // seatCd → 학생명 매핑 (upsert 뒤에 수행해야 seatCd 반영됨)
-        List<Student> students = studentRepository.findAllByStoreIdWithStore(storeId);
+        // seatCd → 학생명 매핑: DSA 3.20을 source of truth로 사용.
+        // 우리 DB student.assignedSeat은 DSA 좌석 변경을 못 따라갈 수 있어서,
+        // 연쇄 이동 시 배치도에 옛날 학생 이름이 찍히는 버그를 유발함.
+        List<DsaStudentData> dsaStudents = store.hasDsaCredentials()
+            ? dsaStudentService.findAllStudents(store) : List.of();
         Map<String, String> seatCdToStudentName = new HashMap<>();
         Map<String, String> seatCdToStudentNumber = new HashMap<>();
-        for (Student student : students) {
-            if (student.getAssignedSeat() != null
-                && student.getAssignedSeat().getSeatCd() != null) {
-                String seatCd = student.getAssignedSeat().getSeatCd();
-                seatCdToStudentName.put(seatCd, student.getName());
-                seatCdToStudentNumber.put(seatCd, student.getStudentNumber());
+        for (DsaStudentData ds : dsaStudents) {
+            if (ds.seatCd() == null) {
+                continue;
             }
+            seatCdToStudentName.put(ds.seatCd(), ds.stdNm());
+            seatCdToStudentNumber.put(ds.seatCd(), ds.stdNo());
         }
 
         // DSA 좌석에 학생명 + AWAY 상태/사유 덮어씌우기
