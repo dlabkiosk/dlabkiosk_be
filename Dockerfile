@@ -7,4 +7,4 @@ WORKDIR /app
 
 COPY build/libs/*.jar app.jar
 
-ENTRYPOINT ["java", "-Xmx384m", "-Xms128m", "-Duser.timezone=Asia/Seoul", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -Duser.timezone=Asia/Seoul -Dspring.profiles.active=prod -jar app.jar"]

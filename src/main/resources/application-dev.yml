@@ -7,6 +7,12 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 5
+      connection-timeout: 3000
+      leak-detection-threshold: 60000
+      max-lifetime: 1200000
 
   jpa:
     hibernate:
@@ -56,16 +62,10 @@ cloud:
 
 server:
   port: 8080
-
-
-
-    #dsa:
-    # api:
-    #  base-url: https://devapi.dshw.co.kr
-  # connect-timeout: 10000
-  # read-timeout: 10000
-
-
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 20
 
 sync:
   student:
@@ -74,5 +74,5 @@ sync:
 dsa:
   api:
     base-url: https://devapi.dshw.co.kr
-    connect-timeout: 10000
-    read-timeout: 10000
+    connect-timeout: 3000
+    read-timeout: 5000

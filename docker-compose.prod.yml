@@ -8,4 +8,12 @@ services:
       - "8081:8080"
     env_file:
       - .env.prod
+    environment:
+      - JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0 -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/heapdump.hprof
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1400m
+        reservations:
+          memory: 800m
