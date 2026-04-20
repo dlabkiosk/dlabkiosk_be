@@ -1,6 +1,7 @@
 package com.moduletest.deasungkioskbackend.common.service;
 
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.util.EmCardDecoder;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.student.exception.MultipleStudentsException;
 import com.moduletest.deasungkioskbackend.domain.student.exception.StudentException;
@@ -20,8 +21,27 @@ public class StudentResolverService {
         if (identifier == null || identifier.isBlank()) {
             throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
         }
-        return studentRepository.findByRfidUid(identifier.trim())
+        return findByRfidWithDecode(identifier.trim())
             .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
+    }
+
+    /**
+     * rfidUid로 학생을 조회하되, 원본으로 못 찾으면 raw hex로 간주하고 디코딩 후 재조회.
+     * QR(디코딩된 값)과 RFID 리더기 raw 둘 다 대응.
+     */
+    private Optional<Student> findByRfidWithDecode(String value) {
+        Optional<Student> byRaw = studentRepository.findByRfidUid(value);
+        if (byRaw.isPresent()) {
+            return byRaw;
+        }
+        if (!EmCardDecoder.containsHexLetter(value)) {
+            return Optional.empty();
+        }
+        Optional<String> decoded = EmCardDecoder.decode(value);
+        if (decoded.isEmpty()) {
+            return Optional.empty();
+        }
+        return studentRepository.findByRfidUid(decoded.get());
     }
 
     public Student resolveBySeatLabel(String seatLabel, Long storeId) {
@@ -129,8 +149,8 @@ public class StudentResolverService {
         }
         String trimmed = value.trim();
 
-        // 1. rfidUid(카드/QR)로 조회
-        Optional<Student> byRfid = studentRepository.findByRfidUid(trimmed);
+        // 1. rfidUid(카드/QR)로 조회 — raw hex면 디코딩 후 재조회
+        Optional<Student> byRfid = findByRfidWithDecode(trimmed);
         if (byRfid.isPresent()) {
             Student student = byRfid.get();
             if (!student.getStore().getId().equals(storeId)) {
