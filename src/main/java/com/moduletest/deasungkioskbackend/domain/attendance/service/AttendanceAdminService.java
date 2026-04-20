@@ -1,6 +1,8 @@
 package com.moduletest.deasungkioskbackend.domain.attendance.service;
 
+import com.moduletest.deasungkioskbackend.common.dsa.dto.DsaStudentData;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAreaService;
+import com.moduletest.deasungkioskbackend.common.dsa.service.DsaStudentService;
 import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
@@ -39,6 +41,7 @@ public class AttendanceAdminService {
     private final StoreRepository storeRepository;
     private final AttendanceRepository attendanceRepository;
     private final DsaAreaService dsaAreaService;
+    private final DsaStudentService dsaStudentService;
     private final PhoneSubmissionRepository phoneSubmissionRepository;
 
     public List<AttendanceStudentResponse> findAttendanceList(
@@ -49,13 +52,14 @@ public class AttendanceAdminService {
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
         List<Student> students = studentRepository.findAllByStoreIdWithStore(storeId);
-        Map<String, String> seatCdToState = buildSeatStateMap(store);
+        Map<String, String> rfidToSeatCd = buildDsaSeatAssignmentMap(store);
+        Map<String, SeatStatusResponse> seatCdToInfo = buildSeatInfoMap(store);
         Set<Long> phoneSubmittedStudentIds = findPhoneSubmittedStudentIds(storeId);
         Map<Long, LocalDateTime> checkedInAtMap = buildCheckedInAtMap(storeId);
 
         return students.stream()
-            .map(student -> toResponse(student, seatCdToState, phoneSubmittedStudentIds,
-                checkedInAtMap))
+            .map(student -> toResponse(student, rfidToSeatCd, seatCdToInfo,
+                phoneSubmittedStudentIds, checkedInAtMap))
             .filter(r -> matchesStudentName(r, studentName))
             .filter(r -> matchesStudentNumber(r, studentNumber))
             .filter(r -> matchesStatus(r, status))
@@ -95,11 +99,16 @@ public class AttendanceAdminService {
             );
     }
 
-    private Map<String, String> buildSeatStateMap(Store store) {
-        Map<String, String> seatCdToState = new HashMap<>();
+    /**
+     * DSA 3.7+3.8+3.10 응답을 seatCd → SeatStatusResponse 맵으로 모은다.
+     * state 뿐 아니라 seatNm(좌석 표시명)도 함께 조회해서 학생이 실제
+     * 앉은 좌석의 라벨을 응답에 쓸 수 있게 한다.
+     */
+    private Map<String, SeatStatusResponse> buildSeatInfoMap(Store store) {
+        Map<String, SeatStatusResponse> seatCdToInfo = new HashMap<>();
 
         if (!store.hasDsaCredentials()) {
-            return seatCdToState;
+            return seatCdToInfo;
         }
 
         List<AreaResponse> areas = dsaAreaService.findAreas(store);
@@ -108,22 +117,42 @@ public class AttendanceAdminService {
                 dsaAreaService.findSeatStatusByArea(area.areaCd(), store);
             for (SeatStatusResponse seat : seats) {
                 if (seat.seatCd() != null) {
-                    seatCdToState.put(seat.seatCd(), seat.state());
+                    seatCdToInfo.put(seat.seatCd(), seat);
                 }
             }
         }
 
-        return seatCdToState;
+        return seatCdToInfo;
+    }
+
+    /**
+     * DSA 3.20 getStdInfoList 응답을 rfidNo → seatCd 매핑으로 변환.
+     * 출결 상태 조회 시 DSA를 source of truth로 사용하기 위함 (우리 DB의
+     * student.assignedSeat이 DSA와 어긋나 있을 수 있으므로).
+     */
+    private Map<String, String> buildDsaSeatAssignmentMap(Store store) {
+        if (!store.hasDsaCredentials()) {
+            return Map.of();
+        }
+        List<DsaStudentData> dsaStudents = dsaStudentService.findAllStudents(store);
+        Map<String, String> result = new HashMap<>();
+        for (DsaStudentData dsa : dsaStudents) {
+            if (dsa.rfidNo() == null || dsa.seatCd() == null) {
+                continue;
+            }
+            result.put(dsa.rfidNo(), dsa.seatCd());
+        }
+        return result;
     }
 
     private AttendanceStudentResponse toResponse(Student student,
-                                                  Map<String, String> seatCdToState,
+                                                  Map<String, String> rfidToSeatCd,
+                                                  Map<String, SeatStatusResponse> seatCdToInfo,
                                                   Set<Long> phoneSubmittedStudentIds,
                                                   Map<Long, LocalDateTime> checkedInAtMap) {
-        String seatLabel = student.getAssignedSeat() != null
-            ? student.getAssignedSeat().getSeatLabel() : null;
-
-        String attendanceStatus = resolveAttendanceStatus(student, seatCdToState);
+        SeatStatusResponse dsaSeat = findDsaSeat(student, rfidToSeatCd, seatCdToInfo);
+        String seatLabel = resolveSeatLabel(student, dsaSeat);
+        String attendanceStatus = resolveAttendanceStatus(dsaSeat);
         boolean isPhoneSubmitted = phoneSubmittedStudentIds.contains(student.getId());
 
         return AttendanceStudentResponse.builder()
@@ -137,19 +166,33 @@ public class AttendanceAdminService {
             .build();
     }
 
-    private String resolveAttendanceStatus(Student student,
-                                            Map<String, String> seatCdToState) {
-        if (student.getAssignedSeat() == null
-                || student.getAssignedSeat().getSeatCd() == null) {
+    private SeatStatusResponse findDsaSeat(Student student,
+                                            Map<String, String> rfidToSeatCd,
+                                            Map<String, SeatStatusResponse> seatCdToInfo) {
+        String rfidUid = student.getRfidUid();
+        if (rfidUid == null || rfidUid.isBlank()) {
+            return null;
+        }
+        String seatCd = rfidToSeatCd.get(rfidUid);
+        if (seatCd == null) {
+            return null;
+        }
+        return seatCdToInfo.get(seatCd);
+    }
+
+    private String resolveSeatLabel(Student student, SeatStatusResponse dsaSeat) {
+        if (dsaSeat != null && dsaSeat.seatNm() != null && !dsaSeat.seatNm().isBlank()) {
+            return dsaSeat.seatNm();
+        }
+        return student.getAssignedSeat() != null
+            ? student.getAssignedSeat().getSeatLabel() : null;
+    }
+
+    private String resolveAttendanceStatus(SeatStatusResponse dsaSeat) {
+        if (dsaSeat == null || dsaSeat.state() == null) {
             return "미확인";
         }
-
-        String state = seatCdToState.get(student.getAssignedSeat().getSeatCd());
-        if (state == null) {
-            return "미확인";
-        }
-
-        return switch (state) {
+        return switch (dsaSeat.state()) {
             case "S" -> "등원";
             case "D" -> "외출";
             case "T" -> "하원";
