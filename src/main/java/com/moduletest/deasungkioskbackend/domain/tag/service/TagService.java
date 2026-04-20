@@ -327,8 +327,7 @@ public class TagService {
 
         boolean hasMatchingApproval = approved.stream()
             .anyMatch(req -> matchesAction(req.regGn(), action)
-                && isToday(req.regDt())
-                && (action == AttendAction.C || isWithin30Minutes(req.regDt())));
+                && isToday(req.regDt()));
 
         if (!hasMatchingApproval) {
             throw new AttendanceException(ErrorCode.OUTING_NOT_APPROVED);
@@ -539,29 +538,13 @@ public class TagService {
     private List<PendingAction> buildPendingActions(List<ApprovedRequest> requests,
                                                      long completedOutingCount,
                                                      long completedEarlyLeaveCount) {
-        // 당일 승인된 외출/조퇴 신청 카운트 (이미 사용한 건 차감 비교용)
-        long approvedOutingCount = requests.stream()
-            .filter(r -> isOutingType(r.regGn()) && isToday(r.regDt()))
-            .count();
-        long approvedEarlyLeaveCount = requests.stream()
-            .filter(r -> isEarlyLeaveType(r.regGn()) && isToday(r.regDt()))
-            .count();
-
         List<PendingAction> actions = new ArrayList<>();
         for (ApprovedRequest req : requests) {
             String regGn = req.regGn();
             boolean isEarlyLeave = isEarlyLeaveType(regGn);
 
-            // 조퇴: 당일 신청만 + 사용한 조퇴 수가 승인 수 이상이면 제외
-            if (isEarlyLeave && (completedEarlyLeaveCount >= approvedEarlyLeaveCount
-                    || !isToday(req.regDt()))) {
-                continue;
-            }
-
-            // 외출: 당일 신청만 + 30분 제한 + 사용한 외출 수가 승인 수 이상이면 제외
-            if (!isEarlyLeave && (completedOutingCount >= approvedOutingCount
-                    || !isToday(req.regDt())
-                    || !isWithin30Minutes(req.regDt()))) {
+            // 당일 신청만 노출
+            if (!isToday(req.regDt())) {
                 continue;
             }
 

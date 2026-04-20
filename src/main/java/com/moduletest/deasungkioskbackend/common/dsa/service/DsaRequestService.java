@@ -28,9 +28,9 @@ public class DsaRequestService {
 
     /**
      * DSA 3.16 getRequestListStd 호출.
-     * 당월 승인된(state=S) 사유신청 목록을 반환한다.
+     * 당월 사유신청 전체 목록을 state 무관하게 반환한다.
      *
-     * @return 승인된 신청 목록 (reg_cd, reg_dt, reg_gn). DSA 실패 시 빈 리스트
+     * @return 신청 목록 (reg_cd, reg_dt, reg_gn). DSA 실패 시 빈 리스트
      */
     public List<ApprovedRequest> findApprovedRequests(String rfidUid, Store store) {
         if (!store.hasDsaCredentials()) {
