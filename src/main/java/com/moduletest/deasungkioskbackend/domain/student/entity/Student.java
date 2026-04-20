@@ -34,7 +34,7 @@ public class Student extends BaseTimeEntity {
     @Column(nullable = false, length = 50)
     private String name;
 
-    @Column(name = "rfid_uid", nullable = false, unique = true, length = 50)
+    @Column(name = "rfid_uid", unique = true, length = 50)
     private String rfidUid;
 
     @Column(name = "student_number", length = 30)
@@ -89,5 +89,6 @@ public class Student extends BaseTimeEntity {
 
     public void deactivate() {
         this.active = false;
+        this.rfidUid = null;
     }
 }
