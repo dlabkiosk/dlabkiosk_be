@@ -34,18 +34,18 @@ jobs:
       - name: Copy files to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.NEW_EC2_HOST }}
+          host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.NEW_EC2_SSH_KEY }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           source: "deasung-kiosk.tar.gz,docker-compose.prod.yml"
           target: /home/${{ secrets.EC2_USER }}/projects/deasung-kiosk
 
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.NEW_EC2_HOST }}
+          host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.NEW_EC2_SSH_KEY }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/${{ secrets.EC2_USER }}/projects/deasung-kiosk
             cat > .env.prod <<'ENVEOF'
