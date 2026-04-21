@@ -6,12 +6,10 @@ import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 @Slf4j
 @RequiredArgsConstructor
-@Component
 public class DsaApiClient {
 
     private final RestTemplate dsaRestTemplate;

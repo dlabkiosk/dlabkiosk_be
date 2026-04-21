@@ -76,4 +76,9 @@ public class Notice extends BaseTimeEntity {
     public void changeCategory(NoticeCategory category) {
         this.category = category;
     }
+
+    public void changeStore(Store store) {
+        this.store = store;
+        this.category = null;
+    }
 }

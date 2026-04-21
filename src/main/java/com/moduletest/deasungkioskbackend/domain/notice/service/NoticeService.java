@@ -87,16 +87,27 @@ public class NoticeService {
     }
 
     @Transactional
-    public NoticeResponse updateNotice(Long noticeId, NoticeUpdateRequest request) {
+    public NoticeResponse updateNotice(Long noticeId, Long newStoreId, NoticeUpdateRequest request) {
         Notice notice = noticeRepository.findByIdWithStore(noticeId)
             .orElseThrow(() -> new NoticeException(ErrorCode.NOTICE_NOT_FOUND));
         validateStoreAccess(notice);
 
         notice.updateInfo(request.title(), request.content(), request.pinned(), request.active());
 
+        Long targetStoreId = notice.getStore().getId();
+        if (newStoreId != null && !newStoreId.equals(targetStoreId)) {
+            if (!SecurityUtil.isAdmin()) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+            Store newStore = storeRepository.findById(newStoreId)
+                .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
+            notice.changeStore(newStore);
+            targetStoreId = newStoreId;
+        }
+
         if (Boolean.TRUE.equals(request.updateCategory())) {
             NoticeCategory category = resolveCategory(
-                request.categoryId(), notice.getStore().getId());
+                request.categoryId(), targetStoreId);
             notice.changeCategory(category);
         }
 
