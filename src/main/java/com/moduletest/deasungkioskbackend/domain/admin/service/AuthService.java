@@ -58,7 +58,7 @@ public class AuthService {
             String.valueOf(adminUser.getId()),
             adminUser.getLoginId(),
             adminUser.getRole(),
-            adminUser.getStore().getId()
+            adminUser.getStore() != null ? adminUser.getStore().getId() : null
         );
         String refreshToken = jwtTokenProvider.createRefreshToken(
             String.valueOf(adminUser.getId())
@@ -86,7 +86,7 @@ public class AuthService {
             String.valueOf(adminUser.getId()),
             adminUser.getLoginId(),
             adminUser.getRole(),
-            adminUser.getStore().getId()
+            adminUser.getStore() != null ? adminUser.getStore().getId() : null
         );
 
         tokenRedisService.saveAdminAccessToken(

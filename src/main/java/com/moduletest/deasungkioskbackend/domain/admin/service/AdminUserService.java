@@ -22,7 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AdminUserService {
 
-    private static final Set<String> VALID_ROLES = Set.of("MANAGER", "ADMIN");
+    private static final String ROLE_ADMIN = "ADMIN";
+    private static final String ROLE_MANAGER = "MANAGER";
+    private static final Set<String> VALID_ROLES = Set.of(ROLE_MANAGER, ROLE_ADMIN);
 
     private final AdminUserRepository adminUserRepository;
     private final StoreRepository storeRepository;
@@ -38,8 +40,7 @@ public class AdminUserService {
             throw new AdminException(ErrorCode.DUPLICATE_LOGIN_ID);
         }
 
-        Store store = storeRepository.findById(request.storeId())
-            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
+        Store store = resolveStoreForRole(request.role(), request.storeId());
 
         AdminUser adminUser = AdminUser.builder()
             .loginId(request.loginId())
@@ -51,6 +52,17 @@ public class AdminUserService {
         adminUserRepository.save(adminUser);
 
         return AdminUserResponse.fromEntity(adminUser);
+    }
+
+    private Store resolveStoreForRole(String role, Long storeId) {
+        if (ROLE_ADMIN.equals(role)) {
+            return null;
+        }
+        if (storeId == null) {
+            throw new AdminException(ErrorCode.STORE_ID_REQUIRED);
+        }
+        return storeRepository.findById(storeId)
+            .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
     }
 
     public AdminUserResponse findAdminUserById(Long id) {
@@ -84,15 +96,24 @@ public class AdminUserService {
         if (request.password() != null && !request.password().isBlank()) {
             adminUser.updatePassword(passwordEncoder.encode(request.password()));
         }
-        if (request.storeId() != null) {
+
+        String finalRole = (request.role() != null && !request.role().isBlank())
+            ? request.role() : adminUser.getRole();
+        if (!VALID_ROLES.contains(finalRole)) {
+            throw new AdminException(ErrorCode.INVALID_ROLE);
+        }
+
+        if (ROLE_ADMIN.equals(finalRole)) {
+            adminUser.updateStore(null);
+        } else if (request.storeId() != null) {
             Store store = storeRepository.findById(request.storeId())
                 .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
             adminUser.updateStore(store);
+        } else if (adminUser.getStore() == null) {
+            throw new AdminException(ErrorCode.STORE_ID_REQUIRED);
         }
+
         if (request.role() != null && !request.role().isBlank()) {
-            if (!VALID_ROLES.contains(request.role())) {
-                throw new AdminException(ErrorCode.INVALID_ROLE);
-            }
             adminUser.changeRole(request.role());
         }
 
@@ -107,6 +128,13 @@ public class AdminUserService {
 
         AdminUser adminUser = adminUserRepository.findByIdWithStore(id)
             .orElseThrow(() -> new AdminException(ErrorCode.ADMIN_NOT_FOUND));
+
+        if (ROLE_ADMIN.equals(role)) {
+            adminUser.updateStore(null);
+        } else if (adminUser.getStore() == null) {
+            throw new AdminException(ErrorCode.STORE_ID_REQUIRED);
+        }
+
         adminUser.changeRole(role);
         return AdminUserResponse.fromEntity(adminUser);
     }

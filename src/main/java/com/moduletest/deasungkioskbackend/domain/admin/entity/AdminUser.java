@@ -39,7 +39,7 @@ public class AdminUser extends BaseTimeEntity {
     private String role;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "store_id", nullable = false)
+    @JoinColumn(name = "store_id")
     private Store store;
 
     @Builder

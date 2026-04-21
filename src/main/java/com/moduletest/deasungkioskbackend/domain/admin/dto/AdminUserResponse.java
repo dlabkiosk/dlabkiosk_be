@@ -17,8 +17,8 @@ public record AdminUserResponse(
             adminUser.getLoginId(),
             adminUser.getName(),
             adminUser.getRole(),
-            adminUser.getStore().getId(),
-            adminUser.getStore().getStoreName()
+            adminUser.getStore() != null ? adminUser.getStore().getId() : null,
+            adminUser.getStore() != null ? adminUser.getStore().getStoreName() : null
         );
     }
 }

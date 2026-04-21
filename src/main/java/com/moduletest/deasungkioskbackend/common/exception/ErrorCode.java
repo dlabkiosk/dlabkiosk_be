@@ -28,7 +28,7 @@ public enum ErrorCode {
     // Store
     STORE_NOT_FOUND("ST001", "지점을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     DUPLICATE_STORE_CODE("ST002", "이미 사용 중인 지점 코드입니다", HttpStatus.CONFLICT),
-    STORE_ID_REQUIRED("ST003", "ADMIN은 지점 ID를 지정해야 합니다", HttpStatus.BAD_REQUEST),
+    STORE_ID_REQUIRED("ST003", "MANAGER는 소속 지점 ID를 지정해야 합니다", HttpStatus.BAD_REQUEST),
 
 
     // Student

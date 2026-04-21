@@ -196,22 +196,18 @@ public class TagService {
         List<PendingAction> validActions = buildPendingActions(
             approvedRequests, completedOutingCount, completedEarlyLeaveCount);
 
-        // 유효한 승인 1건 → 바로 처리
-        if (validActions.size() == 1) {
-            PendingAction single = validActions.get(0);
-            return executeSingleAction(
-                single, student, store, storeId, mealInfo);
-        }
-
-        // 유효한 승인 2건 이상 → 선택지로 내려보냄
-        if (validActions.size() > 1) {
+        // 유효한 승인 있으면 하원 선택지까지 얹어서 선택지로 내려보냄
+        // (1건이어도 자동실행 X — 학생이 승인권 안 쓰고 그냥 하원하길 원할 수 있음)
+        if (!validActions.isEmpty()) {
+            List<PendingAction> actions = new ArrayList<>(validActions);
+            actions.add(new PendingAction(AttendAction.T, "하원 하시겠습니까?", null));
             return TagResponse.builder()
                 .processed(false)
                 .studentId(student.getId())
                 .studentName(student.getName())
                 .studentNumber(student.getStudentNumber())
                 .seatLabel(getSeatLabel(student))
-                .pendingActions(validActions)
+                .pendingActions(actions)
                 .dsaSynced(true)
                 .mealInfo(mealInfo)
                 .build();
@@ -507,32 +503,6 @@ public class TagService {
             .dsaSynced(response.dsaSynced())
             .mealInfo(mealInfo)
             .build();
-    }
-
-    private TagResponse executeSingleAction(PendingAction pending, Student student,
-                                             Store store, Long storeId,
-                                             MealInfo mealInfo) {
-        String conGn = switch (pending.action()) {
-            case C -> "C";
-            case N -> "N";
-            default -> "D";
-        };
-
-        AttendTagResult result = dsaAttendanceService.sendAttendTag(
-            student.getRfidUid(), store, conGn);
-        if (result.rejected()) {
-            throw new AttendanceException(ErrorCode.DSA_REJECTED);
-        }
-
-        TagResponse response;
-        if (pending.action() == AttendAction.C) {
-            response = handleCheckOut(
-                AttendAction.C, student, storeId, result.dsaSynced());
-        } else {
-            response = handleOutingStart(
-                pending.action(), student, storeId, result.dsaSynced());
-        }
-        return withMealInfo(response, mealInfo);
     }
 
     private List<PendingAction> buildPendingActions(List<ApprovedRequest> requests,
