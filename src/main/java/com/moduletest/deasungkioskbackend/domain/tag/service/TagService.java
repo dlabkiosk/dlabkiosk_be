@@ -71,6 +71,8 @@ public class TagService {
     private final MealUnappliedLogService mealUnappliedLogService;
     private final SeatLeaveRepository seatLeaveRepository;
 
+    private static final LocalTime FORCED_CHECKOUT_TIME = LocalTime.of(21, 50);
+
     @Transactional
     public TagResponse processTag(TagRequest request, Long storeId) {
         Student student = studentResolverService.resolveAuto(
@@ -141,15 +143,43 @@ public class TagService {
             return withMealInfo(response, mealInfo);
         }
 
-        // 3. 등원 상태 + 식사시간 → 급식 체크 우선, 외출/조퇴/하원은 pendingActions로
+        // 4. 21:50 이후 등원 상태 → 무조건 하원 (식사시간/승인권 무시)
+        if (!LocalTime.now().isBefore(FORCED_CHECKOUT_TIME)) {
+            return handleForcedCheckout(student, store, storeId, mealInfo);
+        }
+
+        // 5. 등원 상태 + 식사시간 → 급식 체크 우선, 외출/조퇴/하원은 pendingActions로
         if (mealType != null) {
             recordMealUnappliedIfNeeded(student, store, mealType, mealInfo, today, null);
             return handleMealTimeTag(mealType, mealInfo, student, store, storeId,
                 startOfDay, endOfDay);
         }
 
-        // 4. 식사시간 아님 → 기존 로직 (승인신청 확인 → 하원)
+        // 6. 식사시간 아님 → 기존 로직 (승인신청 확인 → 하원)
         return handleCheckedInTag(student, store, storeId, startOfDay, endOfDay, null);
+    }
+
+    private TagResponse handleForcedCheckout(Student student, Store store, Long storeId,
+                                             MealInfo mealInfo) {
+        AttendTagResult result = dsaAttendanceService.sendAttendTag(
+            student.getRfidUid(), store, "T");
+
+        if (!result.dsaSynced()) {
+            log.warn("강제 하원 DSA 동기화 실패. studentId: {}, storeId: {}",
+                student.getId(), storeId);
+            return TagResponse.builder()
+                .processed(false)
+                .studentId(student.getId())
+                .studentName(student.getName())
+                .studentNumber(student.getStudentNumber())
+                .seatLabel(getSeatLabel(student))
+                .dsaSynced(false)
+                .messages(List.of("출결 처리 실패. 잠시 후 다시 시도해주세요."))
+                .build();
+        }
+
+        TagResponse response = handleCheckOut(AttendAction.T, student, storeId, true);
+        return withMealInfo(response, mealInfo);
     }
 
     private TagResponse handleMealTimeTag(MealType mealType, MealInfo mealInfo,
