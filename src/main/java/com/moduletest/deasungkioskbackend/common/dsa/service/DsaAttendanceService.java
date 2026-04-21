@@ -98,6 +98,15 @@ public class DsaAttendanceService {
             AttendAction action = AttendAction.fromCode(attGn);
             log.info("DSA 출결 판별: {} ({}). rfidUid: {}, storeId: {}",
                 action.name(), action.getLabel(), rfidUid, store.getId());
+
+            // DSA가 A(지각) 판별한 경우 추적용 기록 — 우리 DB는 등원(S)과 동일 저장
+            if (action == AttendAction.A) {
+                dsaAnomalyLogService.log(
+                    store.getId(), rfidUid, SET_ATTEND_STD_PATH,
+                    "LATE_CHECKIN_AS_CHECKIN", params, response,
+                    "DSA 판별 A(지각) — 우리 DB는 등원(S)과 동일 처리");
+            }
+
             return AttendTagResult.success(action);
 
         } catch (DsaApiException e) {

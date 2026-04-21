@@ -1,5 +1,6 @@
 package com.moduletest.deasungkioskbackend.domain.tag.service;
 
+import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAnomalyLogService;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAttendanceService;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAttendanceService.AttendTagResult;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaMealService;
@@ -44,6 +45,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -67,6 +69,7 @@ public class TagService {
     private final DsaAttendanceService dsaAttendanceService;
     private final DsaMealService dsaMealService;
     private final DsaRequestService dsaRequestService;
+    private final DsaAnomalyLogService dsaAnomalyLogService;
     private final MealTagRepository mealTagRepository;
     private final MealUnappliedLogService mealUnappliedLogService;
     private final SeatLeaveRepository seatLeaveRepository;
@@ -161,6 +164,26 @@ public class TagService {
 
     private TagResponse handleForcedCheckout(Student student, Store store, Long storeId,
                                              MealInfo mealInfo) {
+        // 21:50 이후 강제 하원 시 사유신청(조퇴/외출) 있는 케이스 기록
+        // — T로 강제 하원하면 대기 중인 사유신청이 소멸되므로 추적 필요
+        List<ApprovedRequest> pending = dsaRequestService
+            .findApprovedRequests(student.getRfidUid(), store);
+        List<ApprovedRequest> todayPending = pending.stream()
+            .filter(req -> isToday(req.regDt()))
+            .filter(req -> isEarlyLeaveType(req.regGn()) || isOutingType(req.regGn()))
+            .toList();
+        if (!todayPending.isEmpty()) {
+            log.info("21:50 강제 하원 - 사유신청 있는 학생. studentId: {}, storeId: {}, pending: {}",
+                student.getId(), storeId, todayPending);
+            dsaAnomalyLogService.log(
+                storeId, student.getRfidUid(), "/forced-checkout",
+                "FORCED_CHECKOUT_WITH_PENDING",
+                Map.of("studentId", student.getId(), "studentName", student.getName(),
+                    "studentNumber", student.getStudentNumber()),
+                todayPending,
+                "21:50 이후 강제 하원 - 오늘 사유신청 " + todayPending.size() + "건 존재");
+        }
+
         AttendTagResult result = dsaAttendanceService.sendAttendTag(
             student.getRfidUid(), store, "T");
 
@@ -226,18 +249,16 @@ public class TagService {
         List<PendingAction> validActions = buildPendingActions(
             approvedRequests, completedOutingCount, completedEarlyLeaveCount);
 
-        // 유효한 승인 있으면 하원 선택지까지 얹어서 선택지로 내려보냄
-        // (1건이어도 자동실행 X — 학생이 승인권 안 쓰고 그냥 하원하길 원할 수 있음)
+        // 유효한 승인 있으면 선택지로 내려보냄 (하원 버튼은 포함하지 않음)
+        // 사유신청 있는 학생은 승인권으로 처리, 일반 하원은 데스크 안내
         if (!validActions.isEmpty()) {
-            List<PendingAction> actions = new ArrayList<>(validActions);
-            actions.add(new PendingAction(AttendAction.T, "하원 하시겠습니까?", null));
             return TagResponse.builder()
                 .processed(false)
                 .studentId(student.getId())
                 .studentName(student.getName())
                 .studentNumber(student.getStudentNumber())
                 .seatLabel(getSeatLabel(student))
-                .pendingActions(actions)
+                .pendingActions(validActions)
                 .dsaSynced(true)
                 .mealInfo(mealInfo)
                 .build();
