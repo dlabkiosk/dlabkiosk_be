@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -21,6 +22,7 @@ public final class DsaStudentService {
     private static final String GET_STD_INFO_LIST_PATH = "/kiosk/getStdInfoList";
     private static final String GET_STD_INFO_PATH = "/kiosk/getStdInfo";
 
+    @Qualifier("dsaSyncApiClient")
     private final DsaApiClient dsaApiClient;
 
     /**

@@ -61,11 +61,13 @@ public class NoticeAdminController {
         return CommonResponse.success(notice);
     }
 
-    @Operation(summary = "공지사항 수정", description = "공지사항을 수정한다.")
+    @Operation(summary = "공지사항 수정",
+        description = "공지사항을 수정한다. storeId 전달 시 지점 이동(ADMIN 전용, 기존 카테고리 자동 해제).")
     @PutMapping("/{noticeId}")
     public CommonResponse<NoticeResponse> updateNotice(@PathVariable Long noticeId,
+        @RequestParam(required = false) Long storeId,
         @Valid @RequestBody NoticeUpdateRequest request) {
-        NoticeResponse notice = noticeService.updateNotice(noticeId, request);
+        NoticeResponse notice = noticeService.updateNotice(noticeId, storeId, request);
         return CommonResponse.success(notice);
     }
 

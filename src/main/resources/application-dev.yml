@@ -24,8 +24,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 50MB
-      max-request-size: 50MB
+      max-file-size: 100MB
+      max-request-size: 100MB
 
   flyway:
     enabled: true
@@ -76,3 +76,6 @@ dsa:
     base-url: https://devapi.dshw.co.kr
     connect-timeout: 3000
     read-timeout: 5000
+    sync:
+      connect-timeout: 5000
+      read-timeout: 60000

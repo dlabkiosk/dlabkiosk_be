@@ -554,14 +554,11 @@ public class TagService {
             if (isEarlyLeave) {
                 action = AttendAction.C;
                 message = "조퇴 하시겠습니까?";
-            } else if ("4".equals(regGn) || "7".equals(regGn)
-                || "D".equalsIgnoreCase(regGn) || "N".equalsIgnoreCase(regGn)
-                || "외출".equals(regGn)) {
+            } else if (isOutingType(regGn)) {
                 action = AttendAction.D;
                 message = "외출 하시겠습니까?";
             } else {
-                action = AttendAction.D;
-                message = "승인된 신청이 있습니다. 외출 하시겠습니까?";
+                continue;
             }
 
             actions.add(new PendingAction(action, message, req.regCd()));

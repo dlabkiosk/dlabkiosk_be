@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -20,6 +21,7 @@ public final class DsaStoreService {
 
     private static final String GET_DLAB_LIST_PATH = "/kiosk/getDlabList";
 
+    @Qualifier("dsaSyncApiClient")
     private final DsaApiClient dsaApiClient;
 
     /**
