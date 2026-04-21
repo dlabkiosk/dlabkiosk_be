@@ -105,7 +105,7 @@ public class NoticeService {
             targetStoreId = newStoreId;
         }
 
-        if (Boolean.TRUE.equals(request.updateCategory())) {
+        if (request.categoryId() != null) {
             NoticeCategory category = resolveCategory(
                 request.categoryId(), targetStoreId);
             notice.changeCategory(category);
