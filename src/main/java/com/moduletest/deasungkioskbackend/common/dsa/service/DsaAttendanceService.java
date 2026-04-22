@@ -6,6 +6,7 @@ import com.moduletest.deasungkioskbackend.common.dsa.exception.DsaApiException;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.tag.entity.AttendAction;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -23,6 +24,7 @@ public class DsaAttendanceService {
     private static final String SET_RE_ATTEND_PROC_PATH = "/kiosk/setReAttendProc";
     private static final int CODE_ALREADY_EARLY_LEFT = 121;
     private static final int CODE_NO_APPROVAL = 130;
+    private static final LocalTime LATE_CUTOFF = LocalTime.of(8, 0);
     private static final DateTimeFormatter TAG_DT_FORMAT =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -99,12 +101,13 @@ public class DsaAttendanceService {
             log.info("DSA 출결 판별: {} ({}). rfidUid: {}, storeId: {}",
                 action.name(), action.getLabel(), rfidUid, store.getId());
 
-            // DSA가 A(지각) 판별한 경우 추적용 기록 — 우리 DB는 등원(S)과 동일 저장
-            if (action == AttendAction.A) {
+            // 지각 시간대(08:00~)인데 DSA가 S(등원)로 판별한 경우 추적용 기록
+            // — A가 와야 정상인데 S로 오면 우리 DB에 지각 흔적이 남지 않음
+            if (action == AttendAction.S && !LocalTime.now().isBefore(LATE_CUTOFF)) {
                 dsaAnomalyLogService.log(
                     store.getId(), rfidUid, SET_ATTEND_STD_PATH,
-                    "LATE_CHECKIN_AS_CHECKIN", params, response,
-                    "DSA 판별 A(지각) — 우리 DB는 등원(S)과 동일 처리");
+                    "CHECKIN_DURING_LATE_WINDOW", params, response,
+                    "지각 시간대(08:00~)인데 DSA가 S(등원)로 판별 — 지각 미기록 의심");
             }
 
             return AttendTagResult.success(action);
