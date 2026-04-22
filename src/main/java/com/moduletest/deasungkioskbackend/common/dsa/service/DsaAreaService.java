@@ -55,7 +55,7 @@ public final class DsaAreaService {
                 areas.add(new AreaResponse(areaCd, areaNm));
             }
 
-            log.info("DSA 구역 조회 완료: {}건. storeId: {}", areas.size(), store.getId());
+            log.debug("DSA 구역 조회 완료: {}건. storeId: {}", areas.size(), store.getId());
             return areas;
 
         } catch (DsaApiException e) {
@@ -126,7 +126,7 @@ public final class DsaAreaService {
                     null, null, null));
             }
 
-            log.info("DSA 좌석 조회 완료: {}건. areaCd: {}, storeId: {}",
+            log.debug("DSA 좌석 조회 완료: {}건. areaCd: {}, storeId: {}",
                 result.size(), areaCd, store.getId());
             return result;
 

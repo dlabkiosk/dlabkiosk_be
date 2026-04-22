@@ -48,19 +48,19 @@ public final class DsaStudentService {
             }
 
             List<DsaStudentData> students = new ArrayList<>();
+            int skipped = 0;
             for (Map<String, Object> item : response.getDataAsList()) {
                 log.debug("DSA 학생 원본 데이터: {}", item);
                 DsaStudentData data = DsaStudentData.fromMap(item);
-                log.info("DSA 학생 파싱 결과 - name: {}, seatCd: {}", data.stdNm(), data.seatCd());
                 if (data.rfidNo() != null && data.stdNm() != null) {
                     students.add(data);
                 } else {
-                    log.warn("DSA 학생 데이터 누락 (rfidNo 또는 stdNm 없음): {}. storeId: {}",
-                        item, store.getId());
+                    skipped++;
                 }
             }
 
-            log.info("DSA 학생 조회 완료: {}건. storeId: {}", students.size(), store.getId());
+            log.info("DSA 학생 조회 완료: {}건 (누락 {}건). storeId: {}",
+                students.size(), skipped, store.getId());
             return students;
 
         } catch (DsaApiException e) {
