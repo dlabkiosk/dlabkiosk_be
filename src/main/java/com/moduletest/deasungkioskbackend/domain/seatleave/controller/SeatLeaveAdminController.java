@@ -35,7 +35,9 @@ public class SeatLeaveAdminController {
 
     @Operation(summary = "좌석이탈 현황 조회 (페이지네이션)",
         description = "기간별 좌석이탈 현황을 조회한다. 날짜 미지정 시 당일 기준. "
-            + "MANAGER: 자기 지점만. ADMIN: 전체 지점. "
+            + "MANAGER: 자기 지점만 (storeId 파라미터 무시). "
+            + "ADMIN: storeId 없으면 전체, 있으면 해당 지점만. "
+            + "studentName/studentNumber 는 부분일치 검색. "
             + "페이지네이션: ?page=0&size=20&sort=startedAt,desc")
     @GetMapping
     public CommonResponse<PageResponse<SeatLeaveResponse>> findAllSeatLeaves(
@@ -43,14 +45,18 @@ public class SeatLeaveAdminController {
         LocalDate startDate,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
         LocalDate endDate,
+        @RequestParam(required = false) Long storeId,
+        @RequestParam(required = false) String studentName,
+        @RequestParam(required = false) String studentNumber,
         @ParameterObject @PageableDefault(size = 20, sort = "startedAt",
             direction = org.springframework.data.domain.Sort.Direction.DESC)
         Pageable pageable) {
-        Long storeId = SecurityUtil.resolveStoreId(null);
+        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
         LocalDate start = startDate != null ? startDate : LocalDate.now();
         LocalDate end = endDate != null ? endDate : LocalDate.now();
         Page<SeatLeaveResponse> page = seatLeaveService
-            .findAllByPeriod(storeId, start, end, pageable);
+            .findAllByPeriod(resolvedStoreId, start, end,
+                studentName, studentNumber, pageable);
         return CommonResponse.success(PageResponse.from(page));
     }
 

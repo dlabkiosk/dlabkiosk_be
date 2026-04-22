@@ -183,17 +183,18 @@ public class PhoneSubmissionService {
     }
 
     public Page<PhoneSubmissionResponse> findAllByPeriod(Long storeId,
-        LocalDate startDate, LocalDate endDate, Pageable pageable) {
+        LocalDate startDate, LocalDate endDate,
+        String studentName, String studentNumber, Pageable pageable) {
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.plusDays(1).atStartOfDay();
-        Page<PhoneSubmission> page;
-        if (storeId != null) {
-            page = phoneSubmissionRepository.findPageByStoreIdAndPeriod(
-                storeId, start, end, pageable);
-        } else {
-            page = phoneSubmissionRepository.findPageByPeriod(start, end, pageable);
-        }
+        Page<PhoneSubmission> page = phoneSubmissionRepository.findPageByFilter(
+            storeId, start, end,
+            blankToNull(studentName), blankToNull(studentNumber), pageable);
         return page.map(PhoneSubmissionResponse::fromEntity);
+    }
+
+    private String blankToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value.trim();
     }
 
     public byte[] exportToExcel(Long storeId, LocalDate startDate, LocalDate endDate) {

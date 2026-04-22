@@ -132,17 +132,18 @@ public class SeatLeaveService {
     }
 
     public Page<SeatLeaveResponse> findAllByPeriod(Long storeId,
-        LocalDate startDate, LocalDate endDate, Pageable pageable) {
+        LocalDate startDate, LocalDate endDate,
+        String studentName, String studentNumber, Pageable pageable) {
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.plusDays(1).atStartOfDay();
-        Page<SeatLeave> page;
-        if (storeId != null) {
-            page = seatLeaveRepository.findPageByStoreIdAndPeriod(
-                storeId, start, end, pageable);
-        } else {
-            page = seatLeaveRepository.findPageByPeriod(start, end, pageable);
-        }
+        Page<SeatLeave> page = seatLeaveRepository.findPageByFilter(
+            storeId, start, end,
+            blankToNull(studentName), blankToNull(studentNumber), pageable);
         return page.map(SeatLeaveResponse::fromEntity);
+    }
+
+    private String blankToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value.trim();
     }
 
     public byte[] exportToExcel(Long storeId, LocalDate startDate, LocalDate endDate) {

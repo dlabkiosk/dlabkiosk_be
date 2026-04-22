@@ -62,28 +62,25 @@ public interface SeatLeaveRepository extends JpaRepository<SeatLeave, Long> {
         @Param("endDate") LocalDateTime endDate);
 
     @Query(value = "SELECT sl FROM SeatLeave sl "
-        + "JOIN FETCH sl.student JOIN FETCH sl.seat JOIN FETCH sl.reason "
+        + "JOIN FETCH sl.student s JOIN FETCH sl.seat JOIN FETCH sl.reason "
         + "JOIN FETCH sl.store "
-        + "WHERE sl.store.id = :storeId "
-        + "AND sl.startedAt >= :startDate AND sl.startedAt < :endDate",
-        countQuery = "SELECT COUNT(sl) FROM SeatLeave sl "
-            + "WHERE sl.store.id = :storeId "
-            + "AND sl.startedAt >= :startDate AND sl.startedAt < :endDate")
-    Page<SeatLeave> findPageByStoreIdAndPeriod(
+        + "WHERE sl.startedAt >= :startDate AND sl.startedAt < :endDate "
+        + "AND (:storeId IS NULL OR sl.store.id = :storeId) "
+        + "AND (:studentName IS NULL OR s.name LIKE CONCAT('%', :studentName, '%')) "
+        + "AND (:studentNumber IS NULL "
+        + "    OR s.studentNumber LIKE CONCAT('%', :studentNumber, '%'))",
+        countQuery = "SELECT COUNT(sl) FROM SeatLeave sl JOIN sl.student s "
+            + "WHERE sl.startedAt >= :startDate AND sl.startedAt < :endDate "
+            + "AND (:storeId IS NULL OR sl.store.id = :storeId) "
+            + "AND (:studentName IS NULL OR s.name LIKE CONCAT('%', :studentName, '%')) "
+            + "AND (:studentNumber IS NULL "
+            + "    OR s.studentNumber LIKE CONCAT('%', :studentNumber, '%'))")
+    Page<SeatLeave> findPageByFilter(
         @Param("storeId") Long storeId,
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate,
-        Pageable pageable);
-
-    @Query(value = "SELECT sl FROM SeatLeave sl "
-        + "JOIN FETCH sl.student JOIN FETCH sl.seat JOIN FETCH sl.reason "
-        + "JOIN FETCH sl.store "
-        + "WHERE sl.startedAt >= :startDate AND sl.startedAt < :endDate",
-        countQuery = "SELECT COUNT(sl) FROM SeatLeave sl "
-            + "WHERE sl.startedAt >= :startDate AND sl.startedAt < :endDate")
-    Page<SeatLeave> findPageByPeriod(
-        @Param("startDate") LocalDateTime startDate,
-        @Param("endDate") LocalDateTime endDate,
+        @Param("studentName") String studentName,
+        @Param("studentNumber") String studentNumber,
         Pageable pageable);
 
     @Query("SELECT sl FROM SeatLeave sl "

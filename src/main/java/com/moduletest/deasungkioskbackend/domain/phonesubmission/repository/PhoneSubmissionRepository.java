@@ -103,25 +103,22 @@ public interface PhoneSubmissionRepository extends JpaRepository<PhoneSubmission
     @Query(value = "SELECT ps FROM PhoneSubmission ps "
         + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
         + "JOIN FETCH ps.store "
-        + "WHERE ps.store.id = :storeId "
-        + "AND ps.submittedAt >= :startDate AND ps.submittedAt < :endDate",
-        countQuery = "SELECT COUNT(ps) FROM PhoneSubmission ps "
-            + "WHERE ps.store.id = :storeId "
-            + "AND ps.submittedAt >= :startDate AND ps.submittedAt < :endDate")
-    Page<PhoneSubmission> findPageByStoreIdAndPeriod(
+        + "WHERE ps.submittedAt >= :startDate AND ps.submittedAt < :endDate "
+        + "AND (:storeId IS NULL OR ps.store.id = :storeId) "
+        + "AND (:studentName IS NULL OR s.name LIKE CONCAT('%', :studentName, '%')) "
+        + "AND (:studentNumber IS NULL "
+        + "    OR s.studentNumber LIKE CONCAT('%', :studentNumber, '%'))",
+        countQuery = "SELECT COUNT(ps) FROM PhoneSubmission ps JOIN ps.student s "
+            + "WHERE ps.submittedAt >= :startDate AND ps.submittedAt < :endDate "
+            + "AND (:storeId IS NULL OR ps.store.id = :storeId) "
+            + "AND (:studentName IS NULL OR s.name LIKE CONCAT('%', :studentName, '%')) "
+            + "AND (:studentNumber IS NULL "
+            + "    OR s.studentNumber LIKE CONCAT('%', :studentNumber, '%'))")
+    Page<PhoneSubmission> findPageByFilter(
         @Param("storeId") Long storeId,
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate,
-        Pageable pageable);
-
-    @Query(value = "SELECT ps FROM PhoneSubmission ps "
-        + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
-        + "JOIN FETCH ps.store "
-        + "WHERE ps.submittedAt >= :startDate AND ps.submittedAt < :endDate",
-        countQuery = "SELECT COUNT(ps) FROM PhoneSubmission ps "
-            + "WHERE ps.submittedAt >= :startDate AND ps.submittedAt < :endDate")
-    Page<PhoneSubmission> findPageByPeriod(
-        @Param("startDate") LocalDateTime startDate,
-        @Param("endDate") LocalDateTime endDate,
+        @Param("studentName") String studentName,
+        @Param("studentNumber") String studentNumber,
         Pageable pageable);
 }
