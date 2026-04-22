@@ -621,8 +621,14 @@ public class TagService {
                 if (addedOuting >= remainingOuting) {
                     continue;
                 }
-                action = AttendAction.D;
-                message = "외출 하시겠습니까?";
+                // 사유외출권(regGn=7)은 N, 일반외출권(regGn=4 등)은 D
+                if ("7".equals(regGn) || "N".equalsIgnoreCase(regGn)) {
+                    action = AttendAction.N;
+                    message = "사유 외출 하시겠습니까?";
+                } else {
+                    action = AttendAction.D;
+                    message = "외출 하시겠습니까?";
+                }
                 addedOuting++;
             } else {
                 continue;
