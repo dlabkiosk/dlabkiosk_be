@@ -103,6 +103,17 @@ public class TagService {
             if (!dsaResult.dsaSynced() || dsaResult.action() != AttendAction.R) {
                 log.warn("외출 복귀 실패 - dsaSynced: {}, action: {}. studentId: {}, storeId: {}",
                     dsaResult.dsaSynced(), dsaResult.action(), student.getId(), storeId);
+                dsaAnomalyLogService.log(
+                    storeId, student.getRfidUid(), "/kiosk/tag",
+                    "RETURN_CONTEXT_NOT_R",
+                    Map.of("studentId", student.getId(),
+                        "studentName", student.getName(),
+                        "studentNumber", student.getStudentNumber(),
+                        "outingStartedAt", activeOuting.get().getStartedAt().toString(),
+                        "dsaSynced", dsaResult.dsaSynced(),
+                        "dsaAction", String.valueOf(dsaResult.action())),
+                    dsaResult,
+                    "외출 중 상태에서 복귀 태그인데 DSA가 R 아닌 응답 반환 — DSA-우리 DB 상태 불일치");
                 throw new AttendanceException(ErrorCode.DSA_SYNC_FAILED);
             }
             TagResponse response = handleOutingEnd(
@@ -560,7 +571,28 @@ public class TagService {
     private List<PendingAction> buildPendingActions(List<ApprovedRequest> requests,
                                                      long completedOutingCount,
                                                      long completedEarlyLeaveCount) {
+        // 당일 승인권 수 집계
+        long approvedOutingCount = 0;
+        long approvedEarlyLeaveCount = 0;
+        for (ApprovedRequest req : requests) {
+            if (!isToday(req.regDt())) {
+                continue;
+            }
+            if (isEarlyLeaveType(req.regGn())) {
+                approvedEarlyLeaveCount++;
+            } else if (isOutingType(req.regGn())) {
+                approvedOutingCount++;
+            }
+        }
+
+        // 잔여 = 당일 승인권 − 완료 건수 (음수 방지)
+        long remainingOuting = Math.max(0, approvedOutingCount - completedOutingCount);
+        long remainingEarlyLeave = Math.max(0, approvedEarlyLeaveCount - completedEarlyLeaveCount);
+
         List<PendingAction> actions = new ArrayList<>();
+        long addedOuting = 0;
+        long addedEarlyLeave = 0;
+
         for (ApprovedRequest req : requests) {
             String regGn = req.regGn();
             boolean isEarlyLeave = isEarlyLeaveType(regGn);
@@ -579,11 +611,19 @@ public class TagService {
             String message;
 
             if (isEarlyLeave) {
+                if (addedEarlyLeave >= remainingEarlyLeave) {
+                    continue;
+                }
                 action = AttendAction.C;
                 message = "조퇴 하시겠습니까?";
+                addedEarlyLeave++;
             } else if (isOutingType(regGn)) {
+                if (addedOuting >= remainingOuting) {
+                    continue;
+                }
                 action = AttendAction.D;
                 message = "외출 하시겠습니까?";
+                addedOuting++;
             } else {
                 continue;
             }

@@ -6,7 +6,6 @@ import com.moduletest.deasungkioskbackend.common.dsa.exception.DsaApiException;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.tag.entity.AttendAction;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -23,8 +22,9 @@ public class DsaAttendanceService {
     private static final String SET_ATTEND_STD_PATH = "/kiosk/setAttendStd";
     private static final String SET_RE_ATTEND_PROC_PATH = "/kiosk/setReAttendProc";
     private static final int CODE_ALREADY_EARLY_LEFT = 121;
+    private static final int CODE_CONFIRM_EARLY_LEAVE = 128;
+    private static final int CODE_CONFIRM_OUTING = 129;
     private static final int CODE_NO_APPROVAL = 130;
-    private static final LocalTime LATE_CUTOFF = LocalTime.of(8, 0);
     private static final DateTimeFormatter TAG_DT_FORMAT =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -60,15 +60,27 @@ public class DsaAttendanceService {
                 if (response.getCode() == CODE_ALREADY_EARLY_LEFT) {
                     log.info("DSA 조퇴 후 재태그 감지 (code 121). rfidUid: {}, storeId: {}",
                         rfidUid, store.getId());
+                    dsaAnomalyLogService.log(
+                        store.getId(), rfidUid, SET_ATTEND_STD_PATH,
+                        "DSA_ALREADY_EARLY_LEFT", params, response,
+                        "DSA code 121 — DSA 쪽은 이미 조퇴 처리됨 (우리 DB와 상태 불일치 가능)");
                     return AttendTagResult.blockedByEarlyLeave();
                 }
                 if (response.getCode() == CODE_NO_APPROVAL) {
                     log.info("DSA 승인 내역 없음 (code 130). rfidUid: {}, storeId: {}",
                         rfidUid, store.getId());
+                    dsaAnomalyLogService.log(
+                        store.getId(), rfidUid, SET_ATTEND_STD_PATH,
+                        "DSA_NO_APPROVAL", params, response,
+                        "DSA code 130 — 승인 내역 없음 (top-level)");
                     return AttendTagResult.rejected(response.getMessage());
                 }
                 log.warn("DSA setAttendStd 실패 - code: {}, message: {}. storeId: {}",
                     response.getCode(), response.getMessage(), store.getId());
+                dsaAnomalyLogService.log(
+                    store.getId(), rfidUid, SET_ATTEND_STD_PATH,
+                    "DSA_UNKNOWN_FAILURE", params, response,
+                    "DSA 실패 응답 (알 수 없는 code): " + response.getCode());
                 return AttendTagResult.noDsa();
             }
 
@@ -78,7 +90,26 @@ public class DsaAttendanceService {
                 String innerMessage = extractInnerMessage(response);
                 log.info("DSA 승인 내역 없음 (data 내부 code 130). rfidUid: {}, storeId: {}",
                     rfidUid, store.getId());
+                dsaAnomalyLogService.log(
+                    store.getId(), rfidUid, SET_ATTEND_STD_PATH,
+                    "DSA_NO_APPROVAL", params, response,
+                    "DSA data 내부 code 130 — 승인 내역 없음");
                 return AttendTagResult.rejected(innerMessage);
+            }
+
+            // data 내부 code 128/129 — DSA 확인 프롬프트 (조퇴/사유외출 신청하시겠습니까?)
+            // 복귀 맥락에서 R 대신 이게 오면 DSA가 복귀를 인지 못하는 상태 불일치
+            if (innerCode != null
+                    && (innerCode == CODE_CONFIRM_EARLY_LEAVE || innerCode == CODE_CONFIRM_OUTING)) {
+                String innerMessage = extractInnerMessage(response);
+                log.info("DSA 확인 프롬프트 응답 (code {}): {}. rfidUid: {}, storeId: {}",
+                    innerCode, innerMessage, rfidUid, store.getId());
+                dsaAnomalyLogService.log(
+                    store.getId(), rfidUid, SET_ATTEND_STD_PATH,
+                    "DSA_CONFIRM_PROMPT", params, response,
+                    "DSA 확인 프롬프트 (code " + innerCode + "): " + innerMessage
+                        + " — 복귀 맥락이면 DSA가 외출 상태 인지 못함");
+                return AttendTagResult.noDsa();
             }
 
             String attGn = extractAttGn(response);
@@ -100,15 +131,6 @@ public class DsaAttendanceService {
             AttendAction action = AttendAction.fromCode(attGn);
             log.info("DSA 출결 판별: {} ({}). rfidUid: {}, storeId: {}",
                 action.name(), action.getLabel(), rfidUid, store.getId());
-
-            // 지각 시간대(08:00~)인데 DSA가 S(등원)로 판별한 경우 추적용 기록
-            // — A가 와야 정상인데 S로 오면 우리 DB에 지각 흔적이 남지 않음
-            if (action == AttendAction.S && !LocalTime.now().isBefore(LATE_CUTOFF)) {
-                dsaAnomalyLogService.log(
-                    store.getId(), rfidUid, SET_ATTEND_STD_PATH,
-                    "CHECKIN_DURING_LATE_WINDOW", params, response,
-                    "지각 시간대(08:00~)인데 DSA가 S(등원)로 판별 — 지각 미기록 의심");
-            }
 
             return AttendTagResult.success(action);
 
