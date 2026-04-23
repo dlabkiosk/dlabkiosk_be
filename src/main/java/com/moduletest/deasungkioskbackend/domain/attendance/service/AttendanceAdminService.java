@@ -13,6 +13,10 @@ import com.moduletest.deasungkioskbackend.domain.attendance.repository.Attendanc
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.repository.PhoneSubmissionRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
+import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsage;
+import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsageStatus;
+import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageRepository;
+import com.moduletest.deasungkioskbackend.domain.seat.service.SeatRedisService;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
@@ -43,6 +47,8 @@ public class AttendanceAdminService {
     private final DsaAreaService dsaAreaService;
     private final DsaStudentService dsaStudentService;
     private final PhoneSubmissionRepository phoneSubmissionRepository;
+    private final SeatUsageRepository seatUsageRepository;
+    private final SeatRedisService seatRedisService;
 
     public List<AttendanceStudentResponse> findAttendanceList(
             Long storeId, String studentName, String studentNumber,
@@ -72,12 +78,7 @@ public class AttendanceAdminService {
         Student student = studentRepository.findById(studentId)
             .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_NOT_FOUND));
 
-        if (!SecurityUtil.isAdmin()) {
-            Long currentStoreId = SecurityUtil.getCurrentStoreId();
-            if (!student.getStore().getId().equals(currentStoreId)) {
-                throw new BusinessException(ErrorCode.ACCESS_DENIED);
-            }
-        }
+        validateStoreAccess(student);
 
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
@@ -97,6 +98,80 @@ public class AttendanceAdminService {
                     attendanceRepository.save(newAttendance);
                 }
             );
+    }
+
+    /**
+     * 하원/조퇴 시각 수정 또는 하원 취소.
+     * request.checkOutAt == null 이면 하원 취소(등원 상태로 복원).
+     */
+    @Transactional
+    public void updateCheckOut(Long studentId, LocalDateTime checkOutAt, String action) {
+        Student student = studentRepository.findById(studentId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_NOT_FOUND));
+
+        validateStoreAccess(student);
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+
+        List<Attendance> checkedOutList = attendanceRepository
+            .findLatestCheckedOutToday(studentId, startOfDay, endOfDay);
+        if (checkedOutList.isEmpty()) {
+            throw new BusinessException(ErrorCode.ATTENDANCE_NOT_CHECKED_OUT);
+        }
+        Attendance target = checkedOutList.get(0);
+
+        if (checkOutAt == null) {
+            cancelCheckOut(student, target, startOfDay, endOfDay);
+        } else {
+            editCheckOutTime(target, checkOutAt, action);
+        }
+    }
+
+    private void cancelCheckOut(Student student, Attendance target,
+                                 LocalDateTime startOfDay, LocalDateTime endOfDay) {
+        boolean hasOtherCheckedIn = attendanceRepository.existsOtherCheckedInToday(
+            student.getId(), startOfDay, endOfDay, target.getId());
+        if (hasOtherCheckedIn) {
+            throw new BusinessException(ErrorCode.DUPLICATE_ACTIVE_CHECK_IN);
+        }
+
+        target.cancelCheckOut();
+
+        restoreSeatUsageAndRedis(student, startOfDay, endOfDay);
+    }
+
+    private void editCheckOutTime(Attendance target, LocalDateTime checkOutAt, String action) {
+        if (checkOutAt.isBefore(target.getCheckInAt())) {
+            throw new BusinessException(ErrorCode.INVALID_CHECK_OUT_TIME);
+        }
+        target.updateCheckOut(checkOutAt, action);
+    }
+
+    private void restoreSeatUsageAndRedis(Student student,
+                                           LocalDateTime startOfDay,
+                                           LocalDateTime endOfDay) {
+        List<SeatUsage> ended = seatUsageRepository
+            .findEndedTodayByStudentId(student.getId(), startOfDay, endOfDay);
+        if (ended.isEmpty()) {
+            log.warn("하원 취소 — 복원할 SeatUsage(ENDED) 없음. studentId: {}", student.getId());
+            return;
+        }
+        SeatUsage usage = ended.get(0);
+        usage.restoreUsage();
+        seatRedisService.markSeatInUse(
+            student.getStore().getId(), usage.getSeat().getId(),
+            student.getId(), student.getName());
+    }
+
+    private void validateStoreAccess(Student student) {
+        if (!SecurityUtil.isAdmin()) {
+            Long currentStoreId = SecurityUtil.getCurrentStoreId();
+            if (!student.getStore().getId().equals(currentStoreId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+        }
     }
 
     /**

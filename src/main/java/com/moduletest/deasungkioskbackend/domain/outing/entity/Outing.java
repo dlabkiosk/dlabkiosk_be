@@ -56,4 +56,9 @@ public class Outing extends BaseTimeEntity {
     public void endOuting(LocalDateTime endedAt) {
         this.endedAt = endedAt;
     }
+
+    public void updatePeriod(LocalDateTime startedAt, LocalDateTime endedAt) {
+        this.startedAt = startedAt;
+        this.endedAt = endedAt;
+    }
 }

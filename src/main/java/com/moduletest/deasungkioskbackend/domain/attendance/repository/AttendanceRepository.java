@@ -81,4 +81,31 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         @Param("endOfDay") LocalDateTime endOfDay,
         @Param("status") AttendanceStatus status
     );
+
+    @Query("SELECT a FROM Attendance a "
+        + "JOIN FETCH a.student "
+        + "JOIN FETCH a.store "
+        + "WHERE a.student.id = :studentId "
+        + "AND a.checkInAt >= :startOfDay "
+        + "AND a.checkInAt < :endOfDay "
+        + "AND a.status = 'CHECKED_OUT' "
+        + "ORDER BY a.checkOutAt DESC")
+    List<Attendance> findLatestCheckedOutToday(
+        @Param("studentId") Long studentId,
+        @Param("startOfDay") LocalDateTime startOfDay,
+        @Param("endOfDay") LocalDateTime endOfDay
+    );
+
+    @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM Attendance a "
+        + "WHERE a.student.id = :studentId "
+        + "AND a.checkInAt >= :startOfDay "
+        + "AND a.checkInAt < :endOfDay "
+        + "AND a.status = 'CHECKED_IN' "
+        + "AND a.id <> :excludeAttendanceId")
+    boolean existsOtherCheckedInToday(
+        @Param("studentId") Long studentId,
+        @Param("startOfDay") LocalDateTime startOfDay,
+        @Param("endOfDay") LocalDateTime endOfDay,
+        @Param("excludeAttendanceId") Long excludeAttendanceId
+    );
 }

@@ -64,4 +64,11 @@ public interface OutingRepository extends JpaRepository<Outing, Long> {
         @Param("startOfDay") LocalDateTime startOfDay,
         @Param("endOfDay") LocalDateTime endOfDay
     );
+
+    @Query("SELECT o FROM Outing o "
+        + "JOIN FETCH o.student s "
+        + "JOIN FETCH s.store "
+        + "JOIN FETCH o.store "
+        + "WHERE o.id = :id")
+    Optional<Outing> findByIdWithStudentAndStore(@Param("id") Long id);
 }

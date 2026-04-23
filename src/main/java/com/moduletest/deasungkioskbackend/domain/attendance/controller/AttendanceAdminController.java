@@ -3,6 +3,7 @@ package com.moduletest.deasungkioskbackend.domain.attendance.controller;
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.attendance.dto.AdminUpdateCheckInTimeRequest;
+import com.moduletest.deasungkioskbackend.domain.attendance.dto.AdminUpdateCheckOutRequest;
 import com.moduletest.deasungkioskbackend.domain.attendance.dto.AttendanceStudentResponse;
 import com.moduletest.deasungkioskbackend.domain.attendance.service.AttendanceAdminService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -66,6 +67,22 @@ public final class AttendanceAdminController {
         @Valid @RequestBody AdminUpdateCheckInTimeRequest request) {
 
         attendanceAdminService.updateCheckInTime(request.studentId(), request.checkInAt());
+        return CommonResponse.success(null);
+    }
+
+    @Operation(summary = "하원/조퇴 시각 수정 또는 하원 취소",
+        description = "학생의 당일 최신 하원(또는 조퇴) 기록을 수정합니다.\n\n"
+            + "- checkOutAt에 시각을 넣으면: 하원 시각 수정 (checkOutAction으로 유형 변경도 가능. T=하원, C=조퇴)\n"
+            + "- checkOutAt을 null로 보내면: 하원 취소 → 등원중 상태로 복원.\n"
+            + "  Attendance status=CHECKED_IN 으로 되돌리고, 좌석(SeatUsage + Redis)도 IN_USE로 복원합니다.\n\n"
+            + "⚠ 하원 취소 시 학생에게 이미 다른 CHECKED_IN 기록이 있으면 거절합니다 (이중 등원 방지).\n"
+            + "DSA 상태와 어긋나지 않으려면 DSA 쪽을 먼저 수정한 뒤 이 API를 호출하세요.")
+    @PutMapping("/check-out")
+    public CommonResponse<Void> updateCheckOut(
+        @Valid @RequestBody AdminUpdateCheckOutRequest request) {
+
+        attendanceAdminService.updateCheckOut(
+            request.studentId(), request.checkOutAt(), request.checkOutAction());
         return CommonResponse.success(null);
     }
 }

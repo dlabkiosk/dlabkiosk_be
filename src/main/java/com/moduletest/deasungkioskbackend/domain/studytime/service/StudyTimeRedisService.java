@@ -38,6 +38,25 @@ public class StudyTimeRedisService {
     }
 
     /**
+     * 외출 차감 시간 롤백 (분 단위).
+     * 기존 값이 롤백 분보다 작으면 0으로 설정한다.
+     * 어드민이 완료된 외출을 취소/수정할 때 사용.
+     */
+    public void subtractOutingDeduction(Long storeId, Long studentId,
+                                        LocalDateTime startedAt, LocalDateTime endedAt) {
+        long minutes = calculateMinutes(startedAt, endedAt);
+        if (minutes == 0) {
+            return;
+        }
+        String key = buildKey(storeId);
+        String field = OUTING_FIELD_PREFIX + studentId;
+        long current = getFieldValue(key, field);
+        long next = Math.max(current - minutes, 0L);
+        redisTemplate.opsForHash().put(key, field, String.valueOf(next));
+        expireAtMidnight(key);
+    }
+
+    /**
      * 좌석이탈 차감 시간 누적 (분 단위)
      */
     public void addSeatLeaveDeduction(Long storeId, Long studentId,

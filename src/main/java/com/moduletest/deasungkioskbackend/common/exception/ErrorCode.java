@@ -45,6 +45,13 @@ public enum ErrorCode {
         HttpStatus.BAD_REQUEST),
     ALREADY_CHECKED_IN("ATT002", "이미 등원 처리된 학생입니다", HttpStatus.CONFLICT),
     NOT_CHECKED_IN("ATT003", "등원 기록이 없습니다", HttpStatus.BAD_REQUEST),
+    ATTENDANCE_NOT_FOUND("ATT008", "출결 기록을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+    ATTENDANCE_NOT_CHECKED_OUT("ATT009", "하원 처리된 기록이 없습니다", HttpStatus.BAD_REQUEST),
+    DUPLICATE_ACTIVE_CHECK_IN("ATT010",
+        "이미 재등원된 상태라 하원 취소할 수 없습니다. 최신 등원 기록을 먼저 정리해주세요",
+        HttpStatus.CONFLICT),
+    INVALID_CHECK_OUT_TIME("ATT011",
+        "하원 시각은 등원 시각 이후여야 합니다", HttpStatus.BAD_REQUEST),
 
 
     // Seat
@@ -60,6 +67,9 @@ public enum ErrorCode {
     NOT_CHECKED_IN_FOR_OUTING("OT001", "등원 상태가 아니므로 외출할 수 없습니다", HttpStatus.BAD_REQUEST),
     ALREADY_ON_OUTING("OT002", "이미 외출 중입니다", HttpStatus.CONFLICT),
     NOT_ON_OUTING("OT003", "진행 중인 외출이 없습니다", HttpStatus.BAD_REQUEST),
+    OUTING_NOT_FOUND("OT008", "외출 기록을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+    INVALID_OUTING_PERIOD("OT009",
+        "외출 종료 시각은 시작 시각 이후여야 합니다", HttpStatus.BAD_REQUEST),
 
 
     // Kiosk

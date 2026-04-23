@@ -66,6 +66,11 @@ public class SeatUsage extends BaseTimeEntity {
         this.endedAt = endedAt;
     }
 
+    public void restoreUsage() {
+        this.status = SeatUsageStatus.IN_USE;
+        this.endedAt = null;
+    }
+
     public void changeSeat(Seat newSeat) {
         this.seat = newSeat;
     }
