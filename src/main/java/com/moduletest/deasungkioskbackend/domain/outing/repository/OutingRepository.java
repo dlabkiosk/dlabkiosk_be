@@ -71,4 +71,32 @@ public interface OutingRepository extends JpaRepository<Outing, Long> {
         + "JOIN FETCH o.store "
         + "WHERE o.id = :id")
     Optional<Outing> findByIdWithStudentAndStore(@Param("id") Long id);
+
+    @Query("SELECT o FROM Outing o "
+        + "JOIN FETCH o.student s "
+        + "JOIN FETCH s.store "
+        + "JOIN FETCH o.store "
+        + "WHERE o.student.id = :studentId "
+        + "AND o.startedAt >= :startOfDay "
+        + "AND o.startedAt < :endOfDay "
+        + "ORDER BY o.startedAt DESC")
+    List<Outing> findLatestTodayByStudentId(
+        @Param("studentId") Long studentId,
+        @Param("startOfDay") LocalDateTime startOfDay,
+        @Param("endOfDay") LocalDateTime endOfDay
+    );
+
+    @Query("SELECT o FROM Outing o "
+        + "JOIN FETCH o.student s "
+        + "JOIN FETCH s.store "
+        + "JOIN FETCH o.store "
+        + "WHERE o.student.id = :studentId "
+        + "AND o.startedAt >= :startOfDay "
+        + "AND o.startedAt < :endOfDay "
+        + "AND o.endedAt IS NULL")
+    Optional<Outing> findActiveTodayByStudentIdWithStore(
+        @Param("studentId") Long studentId,
+        @Param("startOfDay") LocalDateTime startOfDay,
+        @Param("endOfDay") LocalDateTime endOfDay
+    );
 }

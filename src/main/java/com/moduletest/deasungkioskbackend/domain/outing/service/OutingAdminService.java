@@ -12,7 +12,10 @@ import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageReposi
 import com.moduletest.deasungkioskbackend.domain.seat.service.SeatRedisService;
 import com.moduletest.deasungkioskbackend.domain.student.entity.Student;
 import com.moduletest.deasungkioskbackend.domain.studytime.service.StudyTimeRedisService;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +33,7 @@ public class OutingAdminService {
 
     /**
      * 외출 수정 — 시각 변경 / 복귀 취소 / 복귀 처리 모두 이 메서드로.
+     * 학생의 오늘치 최신 외출 1건을 대상으로 한다.
      *
      * <pre>
      * 기존 endedAt | 새 endedAt | 동작
@@ -41,10 +45,9 @@ public class OutingAdminService {
      * </pre>
      */
     @Transactional
-    public void updateOuting(Long outingId,
-                              LocalDateTime newStartedAt, LocalDateTime newEndedAt) {
-        Outing outing = outingRepository.findByIdWithStudentAndStore(outingId)
-            .orElseThrow(() -> new OutingException(ErrorCode.OUTING_NOT_FOUND));
+    public void updateOutingByStudent(Long studentId,
+                                       LocalDateTime newStartedAt, LocalDateTime newEndedAt) {
+        Outing outing = findLatestTodayOrThrow(studentId);
 
         validateStoreAccess(outing);
 
@@ -73,12 +76,17 @@ public class OutingAdminService {
     }
 
     /**
-     * 외출 삭제 — 외출 기록 자체를 없던 일로. 진행 중이면 Redis 좌석 IN_USE 복원,
-     * 완료된 외출이면 차감만 롤백.
+     * 학생의 오늘치 진행 중 외출을 삭제 — 유령 외출(더블 태그로 잘못 생성된 row) 정리용.
+     * 진행 중 외출이 없으면 404. Redis 좌석 OUTING→IN_USE 복원.
      */
     @Transactional
-    public void deleteOuting(Long outingId) {
-        Outing outing = outingRepository.findByIdWithStudentAndStore(outingId)
+    public void deleteActiveOutingByStudent(Long studentId) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+
+        Outing outing = outingRepository
+            .findActiveTodayByStudentIdWithStore(studentId, startOfDay, endOfDay)
             .orElseThrow(() -> new OutingException(ErrorCode.OUTING_NOT_FOUND));
 
         validateStoreAccess(outing);
@@ -86,15 +94,21 @@ public class OutingAdminService {
         Student student = outing.getStudent();
         Long storeId = outing.getStore().getId();
 
-        if (outing.getEndedAt() != null) {
-            studyTimeRedisService.subtractOutingDeduction(
-                storeId, student.getId(),
-                outing.getStartedAt(), outing.getEndedAt());
-        } else {
-            markSeatInUseIfPossible(student, storeId);
-        }
-
+        markSeatInUseIfPossible(student, storeId);
         outingRepository.delete(outing);
+    }
+
+    private Outing findLatestTodayOrThrow(Long studentId) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+
+        List<Outing> list = outingRepository
+            .findLatestTodayByStudentId(studentId, startOfDay, endOfDay);
+        if (list.isEmpty()) {
+            throw new OutingException(ErrorCode.OUTING_NOT_FOUND);
+        }
+        return list.get(0);
     }
 
     private void applySeatState(Student student, Long storeId,
