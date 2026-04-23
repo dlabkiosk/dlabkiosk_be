@@ -10,6 +10,8 @@ public record AttendanceStudentResponse(
     String studentNumber,
     String seatLabel,
     String attendanceStatus,
+    String ourState,
+    boolean dsaDrift,
     LocalDateTime checkedInAt,
     boolean phoneSubmitted
 ) {

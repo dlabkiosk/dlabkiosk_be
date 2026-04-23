@@ -10,6 +10,7 @@ import com.moduletest.deasungkioskbackend.domain.attendance.dto.AttendanceStuden
 import com.moduletest.deasungkioskbackend.domain.attendance.entity.Attendance;
 import com.moduletest.deasungkioskbackend.domain.attendance.entity.AttendanceStatus;
 import com.moduletest.deasungkioskbackend.domain.attendance.repository.AttendanceRepository;
+import com.moduletest.deasungkioskbackend.domain.outing.repository.OutingRepository;
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.repository.PhoneSubmissionRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
@@ -17,6 +18,7 @@ import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsage;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsageStatus;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.service.SeatRedisService;
+import com.moduletest.deasungkioskbackend.domain.seatleave.repository.SeatLeaveRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.exception.StoreException;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
@@ -49,6 +51,8 @@ public class AttendanceAdminService {
     private final PhoneSubmissionRepository phoneSubmissionRepository;
     private final SeatUsageRepository seatUsageRepository;
     private final SeatRedisService seatRedisService;
+    private final OutingRepository outingRepository;
+    private final SeatLeaveRepository seatLeaveRepository;
 
     public List<AttendanceStudentResponse> findAttendanceList(
             Long storeId, String studentName, String studentNumber,
@@ -62,10 +66,14 @@ public class AttendanceAdminService {
         Map<String, SeatStatusResponse> seatCdToInfo = buildSeatInfoMap(store);
         Set<Long> phoneSubmittedStudentIds = findPhoneSubmittedStudentIds(storeId);
         Map<Long, LocalDateTime> checkedInAtMap = buildCheckedInAtMap(storeId);
+        Set<Long> checkedOutStudentIds = findCheckedOutStudentIds(storeId);
+        Set<Long> activeOutingStudentIds = findActiveOutingStudentIds();
+        Set<Long> activeSeatLeaveStudentIds = findActiveSeatLeaveStudentIds(storeId);
 
         return students.stream()
             .map(student -> toResponse(student, rfidToSeatCd, seatCdToInfo,
-                phoneSubmittedStudentIds, checkedInAtMap))
+                phoneSubmittedStudentIds, checkedInAtMap,
+                checkedOutStudentIds, activeOutingStudentIds, activeSeatLeaveStudentIds))
             .filter(r -> matchesStudentName(r, studentName))
             .filter(r -> matchesStudentNumber(r, studentNumber))
             .filter(r -> matchesStatus(r, status))
@@ -224,10 +232,17 @@ public class AttendanceAdminService {
                                                   Map<String, String> rfidToSeatCd,
                                                   Map<String, SeatStatusResponse> seatCdToInfo,
                                                   Set<Long> phoneSubmittedStudentIds,
-                                                  Map<Long, LocalDateTime> checkedInAtMap) {
+                                                  Map<Long, LocalDateTime> checkedInAtMap,
+                                                  Set<Long> checkedOutStudentIds,
+                                                  Set<Long> activeOutingStudentIds,
+                                                  Set<Long> activeSeatLeaveStudentIds) {
         SeatStatusResponse dsaSeat = findDsaSeat(student, rfidToSeatCd, seatCdToInfo);
         String seatLabel = resolveSeatLabel(student, dsaSeat);
         String attendanceStatus = resolveAttendanceStatus(dsaSeat);
+        String ourState = resolveOurState(student.getId(),
+            checkedInAtMap.containsKey(student.getId()),
+            checkedOutStudentIds, activeOutingStudentIds, activeSeatLeaveStudentIds);
+        boolean dsaDrift = computeDsaDrift(ourState, attendanceStatus);
         boolean isPhoneSubmitted = phoneSubmittedStudentIds.contains(student.getId());
 
         return AttendanceStudentResponse.builder()
@@ -236,9 +251,50 @@ public class AttendanceAdminService {
             .studentNumber(student.getStudentNumber())
             .seatLabel(seatLabel)
             .attendanceStatus(attendanceStatus)
+            .ourState(ourState)
+            .dsaDrift(dsaDrift)
             .checkedInAt(checkedInAtMap.get(student.getId()))
             .phoneSubmitted(isPhoneSubmitted)
             .build();
+    }
+
+    /**
+     * 우리 DB 기준 학생 상태 — DSA와 별개로 관리되는 좌석이탈까지 포함.
+     * 우선순위: 좌석이탈 > 외출 > 등원 > 하원 > 미출석
+     */
+    private String resolveOurState(Long studentId, boolean isCheckedIn,
+                                    Set<Long> checkedOutStudentIds,
+                                    Set<Long> activeOutingStudentIds,
+                                    Set<Long> activeSeatLeaveStudentIds) {
+        if (activeSeatLeaveStudentIds.contains(studentId)) {
+            return "이탈";
+        }
+        if (activeOutingStudentIds.contains(studentId)) {
+            return "외출";
+        }
+        if (isCheckedIn) {
+            return "등원";
+        }
+        if (checkedOutStudentIds.contains(studentId)) {
+            return "하원";
+        }
+        return "미출석";
+    }
+
+    /**
+     * 우리 DB와 DSA 상태 불일치 감지.
+     * 공석/통로/미확인은 좌석 메타 정보라 drift 판정 제외.
+     * 좌석이탈은 우리 도메인이라 DSA가 등원으로 보면 정상, 그 외면 drift.
+     */
+    private boolean computeDsaDrift(String ourState, String dsaState) {
+        if (dsaState == null || "미확인".equals(dsaState)
+                || "공석".equals(dsaState) || "통로".equals(dsaState)) {
+            return false;
+        }
+        if ("이탈".equals(ourState)) {
+            return !"등원".equals(dsaState);
+        }
+        return !ourState.equals(dsaState);
     }
 
     private SeatStatusResponse findDsaSeat(Student student,
@@ -292,6 +348,35 @@ public class AttendanceAdminService {
                 Attendance::getCheckInAt,
                 (existing, replacement) -> existing
             ));
+    }
+
+    private Set<Long> findCheckedOutStudentIds(Long storeId) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+        return attendanceRepository.findTodayByStoreIdAndStatus(
+                storeId, startOfDay, endOfDay, AttendanceStatus.CHECKED_OUT)
+            .stream()
+            .map(a -> a.getStudent().getId())
+            .collect(Collectors.toSet());
+    }
+
+    private Set<Long> findActiveOutingStudentIds() {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+        return outingRepository.findAllActiveOutingsToday(startOfDay, endOfDay)
+            .stream()
+            .map(o -> o.getStudent().getId())
+            .collect(Collectors.toSet());
+    }
+
+    private Set<Long> findActiveSeatLeaveStudentIds(Long storeId) {
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        return seatLeaveRepository.findActiveByStoreId(storeId, startOfDay)
+            .stream()
+            .map(sl -> sl.getStudent().getId())
+            .collect(Collectors.toSet());
     }
 
     private Set<Long> findPhoneSubmittedStudentIds(Long storeId) {
