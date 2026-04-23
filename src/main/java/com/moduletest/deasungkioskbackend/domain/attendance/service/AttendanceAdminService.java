@@ -283,13 +283,16 @@ public class AttendanceAdminService {
 
     /**
      * 우리 DB와 DSA 상태 불일치 감지.
-     * 공석/통로/미확인은 좌석 메타 정보라 drift 판정 제외.
+     * 공석/통로는 좌석 메타 정보라 drift 판정 제외.
+     * 미확인은 테스트 목적으로 drift=true로 표시 (DSA 정보 못 받은 케이스 가시화).
      * 좌석이탈은 우리 도메인이라 DSA가 등원으로 보면 정상, 그 외면 drift.
      */
     private boolean computeDsaDrift(String ourState, String dsaState) {
-        if (dsaState == null || "미확인".equals(dsaState)
-                || "공석".equals(dsaState) || "통로".equals(dsaState)) {
+        if (dsaState == null || "공석".equals(dsaState) || "통로".equals(dsaState)) {
             return false;
+        }
+        if ("미확인".equals(dsaState)) {
+            return true;
         }
         if ("이탈".equals(ourState)) {
             return !"등원".equals(dsaState);
