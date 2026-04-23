@@ -11,6 +11,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Slf4j
 @Tag(name = "[관리자] 좌석이탈 현황", description = "좌석이탈 현황 조회 및 엑셀 다운로드 (JWT 인증 필요)")
 @RestController
 @RequestMapping("/api/v1/admin/seat-leaves")
@@ -52,6 +54,9 @@ public class SeatLeaveAdminController {
             direction = org.springframework.data.domain.Sort.Direction.DESC)
         Pageable pageable) {
         Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
+        log.info("[DEBUG seat-leaves] requestedStoreId={}, role={}, currentStoreId={}, resolvedStoreId={}",
+            storeId, SecurityUtil.getCurrentRole(),
+            SecurityUtil.getCurrentStoreId(), resolvedStoreId);
         LocalDate start = startDate != null ? startDate : LocalDate.now();
         LocalDate end = endDate != null ? endDate : LocalDate.now();
         Page<SeatLeaveResponse> page = seatLeaveService
