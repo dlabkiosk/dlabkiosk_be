@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,8 +74,11 @@ public class TagService {
     private final MealTagRepository mealTagRepository;
     private final MealUnappliedLogService mealUnappliedLogService;
     private final SeatLeaveRepository seatLeaveRepository;
+    private final RedisTemplate<String, String> redisTemplate;
 
     private static final LocalTime FORCED_CHECKOUT_TIME = LocalTime.of(21, 50);
+    private static final int RETAG_INTERVAL_SECONDS = 60;
+    private static final String RETAG_KEY_PREFIX = "tag:recent:";
 
     @Transactional
     public TagResponse processTag(TagRequest request, Long storeId) {
@@ -83,6 +87,10 @@ public class TagService {
         validateStudentStore(student, storeId);
         // 비관적 락: 동일 학생 동시 태그 방지
         studentRepository.findByIdForUpdate(student.getId());
+
+        // 재태그 간격 가드 — 같은 학생이 RETAG_INTERVAL_SECONDS 이내 재태그 시 차단
+        // (RFID 더블리드/프론트 재시도로 phantom 외출/조퇴가 생기는 문제 방어)
+        guardRetagInterval(student.getId());
 
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new KioskException(ErrorCode.STORE_NOT_FOUND));
@@ -972,6 +980,21 @@ public class TagService {
     private void validateStudentStore(Student student, Long storeId) {
         if (!student.getStore().getId().equals(storeId)) {
             throw new KioskException(ErrorCode.STUDENT_NOT_IN_THIS_STORE);
+        }
+    }
+
+    /**
+     * 재태그 간격 가드. 같은 학생이 RETAG_INTERVAL_SECONDS 이내 태그하면
+     * TAG_TOO_SOON 예외로 차단. setIfAbsent로 원자적 락 처리.
+     */
+    private void guardRetagInterval(Long studentId) {
+        String key = RETAG_KEY_PREFIX + studentId;
+        Boolean acquired = redisTemplate.opsForValue().setIfAbsent(
+            key, "1", Duration.ofSeconds(RETAG_INTERVAL_SECONDS));
+        if (!Boolean.TRUE.equals(acquired)) {
+            log.info("재태그 간격 미만 - 차단. studentId: {}, interval: {}s",
+                studentId, RETAG_INTERVAL_SECONDS);
+            throw new KioskException(ErrorCode.TAG_TOO_SOON);
         }
     }
 }
