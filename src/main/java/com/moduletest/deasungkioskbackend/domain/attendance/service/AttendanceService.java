@@ -105,16 +105,13 @@ public class AttendanceService {
         // 사용 중인 좌석이 있으면 자동 퇴실
         seatCheckOut(student, storeId);
 
-        long currentMinutes = Duration.between(
-            attendance.getCheckInAt(), checkOutTime).toMinutes();
-
-        long previousMinutes = attendanceRepository
+        // JPA AUTO flush — 방금 close한 attendance도 findCompletedTodayByStudentId에 포함됨.
+        // currentMinutes를 따로 더하면 이중 계산되므로 한번에 합산.
+        long totalMinutes = attendanceRepository
             .findCompletedTodayByStudentId(student.getId(), startOfDay, endOfDay)
             .stream()
             .mapToLong(a -> Duration.between(a.getCheckInAt(), a.getCheckOutAt()).toMinutes())
             .sum();
-
-        long totalMinutes = currentMinutes + previousMinutes;
         long deductionMinutes = studyTimeRedisService.getOutingDeduction(
             storeId, student.getId());
         long studyTimeMinutes = Math.max(totalMinutes - deductionMinutes, 0);

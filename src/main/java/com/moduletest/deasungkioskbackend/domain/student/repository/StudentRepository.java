@@ -16,7 +16,8 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     @Query("SELECT s FROM Student s WHERE s.rfidUid = :rfidUid AND s.active = true")
     Optional<Student> findByRfidUid(@Param("rfidUid") String rfidUid);
 
-    Optional<Student> findByStudentNumber(String studentNumber);
+    @Query("SELECT s FROM Student s WHERE s.studentNumber = :studentNumber AND s.active = true")
+    Optional<Student> findByStudentNumber(@Param("studentNumber") String studentNumber);
 
     @Query("SELECT s FROM Student s JOIN FETCH s.store LEFT JOIN FETCH s.assignedSeat"
         + " WHERE s.store.id = :storeId")

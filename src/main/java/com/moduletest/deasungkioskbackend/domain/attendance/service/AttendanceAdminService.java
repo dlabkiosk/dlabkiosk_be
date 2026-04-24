@@ -62,7 +62,7 @@ public class AttendanceAdminService {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
-        List<Student> students = studentRepository.findAllByStoreIdWithStore(storeId);
+        List<Student> students = studentRepository.findAllByStoreIdAndActive(storeId, true);
         Map<String, String> rfidToSeatCd = buildDsaSeatAssignmentMap(store);
         Map<String, SeatStatusResponse> seatCdToInfo = buildSeatInfoMap(store);
         Set<Long> phoneSubmittedStudentIds = findPhoneSubmittedStudentIds(storeId);

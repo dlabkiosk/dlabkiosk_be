@@ -769,20 +769,17 @@ public class TagService {
 
         seatCheckOut(student, storeId);
 
-        long currentMinutes = Duration.between(
-            attendance.getCheckInAt(), checkOutTime).toMinutes();
-
-        long previousMinutes = attendanceRepository
-            .findCompletedTodayByStudentId(student.getId(), startOfDay, endOfDay)
-            .stream()
+        // JPA AUTO flush — 방금 close한 attendance도 findCompletedTodayByStudentId에 포함됨.
+        // currentMinutes를 따로 더하면 이중 계산되므로 한번에 합산.
+        List<Attendance> completedToday = attendanceRepository
+            .findCompletedTodayByStudentId(student.getId(), startOfDay, endOfDay);
+        long totalMinutes = completedToday.stream()
             .mapToLong(a -> Duration.between(a.getCheckInAt(), a.getCheckOutAt()).toMinutes())
             .sum();
-
-        long totalMinutes = currentMinutes + previousMinutes;
         long deductionMinutes = studyTimeRedisService.getOutingDeduction(
             storeId, student.getId());
         long mealDeduction = calculateMealDeduction(
-            student.getId(), today);
+            student.getId(), today, completedToday);
         long studyTimeMinutes = Math.max(
             totalMinutes - deductionMinutes - mealDeduction, 0);
 
@@ -911,14 +908,34 @@ public class TagService {
 
     // ── 급식 차감 계산 ──
 
-    private long calculateMealDeduction(Long studentId, LocalDate today) {
+    /**
+     * 급식 태그한 식사 시간대와 학생의 등원 구간이 겹치는 만큼만 차감.
+     * 예: 점심 12:10~13:10에 12:50 조퇴면 40분만 차감.
+     * 다회 등원이면 각 등원 구간의 overlap을 모두 합산.
+     */
+    private long calculateMealDeduction(Long studentId, LocalDate today,
+                                         List<Attendance> attendances) {
         List<MealTag> mealTags = mealTagRepository.findAllByStudentIdAndMealDate(
             studentId, today);
 
         long totalDeduction = 0;
         for (MealTag tag : mealTags) {
             MealType type = tag.getMealType();
-            totalDeduction += Duration.between(type.getStartTime(), type.getEndTime()).toMinutes();
+            LocalDateTime mealStart = LocalDateTime.of(today, type.getStartTime());
+            LocalDateTime mealEnd = LocalDateTime.of(today, type.getEndTime());
+
+            for (Attendance att : attendances) {
+                if (att.getCheckOutAt() == null) {
+                    continue;
+                }
+                LocalDateTime overlapStart = att.getCheckInAt().isAfter(mealStart)
+                    ? att.getCheckInAt() : mealStart;
+                LocalDateTime overlapEnd = att.getCheckOutAt().isBefore(mealEnd)
+                    ? att.getCheckOutAt() : mealEnd;
+                if (overlapEnd.isAfter(overlapStart)) {
+                    totalDeduction += Duration.between(overlapStart, overlapEnd).toMinutes();
+                }
+            }
         }
         return totalDeduction;
     }

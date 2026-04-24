@@ -189,7 +189,7 @@ public class SeatChangeRequestService {
 
     public List<AvailableSeatResponse> findAvailableSeats(Long storeId) {
         List<Seat> allSeats = seatRepository.findAllByStoreIdWithStore(storeId);
-        List<Student> allStudents = studentRepository.findAllByStoreIdWithStore(storeId);
+        List<Student> allStudents = studentRepository.findAllByStoreIdAndActive(storeId, true);
 
         Map<Long, String> seatIdToStudentName = allStudents.stream()
             .filter(s -> s.getAssignedSeat() != null)

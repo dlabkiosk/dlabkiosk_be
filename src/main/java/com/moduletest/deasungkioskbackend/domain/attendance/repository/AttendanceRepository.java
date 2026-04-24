@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -120,5 +121,14 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         @Param("startOfDay") LocalDateTime startOfDay,
         @Param("endOfDay") LocalDateTime endOfDay,
         @Param("excludeAttendanceId") Long excludeAttendanceId
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Attendance a SET a.status = 'CHECKED_OUT', "
+        + "a.checkOutAt = :closedAt, a.checkOutAction = 'T' "
+        + "WHERE a.status = 'CHECKED_IN' AND a.checkInAt < :startOfToday")
+    int closeDanglingCheckIns(
+        @Param("startOfToday") LocalDateTime startOfToday,
+        @Param("closedAt") LocalDateTime closedAt
     );
 }

@@ -52,7 +52,7 @@ public class StudyTimeAdminService {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
 
-        List<Student> students = studentRepository.findAllByStoreIdWithStore(storeId);
+        List<Student> students = studentRepository.findAllByStoreIdAndActive(storeId, true);
         Map<String, Map<LocalDate, DsaStudyRecord>> dsaMap =
             fetchAndGroupDsaStudyTime(store, startDate, endDate);
 

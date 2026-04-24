@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -98,5 +99,13 @@ public interface OutingRepository extends JpaRepository<Outing, Long> {
         @Param("studentId") Long studentId,
         @Param("startOfDay") LocalDateTime startOfDay,
         @Param("endOfDay") LocalDateTime endOfDay
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Outing o SET o.endedAt = :closedAt "
+        + "WHERE o.endedAt IS NULL AND o.startedAt < :startOfToday")
+    int closeDanglingOutings(
+        @Param("startOfToday") LocalDateTime startOfToday,
+        @Param("closedAt") LocalDateTime closedAt
     );
 }

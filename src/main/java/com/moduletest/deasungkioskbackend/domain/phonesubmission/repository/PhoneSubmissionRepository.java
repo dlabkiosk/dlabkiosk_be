@@ -85,6 +85,7 @@ public interface PhoneSubmissionRepository extends JpaRepository<PhoneSubmission
         + "JOIN FETCH ps.store "
         + "WHERE ps.store.id = :storeId "
         + "AND ps.submittedAt >= :startDate AND ps.submittedAt < :endDate "
+        + "AND s.active = true "
         + "ORDER BY ps.submittedAt DESC")
     List<PhoneSubmission> findAllByStoreIdAndPeriod(
         @Param("storeId") Long storeId,
@@ -95,6 +96,7 @@ public interface PhoneSubmissionRepository extends JpaRepository<PhoneSubmission
         + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
         + "JOIN FETCH ps.store "
         + "WHERE ps.submittedAt >= :startDate AND ps.submittedAt < :endDate "
+        + "AND s.active = true "
         + "ORDER BY ps.submittedAt DESC")
     List<PhoneSubmission> findAllByPeriod(
         @Param("startDate") LocalDateTime startDate,
@@ -104,12 +106,14 @@ public interface PhoneSubmissionRepository extends JpaRepository<PhoneSubmission
         + "JOIN FETCH ps.student s LEFT JOIN FETCH s.assignedSeat "
         + "JOIN FETCH ps.store "
         + "WHERE ps.submittedAt >= :startDate AND ps.submittedAt < :endDate "
+        + "AND s.active = true "
         + "AND (:storeId IS NULL OR ps.store.id = :storeId) "
         + "AND (:studentName IS NULL OR s.name LIKE CONCAT('%', :studentName, '%')) "
         + "AND (:studentNumber IS NULL "
         + "    OR s.studentNumber LIKE CONCAT('%', :studentNumber, '%'))",
         countQuery = "SELECT COUNT(ps) FROM PhoneSubmission ps JOIN ps.student s "
             + "WHERE ps.submittedAt >= :startDate AND ps.submittedAt < :endDate "
+            + "AND s.active = true "
             + "AND (:storeId IS NULL OR ps.store.id = :storeId) "
             + "AND (:studentName IS NULL OR s.name LIKE CONCAT('%', :studentName, '%')) "
             + "AND (:studentNumber IS NULL "

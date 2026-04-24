@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -42,10 +43,11 @@ public interface SeatLeaveRepository extends JpaRepository<SeatLeave, Long> {
         @Param("startOfDay") LocalDateTime startOfDay);
 
     @Query("SELECT sl FROM SeatLeave sl "
-        + "JOIN FETCH sl.student JOIN FETCH sl.seat JOIN FETCH sl.reason "
+        + "JOIN FETCH sl.student s JOIN FETCH sl.seat JOIN FETCH sl.reason "
         + "JOIN FETCH sl.store "
         + "WHERE sl.store.id = :storeId "
         + "AND sl.startedAt >= :startDate AND sl.startedAt < :endDate "
+        + "AND s.active = true "
         + "ORDER BY sl.startedAt DESC")
     List<SeatLeave> findAllByStoreIdAndPeriod(
         @Param("storeId") Long storeId,
@@ -53,9 +55,10 @@ public interface SeatLeaveRepository extends JpaRepository<SeatLeave, Long> {
         @Param("endDate") LocalDateTime endDate);
 
     @Query("SELECT sl FROM SeatLeave sl "
-        + "JOIN FETCH sl.student JOIN FETCH sl.seat JOIN FETCH sl.reason "
+        + "JOIN FETCH sl.student s JOIN FETCH sl.seat JOIN FETCH sl.reason "
         + "JOIN FETCH sl.store "
         + "WHERE sl.startedAt >= :startDate AND sl.startedAt < :endDate "
+        + "AND s.active = true "
         + "ORDER BY sl.startedAt DESC")
     List<SeatLeave> findAllByPeriod(
         @Param("startDate") LocalDateTime startDate,
@@ -65,12 +68,14 @@ public interface SeatLeaveRepository extends JpaRepository<SeatLeave, Long> {
         + "JOIN FETCH sl.student s JOIN FETCH sl.seat JOIN FETCH sl.reason "
         + "JOIN FETCH sl.store "
         + "WHERE sl.startedAt >= :startDate AND sl.startedAt < :endDate "
+        + "AND s.active = true "
         + "AND (:storeId IS NULL OR sl.store.id = :storeId) "
         + "AND (:studentName IS NULL OR s.name LIKE CONCAT('%', :studentName, '%')) "
         + "AND (:studentNumber IS NULL "
         + "    OR s.studentNumber LIKE CONCAT('%', :studentNumber, '%'))",
         countQuery = "SELECT COUNT(sl) FROM SeatLeave sl JOIN sl.student s "
             + "WHERE sl.startedAt >= :startDate AND sl.startedAt < :endDate "
+            + "AND s.active = true "
             + "AND (:storeId IS NULL OR sl.store.id = :storeId) "
             + "AND (:studentName IS NULL OR s.name LIKE CONCAT('%', :studentName, '%')) "
             + "AND (:studentNumber IS NULL "
@@ -123,4 +128,12 @@ public interface SeatLeaveRepository extends JpaRepository<SeatLeave, Long> {
     long countActiveByStoreId(
         @Param("storeId") Long storeId,
         @Param("startOfDay") LocalDateTime startOfDay);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE SeatLeave sl SET sl.endedAt = :closedAt "
+        + "WHERE sl.endedAt IS NULL AND sl.startedAt < :startOfToday")
+    int closeDanglingSeatLeaves(
+        @Param("startOfToday") LocalDateTime startOfToday,
+        @Param("closedAt") LocalDateTime closedAt
+    );
 }

@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -33,5 +34,13 @@ public interface SeatUsageRepository extends JpaRepository<SeatUsage, Long> {
         @Param("studentId") Long studentId,
         @Param("startOfDay") LocalDateTime startOfDay,
         @Param("endOfDay") LocalDateTime endOfDay);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE SeatUsage su SET su.status = 'ENDED', su.endedAt = :closedAt "
+        + "WHERE su.status = 'IN_USE' AND su.startedAt < :startOfToday")
+    int closeDanglingUsages(
+        @Param("startOfToday") LocalDateTime startOfToday,
+        @Param("closedAt") LocalDateTime closedAt
+    );
 
 }
