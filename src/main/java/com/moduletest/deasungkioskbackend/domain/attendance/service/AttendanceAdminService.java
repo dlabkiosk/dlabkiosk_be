@@ -394,14 +394,14 @@ public class AttendanceAdminService {
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
 
-        List<Attendance> attendances = attendanceRepository.findTodayByStoreIdAndStatus(
-            storeId, startOfDay, endOfDay, AttendanceStatus.CHECKED_IN);
+        List<Attendance> attendances = attendanceRepository.findAllTodayByStoreId(
+            storeId, startOfDay, endOfDay);
 
         return attendances.stream()
             .collect(Collectors.toMap(
                 a -> a.getStudent().getId(),
                 Attendance::getCheckInAt,
-                (existing, replacement) -> existing
+                (a, b) -> a.isBefore(b) ? a : b
             ));
     }
 
