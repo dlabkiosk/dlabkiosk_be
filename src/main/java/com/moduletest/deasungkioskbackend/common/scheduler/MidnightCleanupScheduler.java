@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public final class MidnightCleanupScheduler {
+public class MidnightCleanupScheduler {
 
     private static final String SEAT_STATUS_KEY_PATTERN = "seat:status:*";
 
