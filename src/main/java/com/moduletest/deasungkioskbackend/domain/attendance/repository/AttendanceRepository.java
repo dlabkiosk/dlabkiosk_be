@@ -63,6 +63,19 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         + "WHERE a.student.id = :studentId "
         + "AND a.checkInAt >= :startOfDay "
         + "AND a.checkInAt < :endOfDay "
+        + "AND a.status = 'CHECKED_OUT' "
+        + "AND a.checkOutAction = 'C' "
+        + "ORDER BY a.checkOutAt DESC")
+    List<Attendance> findEarlyLeaveToday(
+        @Param("studentId") Long studentId,
+        @Param("startOfDay") LocalDateTime startOfDay,
+        @Param("endOfDay") LocalDateTime endOfDay
+    );
+
+    @Query("SELECT a FROM Attendance a "
+        + "WHERE a.student.id = :studentId "
+        + "AND a.checkInAt >= :startOfDay "
+        + "AND a.checkInAt < :endOfDay "
         + "AND a.status = 'CHECKED_OUT'")
     List<Attendance> findCompletedTodayByStudentId(
         @Param("studentId") Long studentId,

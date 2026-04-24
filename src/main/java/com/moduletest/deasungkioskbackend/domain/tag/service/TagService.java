@@ -660,13 +660,28 @@ public class TagService {
             throw new AttendanceException(ErrorCode.EARLY_LEAVE_RE_ATTEND_FAILED);
         }
 
-        // DSA 재등원 성공 → 등원 처리 (좌석 IN_USE 복원)
-        Attendance attendance = Attendance.builder()
-            .student(student)
-            .store(student.getStore())
-            .checkInAt(LocalDateTime.now())
-            .build();
-        attendanceRepository.save(attendance);
+        // DSA 3.22 의미: 조퇴 → 외출 변환 + 복귀.
+        // 우리 DB는 직전 조퇴 row를 CHECKED_IN으로 되돌려 등원시각 계승하고 조퇴 카운트를 0으로 만든다.
+        // outing row는 만들지 않음 — DSA가 출결 source of truth고 우리 outing은 외출권 통제 도구라서
+        // 실수 조퇴→재등원으로 외출권 차감하는 건 부적절.
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+        List<Attendance> earlyLeaves = attendanceRepository.findEarlyLeaveToday(
+            student.getId(), startOfDay, endOfDay);
+        Attendance attendance = earlyLeaves.isEmpty() ? null : earlyLeaves.get(0);
+
+        if (attendance != null) {
+            attendance.cancelCheckOut();
+        } else {
+            // 방어: existsEarlyLeaveToday로 분기했지만 트랜잭션 사이 사라진 케이스
+            attendance = Attendance.builder()
+                .student(student)
+                .store(student.getStore())
+                .checkInAt(LocalDateTime.now())
+                .build();
+            attendanceRepository.save(attendance);
+        }
 
         seatCheckIn(student, storeId);
 
