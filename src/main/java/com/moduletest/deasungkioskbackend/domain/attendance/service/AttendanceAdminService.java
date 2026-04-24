@@ -14,6 +14,7 @@ import com.moduletest.deasungkioskbackend.domain.outing.repository.OutingReposit
 import com.moduletest.deasungkioskbackend.domain.phonesubmission.repository.PhoneSubmissionRepository;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.AreaResponse;
 import com.moduletest.deasungkioskbackend.domain.seat.dto.SeatStatusResponse;
+import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsage;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.SeatUsageStatus;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatUsageRepository;
@@ -83,7 +84,7 @@ public class AttendanceAdminService {
 
     @Transactional
     public void updateCheckInTime(Long studentId, LocalDateTime checkInAt) {
-        Student student = studentRepository.findById(studentId)
+        Student student = studentRepository.findByIdWithStore(studentId)
             .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_NOT_FOUND));
 
         validateStoreAccess(student);
@@ -104,8 +105,59 @@ public class AttendanceAdminService {
                         .checkInAt(checkInAt)
                         .build();
                     attendanceRepository.save(newAttendance);
+                    occupySeatForManualCheckIn(student, checkInAt);
                 }
             );
+    }
+
+    /**
+     * 어드민 수동 등원 입력 시 좌석 점유 처리 (DSA→DB drift 복구).
+     * 학생의 배정 좌석을 Redis IN_USE + SeatUsage(IN_USE) 동시에 만든다.
+     * 좌석 미배정 또는 다른 학생이 점유 중이면 좌석 점유는 skip하고 등원 입력은 성공시킨다.
+     */
+    private void occupySeatForManualCheckIn(Student student, LocalDateTime checkInAt) {
+        Seat seat = student.getAssignedSeat();
+        if (seat == null) {
+            return;
+        }
+
+        if (seatUsageRepository.findByStudentIdAndStatus(
+                student.getId(), SeatUsageStatus.IN_USE).isPresent()) {
+            return;
+        }
+
+        Long storeId = student.getStore().getId();
+        Long seatId = seat.getId();
+
+        boolean acquired = seatRedisService.tryOccupySeat(
+            storeId, seatId, student.getId(), student.getName());
+
+        if (!acquired) {
+            String existing = seatRedisService.getSeatStatus(storeId, seatId);
+            if (existing != null && existing.contains(":" + student.getId() + ":")) {
+                seatRedisService.markSeatInUse(
+                    storeId, seatId, student.getId(), student.getName());
+            } else {
+                log.warn("[ManualCheckIn] 좌석 점유 실패 (다른 학생 점유 중). studentId={}, seatId={}, existing={}",
+                    student.getId(), seatId, existing);
+                return;
+            }
+        }
+
+        try {
+            SeatUsage seatUsage = SeatUsage.builder()
+                .seat(seat)
+                .student(student)
+                .store(seat.getStore())
+                .startedAt(checkInAt)
+                .build();
+            seatUsageRepository.save(seatUsage);
+        } catch (Exception e) {
+            seatRedisService.releaseSeat(storeId, seatId);
+            log.error("[ManualCheckIn] SeatUsage 저장 실패, Redis 롤백. studentId={}, seatId={}",
+                student.getId(), seatId, e);
+            throw e;
+        }
     }
 
     /**
