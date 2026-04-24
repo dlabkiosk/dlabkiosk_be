@@ -32,8 +32,7 @@ public class DsaAttendanceService {
     private final DsaAnomalyLogService dsaAnomalyLogService;
 
     /**
-     * DSA 3.14 setAttendStd 호출.
-     * DSA가 시간 기준으로 att_gn(S/T/A/D/C/R)을 자동 판별하여 응답한다.
+     * DSA 3.14 setAttendStd 호출. DSA가 시간 기준으로 att_gn(S/T/A/D/C/R)을 자동 판별하여 응답한다.
      *
      * @return AttendTagResult (action + earlyLeftBlocked 플래그)
      */
@@ -100,7 +99,7 @@ public class DsaAttendanceService {
             // data 내부 code 128/129 — DSA 확인 프롬프트 (조퇴/사유외출 신청하시겠습니까?)
             // 복귀 맥락에서 R 대신 이게 오면 DSA가 복귀를 인지 못하는 상태 불일치
             if (innerCode != null
-                    && (innerCode == CODE_CONFIRM_EARLY_LEAVE || innerCode == CODE_CONFIRM_OUTING)) {
+                && (innerCode == CODE_CONFIRM_EARLY_LEAVE || innerCode == CODE_CONFIRM_OUTING)) {
                 String innerMessage = extractInnerMessage(response);
                 log.info("DSA 확인 프롬프트 응답 (code {}): {}. rfidUid: {}, storeId: {}",
                     innerCode, innerMessage, rfidUid, store.getId());
@@ -145,8 +144,7 @@ public class DsaAttendanceService {
     }
 
     /**
-     * DSA 3.22 setReAttendProc 호출.
-     * 조퇴 상태를 해제하고 재등원 처리한다 (조퇴→외출+복귀).
+     * DSA 3.22 setReAttendProc 호출. 조퇴 상태를 해제하고 재등원 처리한다 (조퇴→외출+복귀).
      *
      * @return 성공 여부
      */
@@ -179,8 +177,8 @@ public class DsaAttendanceService {
     }
 
     public record AttendTagResult(AttendAction action, boolean dsaSynced,
-                                   boolean earlyLeftBlocked, boolean rejected,
-                                   String rejectMessage) {
+                                  boolean earlyLeftBlocked, boolean rejected,
+                                  String rejectMessage) {
 
         public static AttendTagResult success(AttendAction action) {
             return new AttendTagResult(action, true, false, false, null);
@@ -211,7 +209,7 @@ public class DsaAttendanceService {
         Object first = outerList.get(0);
         // 이중 배열: [[{...}]]
         if (first instanceof List<?> innerList && !innerList.isEmpty()
-                && innerList.get(0) instanceof Map) {
+            && innerList.get(0) instanceof Map) {
             return (Map<String, Object>) innerList.get(0);
         }
         // 단일 배열: [{...}]
