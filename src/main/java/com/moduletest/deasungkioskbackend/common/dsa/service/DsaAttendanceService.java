@@ -23,6 +23,7 @@ public class DsaAttendanceService {
     private static final String SET_RE_ATTEND_PROC_PATH = "/kiosk/setReAttendProc";
     private static final int CODE_ALREADY_EARLY_LEFT = 121;
     private static final int CODE_USER_CHOICE = 113;
+    private static final int CODE_NOT_STUDY_TIME = 122;
     private static final int CODE_CONFIRM_BOTH = 126;
     private static final int CODE_CONFIRM_EARLY_LEAVE = 128;
     private static final int CODE_CONFIRM_OUTING = 129;
@@ -98,6 +99,18 @@ public class DsaAttendanceService {
                 return AttendTagResult.rejected(innerMessage);
             }
 
+            // data 내부 code 122 — 학습시간 외 태그 (운영시간 밖). DSA 메시지 그대로 노출.
+            if (innerCode != null && innerCode == CODE_NOT_STUDY_TIME) {
+                String innerMessage = extractInnerMessage(response);
+                log.info("DSA 학습시간 외 (code 122): {}. rfidUid: {}, storeId: {}",
+                    innerMessage, rfidUid, store.getId());
+                dsaAnomalyLogService.log(
+                    store.getId(), rfidUid, SET_ATTEND_STD_PATH,
+                    "DSA_NOT_STUDY_TIME", params, response,
+                    "DSA code 122 — 학습시간이 아닌 시각에 태그");
+                return AttendTagResult.rejected(innerMessage);
+            }
+
             // data 내부 code 113 — DSA 시간표 없어 자동 판별 불가 (주말/공휴일).
             // "하원/외출 하시겠습니까?" — 사용자가 con_gn 명시해서 재호출해야 함.
             if (innerCode != null && innerCode == CODE_USER_CHOICE) {
@@ -128,6 +141,17 @@ public class DsaAttendanceService {
                     log.info("DSA 성공 (att_gn 없음, con_gn={} 지정). rfidUid: {}, storeId: {}",
                         conGn, rfidUid, store.getId());
                     return AttendTagResult.success(AttendAction.fromCode(conGn));
+                }
+                // 알 수 없는 inner code인데 메시지 있으면 DSA 메시지 그대로 학생에게 노출
+                String innerMessage = extractInnerMessage(response);
+                if (innerMessage != null && !innerMessage.isBlank()) {
+                    log.info("DSA 미정의 inner code {}: {}. rfidUid: {}, storeId: {}",
+                        innerCode, innerMessage, rfidUid, store.getId());
+                    dsaAnomalyLogService.log(
+                        store.getId(), rfidUid, SET_ATTEND_STD_PATH,
+                        "DSA_UNKNOWN_INNER_CODE", params, response,
+                        "DSA 미정의 inner code " + innerCode + " — 메시지 그대로 노출");
+                    return AttendTagResult.rejected(innerMessage);
                 }
                 log.warn("DSA 응답에 att_gn 없음. storeId: {}, raw: {}",
                     store.getId(), response);
