@@ -225,6 +225,18 @@ public class TagService {
         }
 
         if (result.rejected()) {
+            // 식사시간이면 거부 메시지 숨기고 식사 안내만 노출 (학생이 식사 또는 자리 복귀)
+            if (mealInfo != null) {
+                return TagResponse.builder()
+                    .processed(false)
+                    .studentId(student.getId())
+                    .studentName(student.getName())
+                    .studentNumber(student.getStudentNumber())
+                    .seatLabel(getSeatLabel(student))
+                    .dsaSynced(true)
+                    .mealInfo(mealInfo)
+                    .build();
+            }
             String rejectMsg = result.rejectMessage() != null
                 ? result.rejectMessage()
                 : "사전조퇴/사전외출 승인 내역이 없습니다. 데스크로 문의해주세요.";
@@ -243,6 +255,18 @@ public class TagService {
         if (!result.dsaSynced() || result.action() == null) {
             log.warn("DSA 출결 판별 실패 - 처리 보류. studentId: {}, storeId: {}",
                 student.getId(), storeId);
+            // 식사시간이면 식사 안내만 노출 — 식사 흐름은 DSA 3.14 의존 안 함
+            if (mealInfo != null) {
+                return TagResponse.builder()
+                    .processed(false)
+                    .studentId(student.getId())
+                    .studentName(student.getName())
+                    .studentNumber(student.getStudentNumber())
+                    .seatLabel(getSeatLabel(student))
+                    .dsaSynced(false)
+                    .mealInfo(mealInfo)
+                    .build();
+            }
             return TagResponse.builder()
                 .processed(false)
                 .studentId(student.getId())
