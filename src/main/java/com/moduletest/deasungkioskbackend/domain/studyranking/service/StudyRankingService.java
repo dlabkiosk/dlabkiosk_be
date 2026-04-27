@@ -131,6 +131,36 @@ public class StudyRankingService {
         return response;
     }
 
+    /**
+     * 모든 캐시 (지점별 + 전 지점)를 새로 가져와서 덮어쓴다.
+     * 매일 새벽 스케줄러에서 호출 — DSA가 늦게 채우는 데이터까지 반영.
+     */
+    public void refreshAllCaches() {
+        List<Store> stores = storeRepository.findAll();
+        int success = 0;
+        int failed = 0;
+        for (Store store : stores) {
+            try {
+                redisTemplate.delete(STORE_RANKING_KEY + store.getId());
+                getStudyRanking(store.getId());
+                success++;
+            } catch (Exception e) {
+                log.warn("순공랭킹 캐시 갱신 실패 - storeId: {}, name: {}",
+                    store.getId(), store.getStoreName(), e);
+                failed++;
+            }
+        }
+
+        try {
+            redisTemplate.delete(ALL_RANKING_KEY);
+            getAllStoreRanking();
+        } catch (Exception e) {
+            log.warn("전 지점 순공랭킹 캐시 갱신 실패", e);
+        }
+
+        log.info("[순공랭킹] 캐시 갱신 완료 - 지점 성공: {}, 실패: {}", success, failed);
+    }
+
     private long parseStudyTimeToMinutes(String studyTime) {
         Matcher matcher = STUDY_TIME_PATTERN.matcher(studyTime);
         if (matcher.find()) {
