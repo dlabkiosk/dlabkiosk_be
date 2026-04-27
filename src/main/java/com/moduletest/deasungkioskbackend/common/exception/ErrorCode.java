@@ -75,6 +75,8 @@ public enum ErrorCode {
     // Kiosk
     KIOSK_INVALID_CREDENTIALS("K001", "지점 코드 또는 PIN이 올바르지 않습니다", HttpStatus.UNAUTHORIZED),
     KIOSK_STORE_INACTIVE("K002", "비활성화된 지점입니다", HttpStatus.FORBIDDEN),
+    KIOSK_INVALID_STORE_CODE("K005", "잘못된 아이디입니다", HttpStatus.UNAUTHORIZED),
+    KIOSK_INVALID_PIN("K006", "잘못된 PIN입니다", HttpStatus.UNAUTHORIZED),
     STUDENT_NOT_IN_THIS_STORE("K003", "해당 지점에 소속되지 않은 학생입니다", HttpStatus.FORBIDDEN),
     TAG_TOO_SOON("K004", "방금 태그되었습니다. 잠시 후 다시 시도해주세요",
         HttpStatus.TOO_MANY_REQUESTS),

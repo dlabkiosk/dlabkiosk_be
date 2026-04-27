@@ -84,6 +84,12 @@ public class Store extends BaseTimeEntity {
         }
     }
 
+    public void updateStoreCode(String storeCode) {
+        if (storeCode != null && !storeCode.isBlank()) {
+            this.storeCode = storeCode;
+        }
+    }
+
     public void updateKioskPin(String kioskPin) {
         if (kioskPin != null && !kioskPin.isBlank()) {
             this.kioskPin = kioskPin;

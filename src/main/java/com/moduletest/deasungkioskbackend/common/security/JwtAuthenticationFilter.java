@@ -1,5 +1,7 @@
 package com.moduletest.deasungkioskbackend.common.security;
 
+import com.moduletest.deasungkioskbackend.domain.kiosk.log.KioskAuthEventType;
+import com.moduletest.deasungkioskbackend.domain.kiosk.log.KioskAuthLogService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -24,9 +26,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String ACCESS_TOKEN_COOKIE = "accessToken";
+    private static final String KIOSK_PATH_PREFIX = "/api/v1/kiosk";
 
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenRedisService tokenRedisService;
+    private final KioskAuthLogService kioskAuthLogService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -42,6 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 if (!isTokenStoredInRedis(subject, role, token)) {
                     request.setAttribute("exception", "INVALID_TOKEN");
+                    logKioskRejection(request, "REDIS_MISS", subject, claims);
                     filterChain.doFilter(request, response);
                     return;
                 }
@@ -63,12 +68,47 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (ExpiredJwtException e) {
                 request.setAttribute("exception", "EXPIRED_TOKEN");
+                logKioskRejection(request, "EXPIRED_TOKEN",
+                    e.getClaims() != null ? e.getClaims().getSubject() : null,
+                    e.getClaims());
             } catch (JwtException e) {
                 request.setAttribute("exception", "INVALID_TOKEN");
+                logKioskRejection(request, "INVALID_TOKEN", null, null);
             }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void logKioskRejection(HttpServletRequest request, String reason,
+                                   String subject, Claims claims) {
+        if (!request.getRequestURI().startsWith(KIOSK_PATH_PREFIX)) {
+            return;
+        }
+        Long storeId = parseLong(subject);
+        String storeCode = claims != null ? claims.get("storeCode", String.class) : null;
+        kioskAuthLogService.log(KioskAuthEventType.AUTH_REJECTED,
+            storeId, storeCode, reason, resolveClientIp(request),
+            request.getHeader("User-Agent"));
+    }
+
+    private Long parseLong(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Long.valueOf(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            return xff.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 
     private boolean isTokenStoredInRedis(String subject, String role, String token) {

@@ -39,6 +39,7 @@ public class TokenRedisService {
     /**
      * Set 안의 만료된 JWT를 골라내 제거한다.
      * Set은 멤버 단위 TTL을 못 주므로, 저장 시점에 청소한다.
+     * exp=null인 JWT(키오스크 무한 토큰)는 만료 대상이 아니므로 제거하지 않는다.
      */
     private void evictExpiredTokens(String key) {
         Set<String> tokens = redisTemplate.opsForSet().members(key);
@@ -50,7 +51,7 @@ public class TokenRedisService {
         for (String token : tokens) {
             try {
                 Date exp = jwtTokenProvider.parseClaims(token).getExpiration();
-                if (exp == null || exp.before(now)) {
+                if (exp != null && exp.before(now)) {
                     expired.add(token);
                 }
             } catch (JwtException | IllegalArgumentException e) {
@@ -63,10 +64,11 @@ public class TokenRedisService {
         }
     }
 
-    public void saveKioskToken(Long storeId, String token, long expirationMillis) {
+    public void saveKioskToken(Long storeId, String token) {
         String key = KIOSK_TOKEN_PREFIX + storeId;
+        evictExpiredTokens(key);
         redisTemplate.opsForSet().add(key, token);
-        redisTemplate.expire(key, expirationMillis, TimeUnit.MILLISECONDS);
+        redisTemplate.persist(key);
     }
 
     public boolean isAdminTokenValid(Long userId, String token) {

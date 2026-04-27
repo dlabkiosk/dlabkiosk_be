@@ -4,8 +4,6 @@ import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAnomalyLogServic
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAttendanceService;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaAttendanceService.AttendTagResult;
 import com.moduletest.deasungkioskbackend.common.dsa.service.DsaMealService;
-import com.moduletest.deasungkioskbackend.common.dsa.service.DsaRequestService;
-import com.moduletest.deasungkioskbackend.common.dsa.service.DsaRequestService.ApprovedRequest;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
 import com.moduletest.deasungkioskbackend.common.service.InputMethod;
 import com.moduletest.deasungkioskbackend.common.service.StudentResolverService;
@@ -43,7 +41,6 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,7 +66,6 @@ public class TagService {
     private final StudentMessageRepository studentMessageRepository;
     private final DsaAttendanceService dsaAttendanceService;
     private final DsaMealService dsaMealService;
-    private final DsaRequestService dsaRequestService;
     private final DsaAnomalyLogService dsaAnomalyLogService;
     private final MealTagRepository mealTagRepository;
     private final MealUnappliedLogService mealUnappliedLogService;
@@ -170,39 +166,15 @@ public class TagService {
             return handleForcedCheckout(student, store, storeId, mealInfo);
         }
 
-        // 5. 등원 상태 + 식사시간 → 급식 체크 우선, 외출/조퇴/하원은 pendingActions로
+        // 5. 등원 상태 → DSA 3.14 응답 기반 처리. 식사시간/주말/공휴일 모두 DSA가 판별.
         if (mealType != null) {
             recordMealUnappliedIfNeeded(student, store, mealType, mealInfo, today, null);
-            return handleMealTimeTag(mealType, mealInfo, student, store, storeId,
-                startOfDay, endOfDay);
         }
-
-        // 6. 식사시간 아님 → 기존 로직 (승인신청 확인 → 하원)
-        return handleCheckedInTag(student, store, storeId, startOfDay, endOfDay, null);
+        return handleCheckedInTag(student, store, storeId, mealInfo);
     }
 
     private TagResponse handleForcedCheckout(Student student, Store store, Long storeId,
                                              MealInfo mealInfo) {
-        // 21:50 이후 강제 하원 시 사유신청(조퇴/외출) 있는 케이스 기록
-        // — T로 강제 하원하면 대기 중인 사유신청이 소멸되므로 추적 필요
-        List<ApprovedRequest> pending = dsaRequestService
-            .findApprovedRequests(student.getRfidUid(), store);
-        List<ApprovedRequest> todayPending = pending.stream()
-            .filter(req -> isToday(req.regDt()))
-            .filter(req -> isEarlyLeaveType(req.regGn()) || isOutingType(req.regGn()))
-            .toList();
-        if (!todayPending.isEmpty()) {
-            log.info("21:50 강제 하원 - 사유신청 있는 학생. studentId: {}, storeId: {}, pending: {}",
-                student.getId(), storeId, todayPending);
-            dsaAnomalyLogService.log(
-                storeId, student.getRfidUid(), "/forced-checkout",
-                "FORCED_CHECKOUT_WITH_PENDING",
-                Map.of("studentId", student.getId(), "studentName", student.getName(),
-                    "studentNumber", student.getStudentNumber()),
-                todayPending,
-                "21:50 이후 강제 하원 - 오늘 사유신청 " + todayPending.size() + "건 존재");
-        }
-
         AttendTagResult result = dsaAttendanceService.sendAttendTag(
             student.getRfidUid(), store, "T");
 
@@ -224,68 +196,34 @@ public class TagService {
         return withMealInfo(response, mealInfo);
     }
 
-    private TagResponse handleMealTimeTag(MealType mealType, MealInfo mealInfo,
-                                          Student student, Store store, Long storeId,
-                                          LocalDateTime startOfDay, LocalDateTime endOfDay) {
-        List<ApprovedRequest> approvedRequests = dsaRequestService
-            .findApprovedRequests(student.getRfidUid(), store);
-
-        long completedOutingCount = outingRepository.countCompletedOutingToday(
-            student.getId(), startOfDay, endOfDay);
-        long completedEarlyLeaveCount = attendanceRepository.countEarlyLeaveToday(
-            student.getId(), startOfDay, endOfDay);
-
-        List<PendingAction> pendingActions = new ArrayList<>();
-        if (!approvedRequests.isEmpty()) {
-            pendingActions.addAll(
-                buildPendingActions(approvedRequests, completedOutingCount, completedEarlyLeaveCount));
-        }
-
-        return TagResponse.builder()
-            .processed(false)
-            .studentId(student.getId())
-            .studentName(student.getName())
-            .studentNumber(student.getStudentNumber())
-            .seatLabel(getSeatLabel(student))
-            .pendingActions(pendingActions.isEmpty() ? null : pendingActions)
-            .dsaSynced(true)
-            .mealInfo(mealInfo)
-            .build();
-    }
-
     private TagResponse handleCheckedInTag(Student student, Store store, Long storeId,
-                                           LocalDateTime startOfDay, LocalDateTime endOfDay,
                                            MealInfo mealInfo) {
-        List<ApprovedRequest> approvedRequests = dsaRequestService
-            .findApprovedRequests(student.getRfidUid(), store);
+        // con_gn="" 로 3.14 호출 → DSA가 사유신청 기반 선택지(126/128/129) 또는 액션(T/D/N/R/C) 반환
+        AttendTagResult result = dsaAttendanceService.sendAttendTag(
+            student.getRfidUid(), store);
 
-        long completedOutingCount = outingRepository.countCompletedOutingToday(
-            student.getId(), startOfDay, endOfDay);
-        long completedEarlyLeaveCount = attendanceRepository.countEarlyLeaveToday(
-            student.getId(), startOfDay, endOfDay);
-
-        // 승인된 신청 중 유효한 건 필터링
-        List<PendingAction> validActions = buildPendingActions(
-            approvedRequests, completedOutingCount, completedEarlyLeaveCount);
-
-        // 유효한 승인 있으면 선택지로 내려보냄 (하원 버튼은 포함하지 않음)
-        // 사유신청 있는 학생은 승인권으로 처리, 일반 하원은 데스크 안내
-        if (!validActions.isEmpty()) {
+        // DSA 사유신청 선택지 (조퇴/사유외출) — 사용자가 선택해서 confirmTag로 재호출
+        if (result.hasApprovalPrompts()) {
+            List<PendingAction> pendingActions = result.approvalPrompts().stream()
+                .map(p -> new PendingAction(p.action(), p.message(), null))
+                .toList();
             return TagResponse.builder()
                 .processed(false)
                 .studentId(student.getId())
                 .studentName(student.getName())
                 .studentNumber(student.getStudentNumber())
                 .seatLabel(getSeatLabel(student))
-                .pendingActions(validActions)
+                .pendingActions(pendingActions)
                 .dsaSynced(true)
                 .mealInfo(mealInfo)
                 .build();
         }
 
-        // 유효한 승인 없음 → con_gn="" 로 3.14 호출 (DSA 자동 판별)
-        AttendTagResult result = dsaAttendanceService.sendAttendTag(
-            student.getRfidUid(), store);
+        // 공휴일 등 DSA 시간표 없음 → 사용자가 하원/외출 선택
+        if (result.userChoice()) {
+            return buildFreeChoiceResponse(student, mealInfo);
+        }
+
         if (result.rejected()) {
             String rejectMsg = result.rejectMessage() != null
                 ? result.rejectMessage()
@@ -338,13 +276,7 @@ public class TagService {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new KioskException(ErrorCode.STORE_NOT_FOUND));
 
-        // 외출/조퇴 시 사유신청권 재확인
-        if (request.action() == AttendAction.D || request.action() == AttendAction.N
-                || request.action() == AttendAction.C) {
-            validateApprovedRequest(student, store, request.action());
-        }
-
-        // action → con_gn 매핑
+        // action → con_gn 매핑. DSA가 con_gn 기준으로 사유신청 재검증하므로 우리 쪽 사전 검증 불필요.
         String conGn = switch (request.action()) {
             case D -> "D";
             case N -> "N";
@@ -383,80 +315,21 @@ public class TagService {
         };
     }
 
-    private void validateApprovedRequest(Student student, Store store, AttendAction action) {
-        List<ApprovedRequest> approved = dsaRequestService
-            .findApprovedRequests(student.getRfidUid(), store);
-
-        if (approved.isEmpty()) {
-            throw new AttendanceException(ErrorCode.OUTING_NOT_APPROVED);
-        }
-
-        boolean hasMatchingApproval = approved.stream()
-            .anyMatch(req -> matchesAction(req.regGn(), action)
-                && isToday(req.regDt())
-                && isWithin30Minutes(req.regDt()));
-
-        if (!hasMatchingApproval) {
-            throw new AttendanceException(ErrorCode.OUTING_NOT_APPROVED);
-        }
-    }
-
-    private boolean matchesAction(String regGn, AttendAction action) {
-        if (regGn == null) {
-            return true;
-        }
-        if (action == AttendAction.C) {
-            return isEarlyLeaveType(regGn);
-        }
-        if (action == AttendAction.D || action == AttendAction.N) {
-            return isOutingType(regGn);
-        }
-        return true;
-    }
-
-    private boolean isEarlyLeaveType(String regGn) {
-        if (regGn == null) {
-            return false;
-        }
-        return "6".equals(regGn) || "C".equalsIgnoreCase(regGn) || "조퇴".equals(regGn);
-    }
-
-    private boolean isOutingType(String regGn) {
-        if (regGn == null) {
-            return false;
-        }
-        return "4".equals(regGn) || "7".equals(regGn)
-            || "D".equalsIgnoreCase(regGn) || "N".equalsIgnoreCase(regGn)
-            || "외출".equals(regGn);
-    }
-
-    private boolean isWithin30Minutes(String regDt) {
-        if (regDt == null || regDt.isBlank()) {
-            return true;
-        }
-        try {
-            LocalDateTime requestedTime = LocalDateTime.parse(regDt,
-                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            LocalDateTime now = LocalDateTime.now();
-            long minutesUntil = Duration.between(now, requestedTime).toMinutes();
-            return minutesUntil <= 30;
-        } catch (Exception e) {
-            log.warn("reg_dt 파싱 실패: {}", regDt);
-            return true;
-        }
-    }
-
-    private boolean isToday(String regDt) {
-        if (regDt == null || regDt.isBlank()) {
-            return true;
-        }
-        try {
-            LocalDate requestedDate = LocalDate.parse(regDt.substring(0, 10));
-            return requestedDate.equals(LocalDate.now());
-        } catch (Exception e) {
-            log.warn("reg_dt 날짜 파싱 실패: {}", regDt);
-            return true;
-        }
+    private TagResponse buildFreeChoiceResponse(Student student, MealInfo mealInfo) {
+        List<PendingAction> actions = List.of(
+            new PendingAction(AttendAction.T, "하원 하시겠습니까?", null),
+            new PendingAction(AttendAction.D, "외출 하시겠습니까?", null)
+        );
+        return TagResponse.builder()
+            .processed(false)
+            .studentId(student.getId())
+            .studentName(student.getName())
+            .studentNumber(student.getStudentNumber())
+            .seatLabel(getSeatLabel(student))
+            .pendingActions(actions)
+            .dsaSynced(true)
+            .mealInfo(mealInfo)
+            .build();
     }
 
     @Transactional
@@ -574,77 +447,6 @@ public class TagService {
             .dsaSynced(response.dsaSynced())
             .mealInfo(mealInfo)
             .build();
-    }
-
-    private List<PendingAction> buildPendingActions(List<ApprovedRequest> requests,
-                                                     long completedOutingCount,
-                                                     long completedEarlyLeaveCount) {
-        // 당일 승인권 수 집계
-        long approvedOutingCount = 0;
-        long approvedEarlyLeaveCount = 0;
-        for (ApprovedRequest req : requests) {
-            if (!isToday(req.regDt())) {
-                continue;
-            }
-            if (isEarlyLeaveType(req.regGn())) {
-                approvedEarlyLeaveCount++;
-            } else if (isOutingType(req.regGn())) {
-                approvedOutingCount++;
-            }
-        }
-
-        // 잔여 = 당일 승인권 − 완료 건수 (음수 방지)
-        long remainingOuting = Math.max(0, approvedOutingCount - completedOutingCount);
-        long remainingEarlyLeave = Math.max(0, approvedEarlyLeaveCount - completedEarlyLeaveCount);
-
-        List<PendingAction> actions = new ArrayList<>();
-        long addedOuting = 0;
-        long addedEarlyLeave = 0;
-
-        for (ApprovedRequest req : requests) {
-            String regGn = req.regGn();
-            boolean isEarlyLeave = isEarlyLeaveType(regGn);
-
-            // 당일 신청만 노출
-            if (!isToday(req.regDt())) {
-                continue;
-            }
-
-            // 예정 시각 30분 전부터 노출 (예: 12:10 외출은 11:40부터)
-            if (!isWithin30Minutes(req.regDt())) {
-                continue;
-            }
-
-            AttendAction action;
-            String message;
-
-            if (isEarlyLeave) {
-                if (addedEarlyLeave >= remainingEarlyLeave) {
-                    continue;
-                }
-                action = AttendAction.C;
-                message = "조퇴 하시겠습니까?";
-                addedEarlyLeave++;
-            } else if (isOutingType(regGn)) {
-                if (addedOuting >= remainingOuting) {
-                    continue;
-                }
-                // 사유외출권(regGn=7)은 N, 일반외출권(regGn=4 등)은 D
-                if ("7".equals(regGn) || "N".equalsIgnoreCase(regGn)) {
-                    action = AttendAction.N;
-                    message = "사유 외출 하시겠습니까?";
-                } else {
-                    action = AttendAction.D;
-                    message = "외출 하시겠습니까?";
-                }
-                addedOuting++;
-            } else {
-                continue;
-            }
-
-            actions.add(new PendingAction(action, message, req.regCd()));
-        }
-        return actions;
     }
 
     // ── 액션 핸들러 ──

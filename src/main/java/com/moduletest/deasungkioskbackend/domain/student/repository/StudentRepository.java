@@ -77,6 +77,12 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
         @Param("rfidUid") String rfidUid,
         @Param("storeId") Long storeId);
 
+    @Query("SELECT COUNT(s) > 0 FROM Student s"
+        + " WHERE s.rfidUid = :rfidUid AND s.store.id = :storeId")
+    boolean existsByRfidUidAndStoreId(
+        @Param("rfidUid") String rfidUid,
+        @Param("storeId") Long storeId);
+
     boolean existsByAssignedSeatId(Long assignedSeatId);
 
     boolean existsByAssignedSeatIdAndIdNot(Long assignedSeatId, Long studentId);

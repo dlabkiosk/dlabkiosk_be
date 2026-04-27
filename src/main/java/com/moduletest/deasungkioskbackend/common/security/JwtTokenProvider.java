@@ -21,18 +21,14 @@ public class JwtTokenProvider {
     private final long accessExpiration;
     @Getter
     private final long refreshExpiration;
-    @Getter
-    private final long kioskExpiration;
 
     public JwtTokenProvider(
         @Value("${JWT_SECRET}") String secret,
         @Value("${JWT_ACCESS_EXPIRATION}") long accessExpiration,
-        @Value("${JWT_REFRESH_EXPIRATION}") long refreshExpiration,
-        @Value("${KIOSK_TOKEN_EXPIRATION}") long kioskExpiration) {
+        @Value("${JWT_REFRESH_EXPIRATION}") long refreshExpiration) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessExpiration = accessExpiration;
         this.refreshExpiration = refreshExpiration;
-        this.kioskExpiration = kioskExpiration;
     }
 
 
@@ -51,14 +47,11 @@ public class JwtTokenProvider {
     }
 
     public String createKioskToken(Long storeId, String storeCode) {
-        Date now = new Date();
-
         return Jwts.builder()
             .subject(String.valueOf(storeId))
             .claim("storeCode", storeCode)
             .claim("role", "KIOSK")
-            .issuedAt(now)
-            .expiration(new Date(now.getTime() + kioskExpiration))
+            .issuedAt(new Date())
             .signWith(secretKey)
             .compact();
     }

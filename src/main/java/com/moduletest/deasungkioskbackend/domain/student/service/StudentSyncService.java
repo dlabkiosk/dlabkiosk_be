@@ -114,12 +114,23 @@ public class StudentSyncService {
         int skipped = 0;
         List<String> errors = new ArrayList<>();
         Set<Long> syncedStudentIds = new HashSet<>();
+        Set<String> seenRfidsInSync = new HashSet<>();
 
         for (DsaStudentData dsaStudent : dsaStudents) {
             if (dsaStudent.rfidNo() == null || dsaStudent.rfidNo().isBlank()) {
                 skipped++;
                 log.info("RFID 미부여 학생 동기화 skip. name: {}, stdNo: {}, storeId: {}",
                     dsaStudent.stdNm(), dsaStudent.stdNo(), store.getId());
+                continue;
+            }
+            // Why: DSA가 같은 sync 응답에 동일 rfid를 여러 번 내려주는 케이스
+            // (학생 분리/중복 행). 두 번째 이후는 skip해서 갱신 충돌 차단.
+            if (!seenRfidsInSync.add(dsaStudent.rfidNo())) {
+                skipped++;
+                log.warn("DSA 응답 내 RFID 중복 - skip. rfid: {}, name: {}, stdNo: {},"
+                        + " storeId: {}",
+                    dsaStudent.rfidNo(), dsaStudent.stdNm(),
+                    dsaStudent.stdNo(), store.getId());
                 continue;
             }
             try {
@@ -130,6 +141,20 @@ public class StudentSyncService {
                     dsaStudent, byRfidUid, byStudentNumber, stdNoCounts);
 
                 if (matched != null) {
+                    // Why: 학번 폴백으로 매칭된 경우, rfid가 바뀐다면 같은 지점 내
+                    // 다른 row가 이미 그 rfid를 점유 중일 수 있음. 사전 체크로
+                    // unique constraint 예외 차단.
+                    String oldRfid = matched.getRfidUid();
+                    boolean rfidChanging = !equalsNullable(oldRfid, dsaStudent.rfidNo());
+                    if (rfidChanging && studentRepository.existsByRfidUidAndStoreId(
+                            dsaStudent.rfidNo(), store.getId())) {
+                        skipped++;
+                        log.warn("RFID 변경 시 같은 지점 중복 - skip. stdNo: {}, name: {},"
+                                + " oldRfid: {}, newRfid: {}, storeId: {}",
+                            dsaStudent.stdNo(), dsaStudent.stdNm(),
+                            oldRfid, dsaStudent.rfidNo(), store.getId());
+                        continue;
+                    }
                     syncedStudentIds.add(matched.getId());
                     // DSA 3.24 실패 시 기존 전화번호 유지
                     String resolvedPhone = phone != null ? phone : matched.getPhone();
@@ -141,6 +166,14 @@ public class StudentSyncService {
                             dsaStudent.hp(),
                             resolvedPhone,
                             seat);
+                        // Why: 같은 sync 안에서 다음 레코드가 같은 rfid로 들어와도
+                        // byRfidUid 맵으로 매칭되어 INSERT 시도 안 하도록 갱신.
+                        if (rfidChanging) {
+                            if (oldRfid != null && !oldRfid.isBlank()) {
+                                byRfidUid.remove(oldRfid);
+                            }
+                            byRfidUid.put(dsaStudent.rfidNo(), matched);
+                        }
                         updated++;
                     } else {
                         unchanged++;
@@ -150,6 +183,18 @@ public class StudentSyncService {
                         dsaStudent.rfidNo(), store.getId())) {
                         skipped++;
                         log.warn("RFID 중복으로 skip - 다른 지점에 동일 RFID 존재."
+                                + " rfid: {}, name: {}, stdNo: {}, storeId: {}",
+                            dsaStudent.rfidNo(), dsaStudent.stdNm(),
+                            dsaStudent.stdNo(), store.getId());
+                        continue;
+                    }
+                    // Why: byRfidUid 맵이 stale일 가능성 + 동일 sync 내 앞선
+                    // 갱신/삽입이 같은 rfid를 점유했을 가능성에 대비. INSERT 직전
+                    // DB 사실 확인으로 unique 예외 차단.
+                    if (studentRepository.existsByRfidUidAndStoreId(
+                        dsaStudent.rfidNo(), store.getId())) {
+                        skipped++;
+                        log.warn("RFID 중복으로 skip - 같은 지점에 동일 RFID 존재."
                                 + " rfid: {}, name: {}, stdNo: {}, storeId: {}",
                             dsaStudent.rfidNo(), dsaStudent.stdNm(),
                             dsaStudent.stdNo(), store.getId());

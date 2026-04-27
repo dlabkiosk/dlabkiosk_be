@@ -7,6 +7,8 @@ import com.moduletest.deasungkioskbackend.common.security.TokenRedisService;
 import com.moduletest.deasungkioskbackend.domain.kiosk.dto.KioskLoginRequest;
 import com.moduletest.deasungkioskbackend.domain.kiosk.dto.KioskLoginResponse;
 import com.moduletest.deasungkioskbackend.domain.kiosk.exception.KioskException;
+import com.moduletest.deasungkioskbackend.domain.kiosk.log.KioskAuthEventType;
+import com.moduletest.deasungkioskbackend.domain.kiosk.log.KioskAuthLogService;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import com.moduletest.deasungkioskbackend.domain.store.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,23 +26,34 @@ public class KioskAuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenRedisService tokenRedisService;
     private final DsaTokenService dsaTokenService;
+    private final KioskAuthLogService kioskAuthLogService;
 
-    public KioskLoginResult login(KioskLoginRequest request) {
+    public KioskLoginResult login(KioskLoginRequest request, String ipAddress, String userAgent) {
         Store store = storeRepository.findByStoreCode(request.storeCode())
-            .orElseThrow(() -> new KioskException(ErrorCode.KIOSK_INVALID_CREDENTIALS));
+            .orElseThrow(() -> {
+                kioskAuthLogService.log(KioskAuthEventType.LOGIN_FAILED,
+                    null, request.storeCode(),
+                    ErrorCode.KIOSK_INVALID_STORE_CODE.getCode(), ipAddress, userAgent);
+                return new KioskException(ErrorCode.KIOSK_INVALID_STORE_CODE);
+            });
 
         if (!store.getKioskPin().equals(request.kioskPin())) {
-            throw new KioskException(ErrorCode.KIOSK_INVALID_CREDENTIALS);
+            kioskAuthLogService.log(KioskAuthEventType.LOGIN_FAILED,
+                store.getId(), request.storeCode(),
+                ErrorCode.KIOSK_INVALID_PIN.getCode(), ipAddress, userAgent);
+            throw new KioskException(ErrorCode.KIOSK_INVALID_PIN);
         }
 
         if (!store.isActive()) {
+            kioskAuthLogService.log(KioskAuthEventType.LOGIN_FAILED,
+                store.getId(), request.storeCode(),
+                ErrorCode.KIOSK_STORE_INACTIVE.getCode(), ipAddress, userAgent);
             throw new KioskException(ErrorCode.KIOSK_STORE_INACTIVE);
         }
 
         String token = jwtTokenProvider.createKioskToken(store.getId(), store.getStoreCode());
 
-        tokenRedisService.saveKioskToken(
-            store.getId(), token, jwtTokenProvider.getKioskExpiration());
+        tokenRedisService.saveKioskToken(store.getId(), token);
 
         if (store.hasDsaCredentials()) {
             try {
@@ -50,6 +63,9 @@ public class KioskAuthService {
                     store.getId(), e.getMessage());
             }
         }
+
+        kioskAuthLogService.log(KioskAuthEventType.LOGIN_SUCCESS,
+            store.getId(), store.getStoreCode(), null, ipAddress, userAgent);
 
         KioskLoginResponse loginResponse = KioskLoginResponse.fromEntity(store);
         return new KioskLoginResult(token, loginResponse);
@@ -61,8 +77,13 @@ public class KioskAuthService {
         return KioskLoginResponse.fromEntity(store);
     }
 
-    public void logout(Long storeId, String token) {
+    public void logout(Long storeId, String token, String ipAddress, String userAgent) {
         tokenRedisService.removeKioskToken(storeId, token);
+        String storeCode = storeRepository.findById(storeId)
+            .map(Store::getStoreCode)
+            .orElse(null);
+        kioskAuthLogService.log(KioskAuthEventType.LOGOUT,
+            storeId, storeCode, null, ipAddress, userAgent);
     }
 
     public record KioskLoginResult(String token, KioskLoginResponse storeInfo) { }

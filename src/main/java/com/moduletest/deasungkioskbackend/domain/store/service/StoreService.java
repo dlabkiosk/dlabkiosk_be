@@ -66,7 +66,13 @@ public class StoreService {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreException(ErrorCode.STORE_NOT_FOUND));
 
+        if (!store.getStoreCode().equals(request.storeCode())
+            && storeRepository.existsByStoreCode(request.storeCode())) {
+            throw new StoreException(ErrorCode.DUPLICATE_STORE_CODE);
+        }
+
         store.updateInfo(request.storeName(), request.address(), request.phone(), request.active());
+        store.updateStoreCode(request.storeCode());
         store.updateKioskPin(request.kioskPin());
         store.updateDsaCredentials(
             request.dsaAcadCd(), request.dsaClientId(), request.dsaSecretId());

@@ -22,6 +22,8 @@ public class DsaAttendanceService {
     private static final String SET_ATTEND_STD_PATH = "/kiosk/setAttendStd";
     private static final String SET_RE_ATTEND_PROC_PATH = "/kiosk/setReAttendProc";
     private static final int CODE_ALREADY_EARLY_LEFT = 121;
+    private static final int CODE_USER_CHOICE = 113;
+    private static final int CODE_CONFIRM_BOTH = 126;
     private static final int CODE_CONFIRM_EARLY_LEAVE = 128;
     private static final int CODE_CONFIRM_OUTING = 129;
     private static final int CODE_NO_APPROVAL = 130;
@@ -96,19 +98,28 @@ public class DsaAttendanceService {
                 return AttendTagResult.rejected(innerMessage);
             }
 
-            // data 내부 code 128/129 — DSA 확인 프롬프트 (조퇴/사유외출 신청하시겠습니까?)
-            // 복귀 맥락에서 R 대신 이게 오면 DSA가 복귀를 인지 못하는 상태 불일치
-            if (innerCode != null
-                && (innerCode == CODE_CONFIRM_EARLY_LEAVE || innerCode == CODE_CONFIRM_OUTING)) {
+            // data 내부 code 113 — DSA 시간표 없어 자동 판별 불가 (주말/공휴일).
+            // "하원/외출 하시겠습니까?" — 사용자가 con_gn 명시해서 재호출해야 함.
+            if (innerCode != null && innerCode == CODE_USER_CHOICE) {
                 String innerMessage = extractInnerMessage(response);
-                log.info("DSA 확인 프롬프트 응답 (code {}): {}. rfidUid: {}, storeId: {}",
-                    innerCode, innerMessage, rfidUid, store.getId());
+                log.info("DSA 사용자 선택 요구 (code 113): {}. rfidUid: {}, storeId: {}",
+                    innerMessage, rfidUid, store.getId());
                 dsaAnomalyLogService.log(
                     store.getId(), rfidUid, SET_ATTEND_STD_PATH,
-                    "DSA_CONFIRM_PROMPT", params, response,
-                    "DSA 확인 프롬프트 (code " + innerCode + "): " + innerMessage
-                        + " — 복귀 맥락이면 DSA가 외출 상태 인지 못함");
-                return AttendTagResult.noDsa();
+                    "DSA_USER_CHOICE", params, response,
+                    "DSA code 113 — 시간표 없어 자동 판별 불가 (주말/공휴일)");
+                return AttendTagResult.freeChoice();
+            }
+
+            // data 내부 code 126/128/129 — DSA 사유신청권 기반 선택지
+            // 126: 조퇴 + 사유외출 둘 다, 128: 조퇴만, 129: 사유외출만
+            if (innerCode != null && (innerCode == CODE_CONFIRM_BOTH
+                || innerCode == CODE_CONFIRM_EARLY_LEAVE
+                || innerCode == CODE_CONFIRM_OUTING)) {
+                log.info("DSA 사유신청 선택지 응답 (code {}). rfidUid: {}, storeId: {}",
+                    innerCode, rfidUid, store.getId());
+                return AttendTagResult.approvalPrompts(
+                    buildApprovalPrompts(innerCode));
             }
 
             String attGn = extractAttGn(response);
@@ -178,23 +189,54 @@ public class DsaAttendanceService {
 
     public record AttendTagResult(AttendAction action, boolean dsaSynced,
                                   boolean earlyLeftBlocked, boolean rejected,
-                                  String rejectMessage) {
+                                  String rejectMessage, boolean userChoice,
+                                  List<PromptOption> approvalPrompts) {
 
         public static AttendTagResult success(AttendAction action) {
-            return new AttendTagResult(action, true, false, false, null);
+            return new AttendTagResult(action, true, false, false, null, false, List.of());
         }
 
         public static AttendTagResult blockedByEarlyLeave() {
-            return new AttendTagResult(null, true, true, false, null);
+            return new AttendTagResult(null, true, true, false, null, false, List.of());
         }
 
         public static AttendTagResult rejected(String message) {
-            return new AttendTagResult(null, true, false, true, message);
+            return new AttendTagResult(null, true, false, true, message, false, List.of());
         }
 
         public static AttendTagResult noDsa() {
-            return new AttendTagResult(null, false, false, false, null);
+            return new AttendTagResult(null, false, false, false, null, false, List.of());
         }
+
+        public static AttendTagResult freeChoice() {
+            return new AttendTagResult(null, true, false, false, null, true, List.of());
+        }
+
+        public static AttendTagResult approvalPrompts(List<PromptOption> prompts) {
+            return new AttendTagResult(null, true, false, false, null, false, prompts);
+        }
+
+        public boolean hasApprovalPrompts() {
+            return approvalPrompts != null && !approvalPrompts.isEmpty();
+        }
+    }
+
+    public record PromptOption(AttendAction action, String message) { }
+
+    private List<PromptOption> buildApprovalPrompts(int innerCode) {
+        return switch (innerCode) {
+            case CODE_CONFIRM_BOTH -> List.of(
+                new PromptOption(AttendAction.C, "조퇴 하시겠습니까?"),
+                new PromptOption(AttendAction.N, "사유 외출 하시겠습니까?")
+            );
+            case CODE_CONFIRM_EARLY_LEAVE -> List.of(
+                new PromptOption(AttendAction.C, "조퇴 하시겠습니까?")
+            );
+            case CODE_CONFIRM_OUTING -> List.of(
+                new PromptOption(AttendAction.N, "사유 외출 하시겠습니까?")
+            );
+            default -> List.of();
+        };
     }
 
     /**

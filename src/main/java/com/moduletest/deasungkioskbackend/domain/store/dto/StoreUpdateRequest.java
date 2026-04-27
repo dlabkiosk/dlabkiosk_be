@@ -9,6 +9,8 @@ import jakarta.validation.constraints.Size;
 public record StoreUpdateRequest(
     @Schema(description = "지점명", example = "대성학원 강남점")
     @NotBlank(message = "지점명은 필수 입력 항목입니다") String storeName,
+    @Schema(description = "지점 코드 (중복 불가)", example = "DS-001")
+    @NotBlank(message = "지점 코드는 필수 입력 항목입니다.") String storeCode,
     @Schema(description = "주소", example = "서울시 강남구 테헤란로 123")
     String address,
     @Schema(description = "전화번호", example = "02-1234-5678")

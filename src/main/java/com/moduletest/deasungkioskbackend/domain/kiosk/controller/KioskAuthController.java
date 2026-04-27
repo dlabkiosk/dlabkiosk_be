@@ -4,7 +4,6 @@ import static com.moduletest.deasungkioskbackend.common.util.CookieUtil.addAcces
 import static com.moduletest.deasungkioskbackend.common.util.CookieUtil.clearAccessToken;
 
 import com.moduletest.deasungkioskbackend.common.dto.CommonResponse;
-import com.moduletest.deasungkioskbackend.common.security.JwtTokenProvider;
 import com.moduletest.deasungkioskbackend.common.security.SecurityUtil;
 import com.moduletest.deasungkioskbackend.domain.kiosk.dto.KioskLoginRequest;
 import com.moduletest.deasungkioskbackend.domain.kiosk.dto.KioskLoginResponse;
@@ -15,6 +14,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,17 +28,21 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class KioskAuthController {
 
+    private static final long KIOSK_COOKIE_MAX_AGE_MILLIS = Duration.ofDays(3650).toMillis();
+
     private final KioskAuthService kioskAuthService;
-    private final JwtTokenProvider jwtTokenProvider;
 
     @Operation(summary = "키오스크 로그인",
-        description = "지점 코드와 PIN으로 로그인한다. 성공 시 JWT 쿠키가 설정되고 지점 정보를 반환한다.")
+        description = "지점 코드와 PIN으로 로그인한다. 성공 시 JWT 쿠키가 설정되고 지점 정보를 반환한다. "
+            + "키오스크 토큰은 만료시간이 없으며 명시적으로 로그아웃해야만 무효화된다.")
     @PostMapping("/login")
     public CommonResponse<KioskLoginResponse> login(
         @Valid @RequestBody KioskLoginRequest request,
+        HttpServletRequest httpRequest,
         HttpServletResponse response) {
-        KioskAuthService.KioskLoginResult result = kioskAuthService.login(request);
-        addAccessToken(response, result.token(), jwtTokenProvider.getKioskExpiration());
+        KioskAuthService.KioskLoginResult result = kioskAuthService.login(
+            request, resolveClientIp(httpRequest), httpRequest.getHeader("User-Agent"));
+        addAccessToken(response, result.token(), KIOSK_COOKIE_MAX_AGE_MILLIS);
         return CommonResponse.success(result.storeInfo());
     }
 
@@ -56,7 +60,8 @@ public class KioskAuthController {
     public CommonResponse<Void> logout(HttpServletRequest request, HttpServletResponse response) {
         Long storeId = SecurityUtil.getStoreIdFromToken();
         String token = resolveTokenFromCookie(request);
-        kioskAuthService.logout(storeId, token);
+        kioskAuthService.logout(storeId, token,
+            resolveClientIp(request), request.getHeader("User-Agent"));
         clearAccessToken(response);
         return CommonResponse.success(null);
     }
@@ -71,5 +76,13 @@ public class KioskAuthController {
             }
         }
         return null;
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            return xff.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }
