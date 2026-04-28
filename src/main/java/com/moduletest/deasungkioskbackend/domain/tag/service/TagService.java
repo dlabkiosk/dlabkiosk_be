@@ -169,6 +169,35 @@ public class TagService {
                     .build();
             }
 
+            // 미등원 학생에게 DSA가 사유신청 선택지(code 126/128/129) 응답 — 비정상.
+            // 조퇴/사유외출은 등원 후에만 의미 있는데 첫 태그에 선택지가 오는 케이스.
+            // DSA 의도 확인 필요. 우선 DB 로깅하고 사용자엔 데스크 안내 노출.
+            if (dsaResult.hasApprovalPrompts()) {
+                log.warn("DSA 미등원 학생에게 사유신청 선택지 응답 - DSA 의도 확인 필요."
+                        + " studentId: {}, storeId: {}, prompts: {}",
+                    student.getId(), storeId, dsaResult.approvalPrompts().size());
+                dsaAnomalyLogService.log(
+                    storeId, student.getRfidUid(), "/kiosk/tag",
+                    "PRE_CHECKIN_APPROVAL_PROMPTS",
+                    Map.of("studentId", student.getId(),
+                        "studentName", student.getName(),
+                        "studentNumber", student.getStudentNumber(),
+                        "promptCount", dsaResult.approvalPrompts().size()),
+                    dsaResult,
+                    "미등원 학생에게 DSA가 사유신청 선택지(code 126/128/129) 응답 - "
+                        + "DSA 의도 확인 필요");
+                return TagResponse.builder()
+                    .processed(true)
+                    .studentId(student.getId())
+                    .studentName(student.getName())
+                    .studentNumber(student.getStudentNumber())
+                    .seatLabel(getSeatLabel(student))
+                    .dsaSynced(true)
+                    .messages(List.of("처리할 수 없는 상태입니다. 데스크로 문의해주세요."))
+                    .mealInfo(mealInfo)
+                    .build();
+            }
+
             if (!dsaResult.dsaSynced() || dsaResult.action() == null) {
                 log.warn("DSA 출결 판별 실패 - 등원 처리 보류. studentId: {}, storeId: {}",
                     student.getId(), storeId);

@@ -71,10 +71,6 @@ public class DsaAttendanceService {
                 if (response.getCode() == CODE_NO_APPROVAL) {
                     log.info("DSA 승인 내역 없음 (code 130). rfidUid: {}, storeId: {}",
                         rfidUid, store.getId());
-                    dsaAnomalyLogService.log(
-                        store.getId(), rfidUid, SET_ATTEND_STD_PATH,
-                        "DSA_NO_APPROVAL", params, response,
-                        "DSA code 130 — 승인 내역 없음 (top-level)");
                     return AttendTagResult.rejected(response.getMessage());
                 }
                 log.warn("DSA setAttendStd 실패 - code: {}, message: {}. storeId: {}",
@@ -92,10 +88,6 @@ public class DsaAttendanceService {
                 String innerMessage = extractInnerMessage(response);
                 log.info("DSA 승인 내역 없음 (data 내부 code 130). rfidUid: {}, storeId: {}",
                     rfidUid, store.getId());
-                dsaAnomalyLogService.log(
-                    store.getId(), rfidUid, SET_ATTEND_STD_PATH,
-                    "DSA_NO_APPROVAL", params, response,
-                    "DSA data 내부 code 130 — 승인 내역 없음");
                 return AttendTagResult.rejected(innerMessage);
             }
 
