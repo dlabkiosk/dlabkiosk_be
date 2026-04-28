@@ -27,6 +27,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -41,6 +42,7 @@ public class SeatService {
     private final SeatLeaveRepository seatLeaveRepository;
     private final DsaAreaService dsaAreaService;
     private final DsaStudentService dsaStudentService;
+    private final SeatSyncTxService seatSyncTxService;
 
 
     @Transactional
@@ -215,51 +217,28 @@ public class SeatService {
 
     /**
      * 전 구역 좌석 동기화. DSA 3.7(구역) + 3.8(좌석) 호출하여 upsert.
+     * Why: HTTP 호출은 트랜잭션 밖에서 수행하고, 구역 단위 DB upsert만 짧은
+     * 별도 트랜잭션으로 분리해 풀 점유 시간 최소화. 클래스 레벨 readOnly가
+     * 적용되지 않도록 NOT_SUPPORTED로 명시 (이 메서드는 트랜잭션 없이 실행).
      */
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void synchronizeSeats(Store store) {
         List<AreaResponse> areas = dsaAreaService.findAreas(store);
         if (areas.isEmpty()) {
             return;
         }
 
-        List<Seat> allSeats = seatRepository.findAllByStoreIdWithStore(store.getId());
-        Map<String, Seat> seatCdMap = new HashMap<>();
-        for (Seat seat : allSeats) {
-            if (seat.getSeatCd() != null) {
-                seatCdMap.put(seat.getSeatCd(), seat);
-            }
-        }
-
         for (AreaResponse area : areas) {
-            List<SeatStatusResponse> dsaSeats =
-                dsaAreaService.findSeatStatusByArea(area.areaCd(), store);
+            try {
+                List<SeatStatusResponse> dsaSeats =
+                    dsaAreaService.findSeatStatusByArea(area.areaCd(), store);
 
-            for (SeatStatusResponse dsaSeat : dsaSeats) {
-                if (dsaSeat.seatNm() == null || dsaSeat.seatNm().isEmpty()) {
-                    continue;
-                }
-                Seat seat = seatCdMap.get(dsaSeat.seatCd());
-                if (seat != null) {
-                    seat.syncFromDsa(dsaSeat.seatNm(), dsaSeat.seatCd(),
-                        dsaSeat.xPos(), dsaSeat.yPos(),
-                        area.areaCd(), area.areaNm(), dsaSeat.seatGn());
-                } else {
-                    seat = seatRepository.save(Seat.builder()
-                        .store(store)
-                        .seatLabel(dsaSeat.seatNm())
-                        .seatType(SeatType.INDIVIDUAL)
-                        .xPos(dsaSeat.xPos())
-                        .yPos(dsaSeat.yPos())
-                        .active(true)
-                        .areaCd(area.areaCd())
-                        .areaNm(area.areaNm())
-                        .seatCd(dsaSeat.seatCd())
-                        .seatGn(dsaSeat.seatGn())
-                        .dsaSynced(true)
-                        .build());
-                    seatCdMap.put(seat.getSeatCd(), seat);
-                }
+                seatSyncTxService.upsertSeatsForArea(
+                    store.getId(), area.areaCd(), area.areaNm(), dsaSeats);
+            } catch (Exception e) {
+                log.error("좌석 area 동기화 실패 - 다음 area는 계속 진행."
+                        + " areaCd: {}, storeId: {}",
+                    area.areaCd(), store.getId(), e);
             }
         }
     }

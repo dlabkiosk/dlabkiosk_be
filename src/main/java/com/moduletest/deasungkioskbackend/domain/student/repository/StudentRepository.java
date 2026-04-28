@@ -71,6 +71,18 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     boolean existsByStudentNumber(String studentNumber);
 
+    @Query("SELECT s FROM Student s LEFT JOIN FETCH s.assignedSeat"
+        + " WHERE s.rfidUid = :rfidUid AND s.store.id = :storeId")
+    Optional<Student> findByRfidUidAndStoreIdAny(
+        @Param("rfidUid") String rfidUid,
+        @Param("storeId") Long storeId);
+
+    @Query("SELECT s FROM Student s LEFT JOIN FETCH s.assignedSeat"
+        + " WHERE s.studentNumber = :studentNumber AND s.store.id = :storeId")
+    List<Student> findAllByStudentNumberAndStoreId(
+        @Param("studentNumber") String studentNumber,
+        @Param("storeId") Long storeId);
+
     @Query("SELECT COUNT(s) > 0 FROM Student s"
         + " WHERE s.rfidUid = :rfidUid AND s.store.id <> :storeId")
     boolean existsByRfidUidAndStoreIdNot(
