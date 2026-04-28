@@ -72,7 +72,6 @@ public class TagService {
     private final SeatLeaveRepository seatLeaveRepository;
     private final RedisTemplate<String, String> redisTemplate;
 
-    private static final LocalTime FORCED_CHECKOUT_TIME = LocalTime.of(21, 50);
     private static final int RETAG_INTERVAL_SECONDS = 60;
     private static final String RETAG_KEY_PREFIX = "tag:recent:";
 
@@ -153,6 +152,38 @@ public class TagService {
             AttendTagResult dsaResult = dsaAttendanceService.sendAttendTag(
                 student.getRfidUid(), store);
 
+            // DSA가 거부(이미 하원/학습시간 외 등) — 등원 row 만들지 않고 메시지 노출
+            if (dsaResult.rejected()) {
+                String rejectMsg = dsaResult.rejectMessage() != null
+                    ? dsaResult.rejectMessage()
+                    : "출결 처리할 수 없습니다. 데스크로 문의해주세요.";
+                return TagResponse.builder()
+                    .processed(true)
+                    .studentId(student.getId())
+                    .studentName(student.getName())
+                    .studentNumber(student.getStudentNumber())
+                    .seatLabel(getSeatLabel(student))
+                    .dsaSynced(true)
+                    .messages(List.of(rejectMsg))
+                    .mealInfo(mealInfo)
+                    .build();
+            }
+
+            if (!dsaResult.dsaSynced() || dsaResult.action() == null) {
+                log.warn("DSA 출결 판별 실패 - 등원 처리 보류. studentId: {}, storeId: {}",
+                    student.getId(), storeId);
+                return TagResponse.builder()
+                    .processed(false)
+                    .studentId(student.getId())
+                    .studentName(student.getName())
+                    .studentNumber(student.getStudentNumber())
+                    .seatLabel(getSeatLabel(student))
+                    .dsaSynced(false)
+                    .messages(List.of("출결 처리 실패. 잠시 후 다시 시도해주세요."))
+                    .mealInfo(mealInfo)
+                    .build();
+            }
+
             AttendAction action = (dsaResult.action() == AttendAction.A)
                 ? AttendAction.A : AttendAction.S;
             TagResponse response = handleCheckIn(
@@ -161,39 +192,11 @@ public class TagService {
             return withMealInfo(response, mealInfo);
         }
 
-        // 4. 21:50 이후 등원 상태 → 무조건 하원 (식사시간/승인권 무시)
-        if (!LocalTime.now().isBefore(FORCED_CHECKOUT_TIME)) {
-            return handleForcedCheckout(student, store, storeId, mealInfo);
-        }
-
-        // 5. 등원 상태 → DSA 3.14 응답 기반 처리. 식사시간/주말/공휴일 모두 DSA가 판별.
+        // 4. 등원 상태 → DSA 3.14 응답 기반 처리. 식사시간/주말/공휴일/마감시간 모두 DSA가 판별.
         if (mealType != null) {
             recordMealUnappliedIfNeeded(student, store, mealType, mealInfo, today, null);
         }
         return handleCheckedInTag(student, store, storeId, mealInfo);
-    }
-
-    private TagResponse handleForcedCheckout(Student student, Store store, Long storeId,
-                                             MealInfo mealInfo) {
-        AttendTagResult result = dsaAttendanceService.sendAttendTag(
-            student.getRfidUid(), store, "T");
-
-        if (!result.dsaSynced()) {
-            log.warn("강제 하원 DSA 동기화 실패. studentId: {}, storeId: {}",
-                student.getId(), storeId);
-            return TagResponse.builder()
-                .processed(false)
-                .studentId(student.getId())
-                .studentName(student.getName())
-                .studentNumber(student.getStudentNumber())
-                .seatLabel(getSeatLabel(student))
-                .dsaSynced(false)
-                .messages(List.of("출결 처리 실패. 잠시 후 다시 시도해주세요."))
-                .build();
-        }
-
-        TagResponse response = handleCheckOut(AttendAction.T, student, storeId, true);
-        return withMealInfo(response, mealInfo);
     }
 
     private TagResponse handleCheckedInTag(Student student, Store store, Long storeId,
