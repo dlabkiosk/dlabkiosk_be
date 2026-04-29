@@ -3,6 +3,7 @@ package com.moduletest.deasungkioskbackend.common.dsa.service;
 import com.moduletest.deasungkioskbackend.common.dsa.client.DsaApiClient;
 import com.moduletest.deasungkioskbackend.common.dsa.dto.DsaResponse;
 import com.moduletest.deasungkioskbackend.common.dsa.exception.DsaApiException;
+import com.moduletest.deasungkioskbackend.common.util.PhoneNormalizer;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import java.util.HashMap;
 import java.util.Map;
@@ -44,7 +45,8 @@ public final class DsaParentPhoneService {
             StringJoiner joiner = new StringJoiner(" / ");
             for (Map<String, Object> item : response.getDataAsList()) {
                 String pgb = String.valueOf(item.get("p_gb"));
-                String php = String.valueOf(item.get("p_hp"));
+                String php = PhoneNormalizer.normalizeFullwidth(
+                    String.valueOf(item.get("p_hp")));
                 String label = formatParentLabel(pgb);
                 joiner.add(label + ": " + php);
             }

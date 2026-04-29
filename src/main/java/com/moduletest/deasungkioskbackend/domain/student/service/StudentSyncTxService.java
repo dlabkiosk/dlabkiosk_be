@@ -3,6 +3,7 @@ package com.moduletest.deasungkioskbackend.domain.student.service;
 import com.moduletest.deasungkioskbackend.common.dsa.dto.DsaStudentData;
 import com.moduletest.deasungkioskbackend.common.exception.BusinessException;
 import com.moduletest.deasungkioskbackend.common.exception.ErrorCode;
+import com.moduletest.deasungkioskbackend.common.util.PhoneNormalizer;
 import com.moduletest.deasungkioskbackend.domain.seat.entity.Seat;
 import com.moduletest.deasungkioskbackend.domain.seat.repository.SeatRepository;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
@@ -81,12 +82,14 @@ public class StudentSyncTxService {
                 }
                 // DSA 3.24 실패 시 기존 전화번호 유지
                 String resolvedPhone = phone != null ? phone : matched.getPhone();
-                if (hasChanges(matched, dsaStudent, seat, resolvedPhone)) {
+                String normalizedLast4 = PhoneNormalizer.last(
+                    PhoneNormalizer.normalizeDigits(dsaStudent.hp()), 4);
+                if (hasChanges(matched, dsaStudent, seat, resolvedPhone, normalizedLast4)) {
                     matched.syncFromDsa(
                         dsaStudent.stdNm(),
                         dsaStudent.rfidNo(),
                         dsaStudent.stdNo(),
-                        dsaStudent.hp(),
+                        normalizedLast4,
                         resolvedPhone,
                         seat);
                     return new UpsertOutcome(matched.getId(), UpsertStatus.UPDATED);
@@ -116,7 +119,8 @@ public class StudentSyncTxService {
             .name(dsaStudent.stdNm())
             .rfidUid(dsaStudent.rfidNo())
             .studentNumber(dsaStudent.stdNo())
-            .phoneLast4(dsaStudent.hp())
+            .phoneLast4(PhoneNormalizer.last(
+                PhoneNormalizer.normalizeDigits(dsaStudent.hp()), 4))
             .phone(phone)
             .assignedSeat(seat)
             .dsaSynced(true)
@@ -170,7 +174,7 @@ public class StudentSyncTxService {
     }
 
     private boolean hasChanges(Student student, DsaStudentData dsaStudent,
-        Seat seat, String phone) {
+        Seat seat, String phone, String normalizedLast4) {
         // Why: DSA 응답에 있는 학생은 활성 상태여야 함.
         // 비활성인 row가 매칭되면 syncFromDsa로 복원해야 하므로 변경으로 취급.
         if (!student.isActive()) {
@@ -185,7 +189,7 @@ public class StudentSyncTxService {
         if (!equalsNullable(student.getStudentNumber(), dsaStudent.stdNo())) {
             return true;
         }
-        if (!equalsNullable(student.getPhoneLast4(), dsaStudent.hp())) {
+        if (!equalsNullable(student.getPhoneLast4(), normalizedLast4)) {
             return true;
         }
         if (!equalsNullable(student.getPhone(), phone)) {

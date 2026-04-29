@@ -4,6 +4,7 @@ import com.moduletest.deasungkioskbackend.common.dsa.client.DsaApiClient;
 import com.moduletest.deasungkioskbackend.common.dsa.dto.DsaResponse;
 import com.moduletest.deasungkioskbackend.common.dsa.dto.DsaStudentData;
 import com.moduletest.deasungkioskbackend.common.dsa.exception.DsaApiException;
+import com.moduletest.deasungkioskbackend.common.util.PhoneNormalizer;
 import com.moduletest.deasungkioskbackend.domain.store.entity.Store;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -113,11 +114,8 @@ public final class DsaStudentService {
             if (hp == null) {
                 return null;
             }
-            String phone = String.valueOf(hp).replaceAll("[^0-9]", "");
-            if (phone.length() >= 8) {
-                return phone.substring(phone.length() - 8);
-            }
-            return phone.isEmpty() ? null : phone;
+            String digits = PhoneNormalizer.normalizeDigits(String.valueOf(hp));
+            return PhoneNormalizer.last(digits, 8);
 
         } catch (Exception e) {
             log.warn("DSA getStdInfo 전화번호 조회 실패 - rfidNo: {}", rfidNo, e);
