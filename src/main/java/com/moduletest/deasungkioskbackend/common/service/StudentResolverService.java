@@ -26,7 +26,8 @@ public class StudentResolverService {
         String trimmed = identifier.trim();
         return findByRfidWithDecode(trimmed)
             .orElseThrow(() -> {
-                log.warn("학생 식별 실패 [RFID]. value: {}", trimmed);
+                log.warn("학생 식별 실패 [RFID]. raw: {}, decoded: {}",
+                    trimmed, EmCardDecoder.decode(trimmed).orElse("-"));
                 return new StudentException(ErrorCode.STUDENT_NOT_FOUND);
             });
     }
