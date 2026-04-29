@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -17,19 +18,40 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class StudentResolverService {
 
+    private static final String DSA_TOKEN_KEY_PREFIX = "dsa:token:";
+
     private final StudentRepository studentRepository;
+    private final RedisTemplate<String, String> redisTemplate;
 
     public Student resolveByIdentifier(String identifier) {
+        return resolveByIdentifier(identifier, null);
+    }
+
+    public Student resolveByIdentifier(String identifier, Long storeId) {
         if (identifier == null || identifier.isBlank()) {
             throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
         }
         String trimmed = identifier.trim();
         return findByRfidWithDecode(trimmed)
             .orElseThrow(() -> {
-                log.warn("학생 식별 실패 [RFID]. raw: {}, decoded: {}",
-                    trimmed, EmCardDecoder.decode(trimmed).orElse("-"));
+                log.warn("학생 식별 실패 [RFID]. raw: {}, decoded: {}, storeId: {},"
+                        + " dsaToken: {}",
+                    trimmed, EmCardDecoder.decode(trimmed).orElse("-"),
+                    storeId, lookupDsaToken(storeId));
                 return new StudentException(ErrorCode.STUDENT_NOT_FOUND);
             });
+    }
+
+    private String lookupDsaToken(Long storeId) {
+        if (storeId == null) {
+            return "-";
+        }
+        try {
+            String token = redisTemplate.opsForValue().get(DSA_TOKEN_KEY_PREFIX + storeId);
+            return token != null ? token : "-";
+        } catch (Exception e) {
+            return "-";
+        }
     }
 
     /**
@@ -122,7 +144,7 @@ public class StudentResolverService {
     public Student resolve(String identifier, String studentNumber,
                            String phoneLast4, Long storeId) {
         if (identifier != null && !identifier.isBlank()) {
-            return resolveByIdentifier(identifier);
+            return resolveByIdentifier(identifier, storeId);
         }
         if (studentNumber != null && !studentNumber.isBlank()) {
             String trimmed = studentNumber.trim();
@@ -150,7 +172,7 @@ public class StudentResolverService {
         }
         if (inputMethod != null) {
             Student student = switch (inputMethod) {
-                case RFID -> resolveByIdentifier(value.trim());
+                case RFID -> resolveByIdentifier(value.trim(), storeId);
                 case PHONE_LAST4 -> resolveByPhoneLast4(value.trim(), storeId);
                 case PHONE -> resolveByPhone(value.trim(), storeId);
             };
