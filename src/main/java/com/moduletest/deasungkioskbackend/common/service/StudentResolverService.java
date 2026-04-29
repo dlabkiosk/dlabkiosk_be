@@ -9,8 +9,10 @@ import com.moduletest.deasungkioskbackend.domain.student.repository.StudentRepos
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StudentResolverService {
@@ -21,8 +23,12 @@ public class StudentResolverService {
         if (identifier == null || identifier.isBlank()) {
             throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
         }
-        return findByRfidWithDecode(identifier.trim())
-            .orElseThrow(() -> new StudentException(ErrorCode.STUDENT_NOT_FOUND));
+        String trimmed = identifier.trim();
+        return findByRfidWithDecode(trimmed)
+            .orElseThrow(() -> {
+                log.warn("학생 식별 실패 [RFID]. value: {}", trimmed);
+                return new StudentException(ErrorCode.STUDENT_NOT_FOUND);
+            });
     }
 
     /**
@@ -48,9 +54,13 @@ public class StudentResolverService {
         if (seatLabel == null || seatLabel.isBlank()) {
             throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
         }
-        return studentRepository.findBySeatLabelAndStoreId(seatLabel.trim(), storeId)
-            .orElseThrow(() -> new StudentException(
-                ErrorCode.STUDENT_NOT_FOUND_BY_SEAT_LABEL));
+        String trimmed = seatLabel.trim();
+        return studentRepository.findBySeatLabelAndStoreId(trimmed, storeId)
+            .orElseThrow(() -> {
+                log.warn("학생 식별 실패 [SEAT]. value: {}, storeId: {}", trimmed, storeId);
+                return new StudentException(
+                    ErrorCode.STUDENT_NOT_FOUND_BY_SEAT_LABEL);
+            });
     }
 
     public Student resolveByPhone(String phone, Long storeId) {
@@ -62,6 +72,7 @@ public class StudentResolverService {
         List<Student> students = studentRepository.findAllByPhoneAndStoreId(
             phone8, storeId);
         if (students.isEmpty()) {
+            log.warn("학생 식별 실패 [PHONE8]. value: {}, storeId: {}", phone8, storeId);
             throw new StudentException(ErrorCode.STUDENT_NOT_FOUND);
         }
         if (students.size() > 1) {
@@ -74,9 +85,12 @@ public class StudentResolverService {
         if (phoneLast4 == null || phoneLast4.isBlank()) {
             throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
         }
+        String trimmed = phoneLast4.trim();
         List<Student> students = studentRepository.findAllByPhoneLast4AndStoreId(
-            phoneLast4.trim(), storeId);
+            trimmed, storeId);
         if (students.isEmpty()) {
+            log.warn("학생 식별 실패 [PHONE_LAST4]. value: {}, storeId: {}",
+                trimmed, storeId);
             throw new StudentException(ErrorCode.STUDENT_NOT_FOUND_BY_PHONE_LAST4);
         }
         if (students.size() > 1) {
@@ -91,8 +105,11 @@ public class StudentResolverService {
         }
         if (studentNumber != null && !studentNumber.isBlank()) {
             return studentRepository.findByStudentNumber(studentNumber)
-                .orElseThrow(() -> new StudentException(
-                    ErrorCode.STUDENT_NOT_FOUND_BY_STUDENT_NUMBER));
+                .orElseThrow(() -> {
+                    log.warn("학생 식별 실패 [STD_NO]. value: {}", studentNumber);
+                    return new StudentException(
+                        ErrorCode.STUDENT_NOT_FOUND_BY_STUDENT_NUMBER);
+                });
         }
         throw new StudentException(ErrorCode.INVALID_STUDENT_IDENTIFIER);
     }
@@ -107,9 +124,14 @@ public class StudentResolverService {
             return resolveByIdentifier(identifier);
         }
         if (studentNumber != null && !studentNumber.isBlank()) {
-            return studentRepository.findByStudentNumber(studentNumber.trim())
-                .orElseThrow(() -> new StudentException(
-                    ErrorCode.STUDENT_NOT_FOUND_BY_STUDENT_NUMBER));
+            String trimmed = studentNumber.trim();
+            return studentRepository.findByStudentNumber(trimmed)
+                .orElseThrow(() -> {
+                    log.warn("학생 식별 실패 [STD_NO]. value: {}, storeId: {}",
+                        trimmed, storeId);
+                    return new StudentException(
+                        ErrorCode.STUDENT_NOT_FOUND_BY_STUDENT_NUMBER);
+                });
         }
         if (phoneLast4 != null && !phoneLast4.isBlank()) {
             return resolveByPhoneLast4(phoneLast4, storeId);

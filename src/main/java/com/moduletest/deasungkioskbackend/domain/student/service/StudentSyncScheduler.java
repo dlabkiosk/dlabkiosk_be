@@ -3,10 +3,8 @@ package com.moduletest.deasungkioskbackend.domain.student.service;
 import com.moduletest.deasungkioskbackend.domain.store.dto.StoreSyncResult;
 import com.moduletest.deasungkioskbackend.domain.store.service.StoreSyncService;
 import com.moduletest.deasungkioskbackend.domain.student.dto.StudentSyncResult;
-import com.moduletest.deasungkioskbackend.domain.sync.entity.SyncHistory;
-import com.moduletest.deasungkioskbackend.domain.sync.entity.SyncStatus;
 import com.moduletest.deasungkioskbackend.domain.sync.entity.SyncType;
-import com.moduletest.deasungkioskbackend.domain.sync.repository.SyncHistoryRepository;
+import com.moduletest.deasungkioskbackend.domain.sync.service.SyncHistoryRecorder;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +19,7 @@ public final class StudentSyncScheduler {
 
     private final StudentSyncService studentSyncService;
     private final StoreSyncService storeSyncService;
-    private final SyncHistoryRepository syncHistoryRepository;
+    private final SyncHistoryRecorder syncHistoryRecorder;
 
     @Scheduled(cron = "${sync.student.cron:0 0 4 * * *}")
     public void syncAll() {
@@ -37,33 +35,10 @@ public final class StudentSyncScheduler {
             StoreSyncResult result = storeSyncService.synchronize();
             log.info("[스케줄러] 지점 동기화 완료 - 생성: {}, 수정: {}, 변경없음: {}",
                 result.created(), result.updated(), result.unchanged());
-
-            SyncStatus status = result.errors().isEmpty()
-                ? SyncStatus.SUCCESS : SyncStatus.PARTIAL;
-            String errorMsg = result.errors().isEmpty()
-                ? null : String.join("; ", result.errors());
-
-            syncHistoryRepository.save(SyncHistory.builder()
-                .syncType(SyncType.STORE)
-                .status(status)
-                .totalCount(result.totalFromDsa())
-                .createdCount(result.created())
-                .updatedCount(result.updated())
-                .failedCount(result.errors().size())
-                .errorMessage(truncate(errorMsg))
-                .startedAt(startedAt)
-                .finishedAt(LocalDateTime.now())
-                .build());
+            syncHistoryRecorder.recordStore(result, startedAt);
         } catch (Exception e) {
             log.error("[스케줄러] 지점 동기화 중 예외 발생 — 학생 동기화는 계속 진행", e);
-
-            syncHistoryRepository.save(SyncHistory.builder()
-                .syncType(SyncType.STORE)
-                .status(SyncStatus.FAILED)
-                .errorMessage(truncate(e.getMessage()))
-                .startedAt(startedAt)
-                .finishedAt(LocalDateTime.now())
-                .build());
+            syncHistoryRecorder.recordFailure(SyncType.STORE, null, e, startedAt);
         }
     }
 
@@ -80,7 +55,8 @@ public final class StudentSyncScheduler {
             int totalFromDsa = 0;
 
             for (StudentSyncResult result : results) {
-                log.info("[스케줄러] {} - DSA: {}명, 생성: {}, 수정: {}, 변경없음: {}, 비활성화: {}, 실패: {}",
+                log.info("[스케줄러] {} - DSA: {}명, 생성: {}, 수정: {}, 변경없음: {},"
+                        + " 비활성화: {}, 실패: {}",
                     result.storeName(), result.totalFromDsa(),
                     result.created(), result.updated(),
                     result.unchanged(), result.deactivated(), result.failed());
@@ -90,45 +66,14 @@ public final class StudentSyncScheduler {
                 totalUpdated += result.updated();
                 totalFailed += result.failed();
 
-                // 지점별 이력 저장
-                SyncStatus storeStatus = result.failed() == 0
-                    ? SyncStatus.SUCCESS : SyncStatus.PARTIAL;
-                String errorMsg = result.errors().isEmpty()
-                    ? null : String.join("; ", result.errors());
-
-                syncHistoryRepository.save(SyncHistory.builder()
-                    .syncType(SyncType.STUDENT)
-                    .storeId(result.storeId())
-                    .status(storeStatus)
-                    .totalCount(result.totalFromDsa())
-                    .createdCount(result.created())
-                    .updatedCount(result.updated())
-                    .failedCount(result.failed())
-                    .errorMessage(truncate(errorMsg))
-                    .startedAt(startedAt)
-                    .finishedAt(LocalDateTime.now())
-                    .build());
+                syncHistoryRecorder.recordStudent(result, startedAt);
             }
 
             log.info("[스케줄러] 학생 동기화 완료: {}개 지점, DSA: {}명, 생성: {}, 수정: {}, 실패: {}",
                 results.size(), totalFromDsa, totalCreated, totalUpdated, totalFailed);
         } catch (Exception e) {
             log.error("[스케줄러] 학생 동기화 중 예외 발생", e);
-
-            syncHistoryRepository.save(SyncHistory.builder()
-                .syncType(SyncType.STUDENT)
-                .status(SyncStatus.FAILED)
-                .errorMessage(truncate(e.getMessage()))
-                .startedAt(startedAt)
-                .finishedAt(LocalDateTime.now())
-                .build());
+            syncHistoryRecorder.recordFailure(SyncType.STUDENT, null, e, startedAt);
         }
-    }
-
-    private String truncate(String value) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() > 1000 ? value.substring(0, 1000) : value;
     }
 }

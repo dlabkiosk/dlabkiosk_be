@@ -51,33 +51,48 @@ public class StudentSyncTxService {
         if (matched != null) {
             String oldRfid = matched.getRfidUid();
             boolean rfidChanging = !equalsNullable(oldRfid, dsaStudent.rfidNo());
-            // Why: 학번 폴백으로 매칭된 경우, rfid가 바뀐다면 같은 지점 내
-            // 다른 row가 이미 그 rfid를 점유 중일 수 있음. 사전 체크로
-            // unique constraint 예외 차단.
-            if (rfidChanging && studentRepository.existsByRfidUidAndStoreId(
-                    dsaStudent.rfidNo(), storeId)) {
-                log.warn("RFID 변경 시 같은 지점 중복 - skip. stdNo: {}, name: {},"
-                        + " oldRfid: {}, newRfid: {}, storeId: {}",
-                    dsaStudent.stdNo(), dsaStudent.stdNm(),
-                    oldRfid, dsaStudent.rfidNo(), storeId);
-                // Why: 옛 동작과 동일하게 syncedStudentIds에 추가하지 않아
-                // 마지막 비활성화 단계에서 이 학생이 비활성화되도록 한다
-                // (rfid 충돌 상태 노출을 위함).
-                return new UpsertOutcome(null, UpsertStatus.SKIPPED);
+            // Why: rfid 동일 + 학번 다름 → 카드 양도/회수 누락된 다른 학생.
+            // 기존 row를 그대로 덮어쓰면 X의 출결/이탈/급식 이력이 Y에게 잘못 귀속됨.
+            // X를 비활성화해 이력을 분리하고, Y는 아래 INSERT 경로로 신규 생성.
+            // deactivate()가 rfid=null로 만들어 unique 충돌도 동시 해소.
+            if (!rfidChanging && isDifferentStudentByStdNo(matched, dsaStudent)) {
+                log.warn("RFID 동일 + 학번 다름 - 다른 학생으로 분리 처리."
+                        + " 기존 studentId: {}, oldName: {}, oldStdNo: {},"
+                        + " newName: {}, newStdNo: {}, rfid: {}, storeId: {}",
+                    matched.getId(), matched.getName(), matched.getStudentNumber(),
+                    dsaStudent.stdNm(), dsaStudent.stdNo(), oldRfid, storeId);
+                matched.deactivate();
+                studentRepository.flush();
+                matched = null;
+            } else {
+                // Why: 학번 폴백으로 매칭된 경우, rfid가 바뀐다면 같은 지점 내
+                // 다른 row가 이미 그 rfid를 점유 중일 수 있음. 사전 체크로
+                // unique constraint 예외 차단.
+                if (rfidChanging && studentRepository.existsByRfidUidAndStoreId(
+                        dsaStudent.rfidNo(), storeId)) {
+                    log.warn("RFID 변경 시 같은 지점 중복 - skip. stdNo: {}, name: {},"
+                            + " oldRfid: {}, newRfid: {}, storeId: {}",
+                        dsaStudent.stdNo(), dsaStudent.stdNm(),
+                        oldRfid, dsaStudent.rfidNo(), storeId);
+                    // Why: 옛 동작과 동일하게 syncedStudentIds에 추가하지 않아
+                    // 마지막 비활성화 단계에서 이 학생이 비활성화되도록 한다
+                    // (rfid 충돌 상태 노출을 위함).
+                    return new UpsertOutcome(null, UpsertStatus.SKIPPED);
+                }
+                // DSA 3.24 실패 시 기존 전화번호 유지
+                String resolvedPhone = phone != null ? phone : matched.getPhone();
+                if (hasChanges(matched, dsaStudent, seat, resolvedPhone)) {
+                    matched.syncFromDsa(
+                        dsaStudent.stdNm(),
+                        dsaStudent.rfidNo(),
+                        dsaStudent.stdNo(),
+                        dsaStudent.hp(),
+                        resolvedPhone,
+                        seat);
+                    return new UpsertOutcome(matched.getId(), UpsertStatus.UPDATED);
+                }
+                return new UpsertOutcome(matched.getId(), UpsertStatus.UNCHANGED);
             }
-            // DSA 3.24 실패 시 기존 전화번호 유지
-            String resolvedPhone = phone != null ? phone : matched.getPhone();
-            if (hasChanges(matched, dsaStudent, seat, resolvedPhone)) {
-                matched.syncFromDsa(
-                    dsaStudent.stdNm(),
-                    dsaStudent.rfidNo(),
-                    dsaStudent.stdNo(),
-                    dsaStudent.hp(),
-                    resolvedPhone,
-                    seat);
-                return new UpsertOutcome(matched.getId(), UpsertStatus.UPDATED);
-            }
-            return new UpsertOutcome(matched.getId(), UpsertStatus.UNCHANGED);
         }
 
         if (studentRepository.existsByRfidUidAndStoreIdNot(
@@ -180,6 +195,20 @@ public class StudentSyncTxService {
             ? student.getAssignedSeat().getId() : null;
         Long newSeatId = seat != null ? seat.getId() : null;
         return !equalsNullable(currentSeatId, newSeatId);
+    }
+
+    // Why: 양쪽 학번이 모두 존재하고 다를 때만 "다른 학생"으로 판정.
+    // 한쪽이 비어있으면 비교 불가 → 기존 동작(같은 학생 가정) 유지해 안전 측 선택.
+    private boolean isDifferentStudentByStdNo(Student matched, DsaStudentData dsa) {
+        String matchedStdNo = matched.getStudentNumber();
+        String dsaStdNo = dsa.stdNo();
+        if (matchedStdNo == null || matchedStdNo.isBlank()) {
+            return false;
+        }
+        if (dsaStdNo == null || dsaStdNo.isBlank()) {
+            return false;
+        }
+        return !matchedStdNo.equals(dsaStdNo);
     }
 
     private boolean equalsNullable(Object a, Object b) {
