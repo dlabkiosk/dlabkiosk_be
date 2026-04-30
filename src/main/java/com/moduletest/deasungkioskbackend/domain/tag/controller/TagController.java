@@ -48,8 +48,8 @@ public class TagController {
     }
 
     @Operation(summary = "출결 확인",
-        description = "승인된 외출/조퇴 신청이 있을 때, 학생이 확인 후 호출한다. "
-            + "D(외출) 또는 C(조퇴)만 허용된다.\n\n"
+        description = "pendingActions에서 학생이 선택한 액션으로 호출한다. "
+            + "D/N(외출/사유외출), C(조퇴), T(하원, 자율등원일·공휴일 등에서 사용자가 명시 선택) 허용.\n\n"
             + "inputMethod 입력 방식:\n"
             + "- RFID: 카드/QR UID로 학생 식별\n"
             + "- PHONE: 전화번호 8자리로 학생 식별\n"
@@ -57,7 +57,9 @@ public class TagController {
             + "- 미입력 시: RFID → 전화번호 8자리(PHONE) 순서로 자동 판별\n\n"
             + "action 값:\n"
             + "- D: 외출\n"
-            + "- C: 조퇴")
+            + "- N: 사유외출\n"
+            + "- C: 조퇴\n"
+            + "- T: 하원")
     @PostMapping("/confirm")
     public CommonResponse<TagResponse> confirmTag(
         @Valid @RequestBody TagConfirmRequest request) {

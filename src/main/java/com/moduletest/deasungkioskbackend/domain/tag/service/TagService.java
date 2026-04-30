@@ -333,10 +333,12 @@ public class TagService {
             .orElseThrow(() -> new KioskException(ErrorCode.STORE_NOT_FOUND));
 
         // action → con_gn 매핑. DSA가 con_gn 기준으로 사유신청 재검증하므로 우리 쪽 사전 검증 불필요.
+        // T(하원)도 con_gn="T"로 명시해야 DSA가 자율등원일/공휴일에 113(userChoice) 재요청 없이 하원 처리함.
         String conGn = switch (request.action()) {
             case D -> "D";
             case N -> "N";
             case C -> "C";
+            case T -> "T";
             default -> "";
         };
 
