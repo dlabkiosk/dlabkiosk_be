@@ -25,34 +25,29 @@ public interface SeatChangeRequestRepository extends JpaRepository<SeatChangeReq
     Optional<SeatChangeRequest> findByIdWithDetails(@Param("id") Long id);
 
     @Query(value = "SELECT r FROM SeatChangeRequest r"
-        + " JOIN FETCH r.student"
+        + " JOIN FETCH r.student s"
         + " JOIN FETCH r.store"
         + " LEFT JOIN FETCH r.currentSeat"
         + " JOIN FETCH r.desiredSeat1"
         + " LEFT JOIN FETCH r.desiredSeat2"
         + " LEFT JOIN FETCH r.desiredSeat3"
         + " LEFT JOIN FETCH r.approvedSeat"
-        + " WHERE r.store.id = :storeId AND r.status = :status",
-        countQuery = "SELECT COUNT(r) FROM SeatChangeRequest r"
-            + " WHERE r.store.id = :storeId AND r.status = :status")
-    Page<SeatChangeRequest> findAllByStoreIdAndStatusWithDetails(
+        + " WHERE (:storeId IS NULL OR r.store.id = :storeId)"
+        + " AND (:status IS NULL OR r.status = :status)"
+        + " AND (:studentName IS NULL OR s.name LIKE CONCAT('%', :studentName, '%'))"
+        + " AND (:studentNumber IS NULL"
+        + "     OR s.studentNumber LIKE CONCAT('%', :studentNumber, '%'))",
+        countQuery = "SELECT COUNT(r) FROM SeatChangeRequest r JOIN r.student s"
+            + " WHERE (:storeId IS NULL OR r.store.id = :storeId)"
+            + " AND (:status IS NULL OR r.status = :status)"
+            + " AND (:studentName IS NULL OR s.name LIKE CONCAT('%', :studentName, '%'))"
+            + " AND (:studentNumber IS NULL"
+            + "     OR s.studentNumber LIKE CONCAT('%', :studentNumber, '%'))")
+    Page<SeatChangeRequest> findPageByFilter(
         @Param("storeId") Long storeId,
         @Param("status") SeatChangeRequestStatus status,
-        Pageable pageable);
-
-    @Query(value = "SELECT r FROM SeatChangeRequest r"
-        + " JOIN FETCH r.student"
-        + " JOIN FETCH r.store"
-        + " LEFT JOIN FETCH r.currentSeat"
-        + " JOIN FETCH r.desiredSeat1"
-        + " LEFT JOIN FETCH r.desiredSeat2"
-        + " LEFT JOIN FETCH r.desiredSeat3"
-        + " LEFT JOIN FETCH r.approvedSeat"
-        + " WHERE r.status = :status",
-        countQuery = "SELECT COUNT(r) FROM SeatChangeRequest r"
-            + " WHERE r.status = :status")
-    Page<SeatChangeRequest> findAllByStatusWithDetails(
-        @Param("status") SeatChangeRequestStatus status,
+        @Param("studentName") String studentName,
+        @Param("studentNumber") String studentNumber,
         Pageable pageable);
 
     boolean existsByStudentIdAndStatus(Long studentId, SeatChangeRequestStatus status);

@@ -208,14 +208,13 @@ public class SeatChangeRequestService {
 
     public Page<SeatChangeRequestResponse> findAllRequests(Long storeId,
                                                            SeatChangeRequestStatus status,
+                                                           String studentName,
+                                                           String studentNumber,
                                                            Pageable pageable) {
-        if (storeId != null) {
-            return seatChangeRequestRepository
-                .findAllByStoreIdAndStatusWithDetails(storeId, status, pageable)
-                .map(SeatChangeRequestResponse::fromEntity);
-        }
+        String name = (studentName == null || studentName.isBlank()) ? null : studentName;
+        String number = (studentNumber == null || studentNumber.isBlank()) ? null : studentNumber;
         return seatChangeRequestRepository
-            .findAllByStatusWithDetails(status, pageable)
+            .findPageByFilter(storeId, status, name, number, pageable)
             .map(SeatChangeRequestResponse::fromEntity);
     }
 

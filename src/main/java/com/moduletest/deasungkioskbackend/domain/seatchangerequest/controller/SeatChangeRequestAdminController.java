@@ -31,14 +31,22 @@ public class SeatChangeRequestAdminController {
     private final SeatChangeRequestService seatChangeRequestService;
 
     @Operation(summary = "좌석 변경 신청 목록 조회",
-        description = "MANAGER: 자기 지점만. ADMIN: 전체. 상태별 필터링 가능. 기본 PENDING.")
+        description = "MANAGER: 자기 지점만 (storeId 무시). ADMIN: storeId 없으면 전체, 있으면 해당 지점만. "
+            + "status 생략 시 전체 상태 조회 (PENDING/APPROVED/REJECTED 합산). "
+            + "studentName/studentNumber는 부분일치 검색. "
+            + "페이지네이션: ?page=0&size=20&sort=createdAt,desc")
     @GetMapping
     public CommonResponse<PageResponse<SeatChangeRequestResponse>> findAllRequests(
-            @RequestParam(defaultValue = "PENDING") SeatChangeRequestStatus status,
-            @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
-        Long storeId = SecurityUtil.resolveStoreId(null);
-        Page<SeatChangeRequestResponse> page =
-            seatChangeRequestService.findAllRequests(storeId, status, pageable);
+            @RequestParam(required = false) SeatChangeRequestStatus status,
+            @RequestParam(required = false) Long storeId,
+            @RequestParam(required = false) String studentName,
+            @RequestParam(required = false) String studentNumber,
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt",
+                direction = org.springframework.data.domain.Sort.Direction.DESC)
+            Pageable pageable) {
+        Long resolvedStoreId = SecurityUtil.resolveStoreId(storeId);
+        Page<SeatChangeRequestResponse> page = seatChangeRequestService
+            .findAllRequests(resolvedStoreId, status, studentName, studentNumber, pageable);
         return CommonResponse.success(PageResponse.from(page));
     }
 
