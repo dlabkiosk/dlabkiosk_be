@@ -169,33 +169,28 @@ public class TagService {
                     .build();
             }
 
-            // 미등원 학생에게 DSA가 사유신청 선택지(code 126/128/129) 응답 — 비정상.
-            // 조퇴/사유외출은 등원 후에만 의미 있는데 첫 태그에 선택지가 오는 케이스.
-            // DSA 의도 확인 필요. 우선 DB 로깅하고 사용자엔 데스크 안내 노출.
+            // 우리 DB 미등원이지만 DSA가 사유신청 선택지(code 126/128/129) 응답.
+            // = DSA에는 등원중 + 사유신청 승인 있음 (수기등원 학생). prompts 노출하여 confirmTag 호출 유도.
             if (dsaResult.hasApprovalPrompts()) {
-                log.warn("DSA 미등원 학생에게 사유신청 선택지 응답 - DSA 의도 확인 필요."
-                        + " studentId: {}, storeId: {}, prompts: {}",
-                    student.getId(), storeId, dsaResult.approvalPrompts().size());
-                dsaAnomalyLogService.log(
-                    storeId, student.getRfidUid(), "/kiosk/tag",
-                    "PRE_CHECKIN_APPROVAL_PROMPTS",
-                    Map.of("studentId", student.getId(),
-                        "studentName", student.getName(),
-                        "studentNumber", student.getStudentNumber(),
-                        "promptCount", dsaResult.approvalPrompts().size()),
-                    dsaResult,
-                    "미등원 학생에게 DSA가 사유신청 선택지(code 126/128/129) 응답 - "
-                        + "DSA 의도 확인 필요");
+                List<PendingAction> pendingActions = dsaResult.approvalPrompts().stream()
+                    .map(p -> new PendingAction(p.action(), p.message(), null))
+                    .toList();
                 return TagResponse.builder()
-                    .processed(true)
+                    .processed(false)
                     .studentId(student.getId())
                     .studentName(student.getName())
                     .studentNumber(student.getStudentNumber())
                     .seatLabel(getSeatLabel(student))
+                    .pendingActions(pendingActions)
                     .dsaSynced(true)
-                    .messages(List.of("처리할 수 없는 상태입니다. 데스크로 문의해주세요."))
                     .mealInfo(mealInfo)
                     .build();
+            }
+
+            // DSA가 자동 판별 못 함 (code 113) — 사용자가 하원/외출 직접 선택.
+            // handleCheckedInTag와 동일하게 처리.
+            if (dsaResult.userChoice()) {
+                return buildFreeChoiceResponse(student, mealInfo);
             }
 
             if (!dsaResult.dsaSynced() || dsaResult.action() == null) {
@@ -213,10 +208,30 @@ public class TagService {
                     .build();
             }
 
-            AttendAction action = (dsaResult.action() == AttendAction.A)
-                ? AttendAction.A : AttendAction.S;
-            TagResponse response = handleCheckIn(
-                action, student, storeId, dsaResult.dsaSynced());
+            // 우리 DB에 등원 row 없는 상태에서 DSA가 알려준 액션대로 처리.
+            // DSA가 S/A 외 응답을 줬다는 건 DSA만 등원중인 상태 (수기등원 등). 필요한 row 백필 후 처리.
+            AttendAction action = dsaResult.action();
+            TagResponse response = switch (action) {
+                case S, A -> handleCheckIn(action, student, storeId, true);
+                case T -> {
+                    backfillAttendance(student, store);
+                    yield handleCheckOut(AttendAction.T, student, storeId, true);
+                }
+                case C -> {
+                    backfillAttendance(student, store);
+                    yield handleCheckOut(AttendAction.C, student, storeId, true);
+                }
+                case D, N -> {
+                    backfillAttendance(student, store);
+                    yield handleOutingStart(action, student, storeId, true);
+                }
+                case R -> {
+                    backfillAttendance(student, store);
+                    backfillOuting(student, store);
+                    yield handleOutingEnd(AttendAction.R, student, storeId, true);
+                }
+                default -> throw new AttendanceException(ErrorCode.DSA_SYNC_FAILED);
+            };
             recordMealUnappliedIfNeeded(student, store, mealType, mealInfo, today, action.name());
             return withMealInfo(response, mealInfo);
         }
@@ -310,12 +325,16 @@ public class TagService {
                 .build();
         }
 
-        // DSA가 명시한 액션대로 처리
+        // DSA가 명시한 액션대로 처리.
+        // R(복귀)인데 우리 DB에 외출 row 없으면 (수기 외출 케이스) Outing 백필 후 처리.
         TagResponse response = switch (result.action()) {
             case T -> handleCheckOut(AttendAction.T, student, storeId, true);
             case C -> handleCheckOut(AttendAction.C, student, storeId, true);
             case D, N -> handleOutingStart(result.action(), student, storeId, true);
-            case R -> handleOutingEnd(AttendAction.R, student, storeId, true);
+            case R -> {
+                backfillOutingIfMissing(student, store);
+                yield handleOutingEnd(AttendAction.R, student, storeId, true);
+            }
             default -> throw new AttendanceException(ErrorCode.DSA_SYNC_FAILED);
         };
         return withMealInfo(response, mealInfo);
@@ -361,6 +380,9 @@ public class TagService {
                     student.getId(), LocalDate.now(), mealType);
             }
         }
+
+        // 수기등원 케이스 — 우리 DB에 등원 row 없으면 여기서 백필. 이후 핸들러가 정상 동작.
+        backfillAttendanceIfMissing(student, store);
 
         return switch (request.action()) {
             case D, N -> handleOutingStart(
@@ -872,6 +894,59 @@ public class TagService {
     private void validateStudentStore(Student student, Long storeId) {
         if (!student.getStore().getId().equals(storeId)) {
             throw new KioskException(ErrorCode.STUDENT_NOT_IN_THIS_STORE);
+        }
+    }
+
+    // ── 백필 헬퍼 ──
+    // 수기등원/수기외출처럼 DSA에만 상태가 있고 우리 DB엔 row가 없는 케이스 대응.
+    // checkInAt/startedAt은 현재시각으로 박힘. 어드민이 PUT /admin/attendances/check-in-time으로 보정 가능.
+
+    private void backfillAttendance(Student student, Store store) {
+        Attendance attendance = Attendance.builder()
+            .student(student)
+            .store(store)
+            .checkInAt(LocalDateTime.now())
+            .build();
+        attendanceRepository.save(attendance);
+        log.info("Attendance 백필 (수기등원 대응). studentId: {}, storeId: {}",
+            student.getId(), store.getId());
+    }
+
+    private void backfillAttendanceIfMissing(Student student, Store store) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+
+        boolean exists = attendanceRepository
+            .findTodayAttendanceByStudentAndStatus(
+                student.getId(), startOfDay, endOfDay, AttendanceStatus.CHECKED_IN)
+            .isPresent();
+        if (!exists) {
+            backfillAttendance(student, store);
+        }
+    }
+
+    private void backfillOuting(Student student, Store store) {
+        Outing outing = Outing.builder()
+            .student(student)
+            .store(store)
+            .startedAt(LocalDateTime.now())
+            .build();
+        outingRepository.save(outing);
+        log.info("Outing 백필 (수기외출 대응). studentId: {}, storeId: {}",
+            student.getId(), store.getId());
+    }
+
+    private void backfillOutingIfMissing(Student student, Store store) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+
+        boolean exists = outingRepository
+            .findActiveOutingByStudentToday(student.getId(), startOfDay, endOfDay)
+            .isPresent();
+        if (!exists) {
+            backfillOuting(student, store);
         }
     }
 
