@@ -25,7 +25,10 @@ public class WebConfig implements WebMvcConfigurer {
                     "http://localhost:5174",
                     "http://localhost:5175",
                     "https://deasung-kiosk-frontend.vercel.app",
-                    "https://kiosk-lake-sigma.vercel.app")
+                    "https://kiosk-lake-sigma.vercel.app",
+                    "https://dlabkiosk.com",
+                    "https://www.dlabkiosk.com",
+                    "https://admin.dlabkiosk.com")
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)
