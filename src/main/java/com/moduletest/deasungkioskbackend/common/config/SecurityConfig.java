@@ -57,8 +57,8 @@ public class SecurityConfig {
                     objectMapper.writeValue(response.getWriter(), body);
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
-                    Object exception = request.getAttribute("exception");
-                    if ("EXPIRED_TOKEN".equals(exception)) {
+                    Object tokenException = request.getAttribute("exception");
+                    if ("EXPIRED_TOKEN".equals(tokenException)) {
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                         response.setCharacterEncoding("UTF-8");
@@ -67,7 +67,7 @@ public class SecurityConfig {
                         objectMapper.writeValue(response.getWriter(), body);
                         return;
                     }
-                    if ("INVALID_TOKEN".equals(exception)) {
+                    if ("INVALID_TOKEN".equals(tokenException)) {
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                         response.setCharacterEncoding("UTF-8");
