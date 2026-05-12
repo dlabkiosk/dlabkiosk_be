@@ -27,7 +27,6 @@ public class WebConfig implements WebMvcConfigurer {
                     "https://deasung-kiosk-frontend.vercel.app",
                     "https://kiosk-lake-sigma.vercel.app",
                     "https://dlabkiosk.com",
-                    "https://www.dlabkiosk.com",
                     "https://admin.dlabkiosk.com")
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
