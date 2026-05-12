@@ -15,7 +15,7 @@ public final class CookieUtil {
     public static void addAccessToken(HttpServletResponse response, String token, long maxAgeMillis) {
         ResponseCookie cookie = ResponseCookie.from("accessToken", token)
             .httpOnly(true)
-            .secure(false)
+            .secure(true)
             .path("/")
             .maxAge(Duration.ofMillis(maxAgeMillis))
             .sameSite("Strict")
@@ -26,7 +26,7 @@ public final class CookieUtil {
     public static void addRefreshToken(HttpServletResponse response, String token, long maxAgeMillis) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", token)
             .httpOnly(true)
-            .secure(false)
+            .secure(true)
             .path("/api/v1/admin/auth")
             .maxAge(Duration.ofMillis(maxAgeMillis))
             .sameSite("Strict")
@@ -37,7 +37,7 @@ public final class CookieUtil {
     public static void clearAccessToken(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from("accessToken", "")
             .httpOnly(true)
-            .secure(false)
+            .secure(true)
             .path("/")
             .maxAge(0)
             .sameSite("Strict")
@@ -48,7 +48,7 @@ public final class CookieUtil {
     public static void clearRefreshToken(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
             .httpOnly(true)
-            .secure(false)
+            .secure(true)
             .path("/api/v1/admin/auth")
             .maxAge(0)
             .sameSite("Strict")
