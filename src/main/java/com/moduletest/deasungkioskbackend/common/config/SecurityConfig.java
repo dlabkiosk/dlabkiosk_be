@@ -57,6 +57,25 @@ public class SecurityConfig {
                     objectMapper.writeValue(response.getWriter(), body);
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    Object exception = request.getAttribute("exception");
+                    if ("EXPIRED_TOKEN".equals(exception)) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                        response.setCharacterEncoding("UTF-8");
+                        CommonResponse<?> body = CommonResponse.error("A008",
+                            "토큰이 만료되었습니다");
+                        objectMapper.writeValue(response.getWriter(), body);
+                        return;
+                    }
+                    if ("INVALID_TOKEN".equals(exception)) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                        response.setCharacterEncoding("UTF-8");
+                        CommonResponse<?> body = CommonResponse.error("A006",
+                            "인증이 필요합니다");
+                        objectMapper.writeValue(response.getWriter(), body);
+                        return;
+                    }
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     response.setCharacterEncoding("UTF-8");
